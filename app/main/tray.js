@@ -9,7 +9,9 @@ function createTray(electron, { showMain, quit }) {
   let icon;
   const iconPath = path.join(__dirname, 'tray.png');
   if (fs.existsSync(iconPath)) icon = iconPath;
-  else icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAF0lEQVR4nGP8z8Dwn4EIwESMolGJMQIAbwQEAU9kJkIAAAAASUVORK5CYII=');
+  // visible yellow fallback — the old placeholder was fully transparent,
+  // which made the tray icon look "missing" (F16 手工项)
+  else icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAE0lEQVR4nGP4f0PtPz7MMDIUAACZBr8B5UK3UgAAAABJRU5ErkJggg==');
   const tray = new Tray(icon);
   tray.setToolTip('MyAgent');
   tray.setContextMenu(Menu.buildFromTemplate([
