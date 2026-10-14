@@ -117,31 +117,49 @@ try {
         } catch { Log ('WARN could not trust cert (elevate if registration fails): ' + $_.Exception.Message) }
     }
 
-    # 2) pack + sign (MakeAppx/SignTool ship with the Windows SDK; when absent,
-    #    fall back to Add-AppxPackage on the raw manifest dir which Windows 10+ accepts
-    #    for sparse registration only when signed — report a clear error otherwise)
+    # 2) pack + sign with the Windows SDK signing tools (PATH first, then the
+    #    standard Windows Kits install dir); the pfx is exported from the
+    #    self-signed cert created in step 1.
     $pkgPath = Join-Path $env:TEMP 'MyAgentShare.msix'
     $makeappx = Get-Command makeappx.exe -ErrorAction SilentlyContinue
     $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if (-not ($makeappx -and $signtool)) {
+        $kit = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Include makeappx.exe, signtool.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.DirectoryName -like '*\x64' }
+        if ($kit) {
+            $makeappx = $kit | Where-Object Name -eq 'makeappx.exe' | Sort-Object FullName -Descending | Select-Object -First 1
+            $signtool = $kit | Where-Object Name -eq 'signtool.exe' | Sort-Object FullName -Descending | Select-Object -First 1
+        }
+    }
     if ($makeappx -and $signtool) {
         $staging = Join-Path $env:TEMP 'MyAgentShare-pkg'
         if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
         New-Item -ItemType Directory -Force -Path $staging | Out-Null
         Copy-Item $manifestPath (Join-Path $staging 'AppxManifest.xml')
-        Copy-Item (Join-Path $instDir 'share-target\MyAgentShareTarget.cmd') $staging
-        & $makeappx.Path pack /o /d $staging /p $pkgPath 2>&1 | ForEach-Object { Log ('makeappx: ' + $_) }
-        & $signtool.Path sign /fd SHA256 /a /f (Join-Path $instDir 'share-target\MyAgentShare.pfx') $pkgPath 2>&1 | ForEach-Object { Log ('signtool: ' + $_) }
+        Copy-Item (Join-Path $instDir 'share-target\assets') (Join-Path $staging 'share-target\assets') -Recurse
+        & $makeappx.FullName pack /o /d $staging /p $pkgPath 2>&1 | ForEach-Object { Log ('makeappx: ' + $_) }
+        $pfx = Join-Path $instDir 'share-target\MyAgentShare.pfx'
+        if (-not (Test-Path $pfx)) {
+            $pfxPass = ConvertTo-SecureString -String $(if ($env:MYAGENT_SHT_PFX_PASS) { $env:MYAGENT_SHT_PFX_PASS } else { 'myagent-share' }) -Force -AsPlainText
+            Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $pfxPass | Out-Null
+            Log 'pfx exported'
+        }
+        & $signtool.FullName sign /fd SHA256 /a /f $pfx /p $(if ($env:MYAGENT_SHT_PFX_PASS) { $env:MYAGENT_SHT_PFX_PASS } else { 'myagent-share' }) $pkgPath 2>&1 | ForEach-Object { Log ('signtool: ' + $_) }
     } else {
-        Log 'makeappx/signtool not on PATH; attempting raw Add-AppxPackage -Register'
+        Log 'makeappx/signtool not found (PATH + Windows Kits); attempting raw Add-AppxPackage -Register (will fail 0x80073CFF: unsigned)'
         $pkgPath = $manifestPath
     }
 
-    # 3) register (sparse: files stay in place; ExternalLocation per MS docs)
+    # 3) register (sparse): signed msix → -Path + ExternalLocation;
+    #    unsigned fallback keeps the raw-manifest register probe for diagnostics
     $out = Invoke-AppxJob -Desc 'Add-AppxPackage' -Operation {
         param($p, $loc)
         try {
-            if ($p -like '*.msix') { Add-AppxPackage -Path $p -ErrorAction Stop }
-            else { Add-AppxPackage -Register $p -ExternalLocation $loc -ErrorAction Stop }
+            if ($p -like '*.msix') {
+                $added = Add-AppxPackage -Path $p -ExternalLocation $loc -ErrorAction Stop
+            } else {
+                Add-AppxPackage -Register $p -ExternalLocation $loc -ErrorAction Stop
+            }
             'ADD_OK'
         } catch { 'ADD_ERR ' + $_.Exception.Message }
     } -ArgumentList @($pkgPath, $instDir)
