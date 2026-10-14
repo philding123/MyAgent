@@ -32,10 +32,21 @@ function createMain(deps) {
   win.loadFile(path.join(RENDERER, 'index.html'));
   win.on('closed', () => windows.delete('main'));
   win.on('close', (e) => {
-    // close-to-tray for the main window (personal-use choice, F16)
-    if (!global.__myagentQuitting && process.platform === 'win32' && !process.env.MYAGENT_SMOKE) {
+    // close-to-tray for the main window (personal-use choice, F16). Only hide
+    // when a tray actually exists — hiding without a tray leaves no way back.
+    if (!global.__myagentQuitting && process.platform === 'win32' && !process.env.MYAGENT_SMOKE && global.__myagentTray) {
       e.preventDefault();
       win.hide();
+      if (!global.__myagentTrayAnnounced) {
+        global.__myagentTrayAnnounced = true;
+        try {
+          global.__myagentTray.displayBalloon({
+            title: 'MyAgent 仍在运行',
+            content: '已最小化到托盘（任务栏右下角 ^ 隐藏图标区），点击托盘图标恢复',
+            iconType: 'info',
+          });
+        } catch (_) {}
+      }
     }
   });
   windows.set('main', win);

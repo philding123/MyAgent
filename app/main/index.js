@@ -109,6 +109,10 @@ async function bootstrap() {
     showMain: () => { const w = windows.createMain(null); w.show(); },
     quit: () => { global.__myagentQuitting = true; app.quit(); },
   });
+  // tray must exist BEFORE the main window: the close-to-tray path in
+  // windows.js refuses to hide when global.__myagentTray is unset.
+  global.__myagentTray = tray;
+  tray.on('double-click', () => { const w = windows.createMain(null); w.show(); });
 
   windows.createMain({ onCreated: (_name, win) => { win.webContents.on('did-finish-load', deliverPendingUrls); } });
 
