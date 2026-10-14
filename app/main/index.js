@@ -16,15 +16,18 @@ let updater = null;
 let smokeResult = { steps: [], ok: true };
 const pendingUrls = [];
 
-if (process.env.MYAGENT_SMOKE) {
-  // headless-ish smoke: on busy machines the sandboxed GPU process can
-  // crash-loop (bare electron repro: --no-sandbox recovers) and wedge
-  // BrowserWindow creation; smoke asserts logic, not compositing
-  app.commandLine.appendSwitch('no-sandbox');
-  app.commandLine.appendSwitch('disable-gpu');
-  app.commandLine.appendSwitch('disable-gpu-compositing');
-  app.disableHardwareAcceleration();
-}
+// GPU process crash-loops on this machine (exit_code=-2147483645, only inside
+// the Chromium sandbox → "GPU process isn't usable. Goodbye.") and kills the
+// app before any window shows; --disable-gpu alone does NOT recover it, the
+// proven combo is no-sandbox + disable-gpu (bare-electron repro, smoke runs).
+// Trade-off, accepted for this personal local app: pages are loadFile-local
+// only, CSP default-src 'self', contextIsolation on, nodeIntegration off, and
+// the renderer reaches the system solely through the narrow daemon RPC. The
+// file/command sandbox lives in the daemon layer and is unaffected.
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.disableHardwareAcceleration();
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
