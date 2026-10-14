@@ -68,6 +68,9 @@ let unitTests = [], intTests = [];
 // 3) e2e electron smoke — the Electron process tree can outlive process.exit()
 // on Windows, so poll the result JSON and force-kill leftovers afterwards.
 {
+  // best-effort: vendor the Electron-ABI SQLite so the smoke reports the real
+  // store mode (missing vendor = JSON fallback, non-fatal by design)
+  run('electron-sqlite', process.execPath, ['scripts/setup-electron-sqlite.mjs'], { log: false, timeout: 330000 });
   const out = path.join(ART, 'smoke-result.json');
   if (existsSync(out)) fs.rmSync(out);
   const electronJs = path.join(ROOT, 'node_modules', 'electron', 'cli.js');

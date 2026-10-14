@@ -3,19 +3,17 @@
 ## Now
 
 - 手工抽查第 4 项：托盘点击交互（显示/恢复/退出）——留待日常使用验证，无代码工作。
-- F23 手工项：真实 Telegram bot token 收发一轮（slack/discord/feishu/dingtalk 骨架按需接 token）。
+- 下次日常启动验证：selfcheck 应显示 store.mode=sqlite，旧会话经 store.json 一次性迁移可见。
 
 ## Next
 
-- F24 手工项：管理员运行 `share-target/register.ps1` 后右键分享一个文件端到端验证。
-- F21 手工项：自建更新源（manifest+zip）走一次完整 apply + 过渡窗重启。
-- electron-rebuild 引入评估：让 Electron 运行时用真 SQLite（消除 JSON 降级），评估原生构建链维护成本。
+- F24 手工项（一次管理员会话）：开发者模式 + SDK makeappx/signtool 签名 + 证书入 TrustedPeople → Add-AppxPackage；激活 argv 契约观察后定稿转发器（可顺带逆 WorkBuddyShareTarget.exe，带 PDB）。
+- F27 手工项：有 e2b 账号时云内跑一次命令；F26 两台机器目录同步互通。
 
 ## Later
 
-- WorkBuddy 原生模块深挖（sandbox-center.exe / tsbx.dll / turing-sdk）：用已就绪的 WSL Ghidra 引擎（ADR 2026-10-14-wsl-ghidra-native-analysis-engine）。
-- F27 手工项：有 e2b 账号时云内跑一次命令；F26 两台机器目录同步互通。
-- A2A 扩展面（streaming / task 生命周期）与 IM 骨架平台真实 WS 传输。
+- WorkBuddy 原生模块深挖（sandbox-center.exe / tsbx.dll / turing-sdk / WorkBuddyShareTarget.exe）：用已就绪的 WSL Ghidra 引擎（ADR 2026-10-14-wsl-ghidra-native-analysis-engine）。
+- A2A 扩展面（streaming / task 生命周期）与 IM 骨架平台真实 WS 传输（需各平台 token）。
 
 ## Blocked
 
@@ -23,6 +21,7 @@
 
 ## Recently Done
 
+- **Done (2026-10-14) 手工项第二轮：F21 完整 apply E2E 全过；F24 注册 schema 推进至签名/信任边界（剩余三步文档化）；真 SQLite in Electron 落地（双 ABI vendored + 迁移，降级消除，verify T01–T28 仍全绿）。_(retired 2026-10-14)_
 - **Done (2026-10-14) Phase 2–4 全落地：F19–F28 十个功能点实现并逐项验证（T01–T28 全绿：49 单测 + 41 集成 + 21 冒烟步），支付仍排除；design/20–26 七份新设计文档，90-deferred 改记去向。_(retired 2026-10-14)_
 - **Done (2026-10-14) git init + 首次提交；project-memory 脚本 flock 兼容修复（Git Bash 下 mkdir 锁回退）。_(retired 2026-10-14)_
 - **Done (2026-10-14) 分级项目地图建立：20 份 CLAUDE/AGENTS/GEMINI 指南，链接与行数校验通过。_(retired 2026-10-14)_

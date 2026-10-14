@@ -12,7 +12,7 @@
 ## Now
 
 - 手工抽查第 4 项：托盘点击交互（显示/恢复/退出）——留待日常使用验证，无代码工作。
-- F23 手工项：真实 Telegram bot token 收发一轮（slack/discord/feishu/dingtalk 骨架按需接 token）。
+- 下次日常启动验证：selfcheck 应显示 store.mode=sqlite，旧会话经 store.json 一次性迁移可见。
 
 ## Recent Activity
 

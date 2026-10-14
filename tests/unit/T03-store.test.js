@@ -66,3 +66,26 @@ test('T03 sqlite store corrupt recovery', { skip: !(() => { try { require('bette
     assert.strictEqual(st.recovered, true);
     assert.strictEqual(st.health().ok, true);
   });
+
+test('T03 json→sqlite migration absorbs an empty-db snapshot', { skip: !(() => { try { require('better-sqlite3'); return true; } catch (_) { return false; } })() },
+  () => {
+    const { migrateJsonSnapshot } = require('../../app/daemon/store');
+    const real = fs.mkdtempSync(path.join(os.tmpdir(), 'myagent-t03-mig-'));
+    // eslint-disable-next-line global-require
+    const Database = require('better-sqlite3');
+    const st = new SqliteStore(Database, path.join(real, 'db.sqlite'));
+    const counts = migrateJsonSnapshot(st, {
+      sessions: [{ id: 's1', title: 'legacy', mode: 'craft', cwd: 'C:\w', created_at: 123456 }],
+      messages: [{ session_id: 's1', role: 'user', content: 'hello legacy', created_at: 123457 }],
+      settings: { 'llm.model': 'gpt-x', 'llm.apiKey': 'SECRET-should-skip' },
+      memory: [{ kind: 'fact', content: 'remember me' }],
+    });
+    assert.strictEqual(counts.sessions, 1);
+    assert.strictEqual(counts.messages, 1);
+    assert.strictEqual(st.listSessions().length, 1);
+    assert.strictEqual(st.getSession('s1').title, 'legacy');
+    assert.ok(st.listMessages('s1').some((m) => m.content === 'hello legacy'));
+    assert.strictEqual(st.getSetting('llm.model'), 'gpt-x');
+    assert.strictEqual(st.getSetting('llm.apiKey'), null, 'apiKey never migrates (vault-only)');
+    assert.strictEqual(st.listMemory().length, 1);
+  });

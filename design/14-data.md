@@ -13,6 +13,11 @@
 - `Store` 接口：`sessions/messages/settings/memory/logs` 五组 DAO + `health()` + `checkpoint()`。
 - SQLite 实现（better-sqlite3，WAL；表结构见 01-architecture §3）；JSON 实现（同接口，
   `runtime-data/store.json`，原子写 tmp+rename）。启动探测 better-sqlite3 可加载 → sqlite，否则 json。
+  **2026-10-14 双 ABI 落地**：Electron 下优先加载 `vendor/better-sqlite3-electron/`
+  （官方 Electron v136 预编译，`node scripts/setup-electron-sqlite.mjs` 生成，npmmirror 镜像优先，
+  verify 冒烟前自动 best-effort），Electron 运行时已实跑 sqlite（冒烟 selfcheck mode=sqlite）；
+  vendor 缺失自动回退 json。首次切换时若存在旧 `store.json` 且新库为空 →
+  `migrateJsonSnapshot` 一次性导入（apiKey 除外，仅 vault），旧文件改名 `store.json.pre-sqlite`。
 - 打开失败（SQLITE_CORRUPT 等）：把库文件改名 `.corrupt-<ts>` 备份后重建，并返回
   `recovered:true` 供 UI 弹提示（对应 database-recovery-modal）。
 - 迁移：首次启动若发现旧版 JSON（无此场景则跳过）——保留 `store.migrate()` 钩子

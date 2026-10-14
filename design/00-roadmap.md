@@ -93,7 +93,7 @@ myagent/
 
 ## 五、风险与降级路径（详见 01-architecture.md §6）
 
-- `better-sqlite3`（原生，Electron ABI）：优先用官方 Electron prebuild；失败降级 JSON 存储适配器（接口不变）。
+- `better-sqlite3`（原生，Electron ABI）：已实施双 ABI 方案（2026-10-14）——node_modules 保持 Node ABI 供测试层用，`scripts/setup-electron-sqlite.mjs` 把官方 Electron v136 预编译 vendor 到 `vendor/better-sqlite3-electron/`（npmmirror 镜像优先），daemon 在 Electron 下优先加载之；Electron 运行时 store.mode 已为 sqlite。vendor 缺失时仍降级 JSON（接口不变），另含 store.json→sqlite 一次性迁移。
 - `node-pty`：优先 `@lydell/node-pty` 预编译产物；失败降级 `child_process` 管道终端（无 ANSI 全支持，F14 标注 degraded）。
 - Electron 下载慢/失败：允许 `ELECTRON_MIRROR` 环境变量。
 - 大模型：默认对接任意 OpenAI 兼容端点（个人自备 key/baseURL），测试用本地 mock server，不依赖外网。

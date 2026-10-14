@@ -7,3 +7,5 @@ app/renderer/dist/
 .claude/memory/
 *.log
 artifacts/smoke-debug.json
+vendor/
+share-target/MyAgentShareTarget.exe

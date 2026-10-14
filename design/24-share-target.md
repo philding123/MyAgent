@@ -42,3 +42,18 @@
 
 - 未注册（未跑脚本）：功能纯增量缺失，主程序不受影响。
 - Add-AppxPackage 被策略阻止：脚本 exit 1/4，自愈会在下次启动重试；文档写明手动路径。
+
+## 2026-10-14 真机注册尝试记录（非管理员）
+
+逐轮修正 schema 至完全合法，剩余边界为签名/信任（错误来自真实 Add-AppxPackage）：
+
+| 轮次 | 错误 | 修正 |
+|---|---|---|
+| 1 | 0x80080204 `Executable` 违反 `.+\.exe` pattern（.cmd 不合法） | 占位 `MyAgentShareTarget.exe`（cmd.exe 副本）；真实转发器语义待注册成功后按实际激活 argv 定稿（WorkBuddy 用带 PDB 的 helper exe，见"原生深挖"） |
+| 2 | 行 31 需 `runFullTrust` 能力 | 补 `rescap:Capability Name="runFullTrust"` |
+| 3 | 0x80073CFF **Unsigned 包需要开发者模式/旁加载 + 签名** | 清单与脚本已就绪；剩余三步已写入脚本日志与 99-test-plan 手工清单 |
+
+**剩余三步**（一次管理员会话内完成）：① 系统设置→开发者选项→开发人员模式；
+② Windows SDK 的 makeappx+signtool 打包并用自签证书签名（register.ps1 已能建证书）；
+③ 证书入 LocalMachine\TrustedPeople（管理员）→ `Add-AppxPackage -Path MyAgentShare.msix`。
+激活 argv 契约观察 + helper 转发器定稿在注册成功后进行（可顺带逆 `WorkBuddyShareTarget.exe`，带 PDB）。

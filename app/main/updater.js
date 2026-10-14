@@ -90,13 +90,13 @@ class Updater {
   }
 
   /** Apply a downloaded update. exe → detached installer; zip → staged swap via update.bat. */
-  apply({ appRoot, exeName, quitFn, spawnImpl }) {
+  apply({ appRoot, exeName, quitFn, spawnImpl, transition }) {
     const doSpawn = spawnImpl || spawn;
     if (this.state.stage !== 'ready' || !this.state.downloadedFile) {
       return { ok: false, reason: 'nothing ready to apply' };
     }
     const file = this.state.downloadedFile;
-    this.spawnTransitionWindow();
+    this.spawnTransitionWindow(transition);
     if (/\.exe$/i.test(file)) {
       doSpawn(file, ['/S'], { detached: true, stdio: 'ignore' }).unref();
     } else {
@@ -112,7 +112,7 @@ class Updater {
       fs.writeFileSync(bat, [
         '@echo off',
         `:waitloop`,
-        `tasklist /FI "IMAGENAME eq ${exeName}" | find /I "${exeName}" >nul && (timeout /t 1 /nul >nul & goto waitloop)`,
+        `tasklist /FI "IMAGENAME eq ${exeName}" | find /I "${exeName}" >nul && (timeout /t 1 /nobreak >nul & goto waitloop)`,
         `xcopy /E /Y /I "${stage}\\*" "${appRoot}\\" >nul`,
         `start "" "${path.join(appRoot, exeName)}"`,
         'del "%~f0"',
@@ -125,15 +125,21 @@ class Updater {
   }
 
   /** WorkBuddy evidence mechanism: wscript VBS relay → hidden PowerShell WinForms. */
-  spawnTransitionWindow({ scriptDir } = {}) {
+  spawnTransitionWindow(opts) {
     try {
-      const dir = scriptDir || path.join(__dirname, '..', '..', 'scripts', 'update');
+      const dir = (opts && opts.scriptDir) || path.join(__dirname, '..', '..', 'scripts', 'update');
       const vbs = path.join(dir, 'update-transition.vbs');
       const ps1 = path.join(dir, 'update-transition.ps1');
       if (!fs.existsSync(vbs) || !fs.existsSync(ps1)) return false;
+      const o = opts || {};
       spawn('wscript.exe', [vbs, ps1,
         '-AppProcessName', path.basename(process.execPath, '.exe'),
-        '-OldAppProcessId', String(process.pid)], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+        '-OldAppProcessId', String(process.pid),
+        '-TimeoutSeconds', String(o.timeoutSeconds ?? 120),
+        '-MaxInstallSeconds', String(o.maxInstallSeconds ?? 600),
+        '-DetectStartSeconds', String(o.detectStartSeconds ?? 3),
+        '-FadeMs', String(o.fadeMs ?? 3000),
+      ], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
       return true;
     } catch (_) { return false; }
   }

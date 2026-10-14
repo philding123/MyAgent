@@ -1,7 +1,7 @@
 # MyAgent 验收报告
 
-- 生成时间: 2026-10-14T01:45:48.000Z
-- 单元测试: PASS (49 cases)
+- 生成时间: 2026-10-14T11:16:43.765Z
+- 单元测试: PASS (50 cases)
 - 集成测试: PASS (41 cases)
 - E2E 冒烟: PASS
 
@@ -9,7 +9,7 @@
 |---|---|---|---|
 | T01 | F01 多窗口 | PASS | ✓ e2e:main-window<br>✓ e2e:main-loaded<br>✓ e2e:multi-window (main,settings,search) |
 | T02 | F02 守护进程+RPC | PASS | ✓ T02 codec roundtrip single frames<br>✓ T02 codec splits chunks across pushes<br>✓ T02 codec tolerates bad frames<br>✓ T02a daemon method roundtrip + unknown method + ready snapshot<br>✓ T02b DaemonClient restarts daemon after crash |
-| T03 | F03 存储 | PASS | ✓ T03 json store DAO cases<br>✓ T03 sqlite store DAO cases<br>✓ T03 json store corrupt recovery<br>✓ T03 sqlite store corrupt recovery |
+| T03 | F03 存储 | PASS | ✓ T03 json store DAO cases<br>✓ T03 sqlite store DAO cases<br>✓ T03 json store corrupt recovery<br>✓ T03 sqlite store corrupt recovery<br>✓ T03 json→sqlite migration absorbs an empty-db snapshot |
 | T04 | F04 引擎 | PASS | ✓ T04a plain text reply streams token events<br>✓ T04b tool call loop writes the file |
 | T05 | F05 预热池 | PASS | ✓ T05 pool maintains one idle when enabled<br>✓ T05 pool disabled keeps zero<br>✓ T05 unexpected idle exit triggers replenish<br>✓ T05 disable drains pool |
 | T06 | F06 工具集 | PASS | ✓ T06 write_file creates dirs + read_file numbered window<br>✓ T06 read_file sandbox denial outside workspace<br>✓ T06 list_dir formats entries<br>✓ T06 run_command executes and reports exit code<br>✓ T06 run_command timeout<br>✓ T06 search finds hits with line numbers<br>✓ T06 skill_read reads registry<br>✓ T06 tool definitions are OpenAI function-shaped |
@@ -22,9 +22,9 @@
 | T13 | F13 记忆 | PASS | ✓ T13 preference reaches the LLM system message and deletion removes it<br>✓ T13 fact kind also injects |
 | T14 | F14 终端 | PASS | ✓ T14 terminal echo roundtrip |
 | T15 | F15 全局搜索 | PASS | ✓ T15 message + file hits with locators |
-| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"8e6c15fc-f80f-4be9-98d4-490fcdd5413c"}])<br>✓ e2e:tray |
+| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"b9302f11-2a5b-44c1-a0ea-730e3d5577c1"}])<br>✓ e2e:tray |
 | T17 | F17 渲染管线 | PASS | ✓ e2e:render-sanitize ({"pwned":false,"html":"<p>&lt;img src=x onerror=window.__pwned=1&gt;</p>\n"}) |
-| T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (json)<br>✓ e2e:preload-bridge (pong) |
+| T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (sqlite)<br>✓ e2e:preload-bridge (pong) |
 | T19 | F19 mermaid 渲染 | PASS | ✓ e2e:mermaid-render ({"svg":true,"errors":0}) |
 | T20 | F20 文档预览 | PASS | ✓ T20a extractMermaidBlocks finds mermaid fences only<br>✓ T20a pickPreviewKind maps office/image/text families<br>✓ e2e:preview-readbinary (text/plain)<br>✓ e2e:preview-window ({"path":"D:\\Proj\\ai_workspace\\myagent\\tests\\fixtures\\share-sample.txt","kind":"text","ok":true,"error":null,"bytes":20}) |
 | T21 | F21 自动更新器 | PASS | ✓ T21a compareSemver ordering<br>✓ T21a updater: malformed manifest -> error not throw<br>✓ T21a updater: missing manifest fields rejected<br>✓ T21a updater: sha256 mismatch deletes the artifact<br>✓ T21a updater: apply refuses when nothing ready<br>✓ T21b check→download→verify→ready with progress stages<br>✓ T21b corrupt artifact is refused and cleaned<br>✓ T21b unavailable source -> disabled/error states<br>✓ e2e:updater-status ({"enabled":false,"stage":"idle","v":"0.1.0"}) |
@@ -37,4 +37,4 @@
 | T28 | F28 A2A 协作 | PASS | ✓ T28 agentCard has A2A-required fields<br>✓ T28 message/send roundtrip + delegate client + card shape<br>✓ T28 delegate reports unreachable agent as a value error<br>✓ e2e:a2a-card (MyAgent) |
 
 ## 降级记录
-- Electron 运行时 store 模式: json
+- Electron 运行时 store 模式: sqlite

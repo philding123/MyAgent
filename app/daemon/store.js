@@ -145,8 +145,8 @@ class SqliteStore {
   updateSession(idv, patch) {
     const s = this.getSession(idv); if (!s) return null;
     Object.assign(s, patch, { updated_at: Date.now() });
-    this.db.prepare('UPDATE sessions SET title=?,mode=?,updated_at=?,cwd=? WHERE id=?')
-      .run(s.title, s.mode, s.updated_at, s.cwd, idv);
+    this.db.prepare('UPDATE sessions SET title=?,mode=?,updated_at=?,cwd=?,created_at=? WHERE id=?')
+      .run(s.title, s.mode, s.updated_at, s.cwd, s.created_at, idv);
     return s;
   }
   deleteSession(idv) {
@@ -216,19 +216,68 @@ class SqliteStore {
   close() { this.db.close(); }
 }
 
+/** One-time JSON→SQLite migration (personal data continuity): imports a
+ * store.json snapshot into an EMPTY sqlite store. Returns a summary line. */
+function migrateJsonSnapshot(store, snapshot) {
+  let counts = { sessions: 0, messages: 0, settings: 0, memory: 0 };
+  for (const s of snapshot.sessions || []) {
+    store.createSession({ id: s.id, title: s.title, mode: s.mode, cwd: s.cwd });
+    store.updateSession(s.id, { created_at: s.created_at });
+    counts.sessions++;
+  }
+  for (const m of snapshot.messages || []) {
+    store.appendMessage({ id: m.id, session_id: m.session_id, role: m.role, content: m.content,
+      tool_name: m.tool_name, tool_json: m.tool_json, created_at: m.created_at });
+    counts.messages++;
+  }
+  for (const [k, v] of Object.entries(snapshot.settings || {})) {
+    if (k.includes('apiKey')) continue; // secrets only ever live in the vault
+    store.setSetting(k, v);
+    counts.settings++;
+  }
+  for (const mem of snapshot.memory || []) store.addMemory(mem.kind, mem.content);
+  counts.memory = (snapshot.memory || []).length;
+  return counts;
+}
+
 /** Opens the best available store. @returns {{store, warning?}} */
 function openStore(dataDir) {
   fs.mkdirSync(dataDir, { recursive: true });
   const file = path.join(dataDir, 'myagent.db');
   let warning;
-  try {
-    // eslint-disable-next-line global-require
-    const Database = require('better-sqlite3');
-    return { store: new SqliteStore(Database, file) };
-  } catch (e) {
-    warning = 'better-sqlite3 unavailable (' + e.message.split('\n')[0] + '); using JSON store';
+  const candidates = [];
+  if (process.versions.electron) {
+    // Electron's node ABI ≠ system node ABI: prefer the vendored Electron-ABI
+    // copy (scripts/setup-electron-sqlite.mjs) so the shell gets real SQLite.
+    candidates.push(path.join(__dirname, '..', '..', 'vendor', 'better-sqlite3-electron'));
   }
+  candidates.push('better-sqlite3');
+  for (const mod of candidates) {
+    try {
+      // eslint-disable-next-line global-require
+      const Database = require(mod);
+      const store = new SqliteStore(Database, file);
+      // continuity: first run after switching to sqlite absorbs the JSON store
+      const jsonFile = path.join(dataDir, 'store.json');
+      if (fs.existsSync(jsonFile) && store.listSessions().length === 0) {
+        try {
+          const snapshot = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
+          if (Array.isArray(snapshot.sessions) && snapshot.sessions.length) {
+            const counts = migrateJsonSnapshot(store, snapshot);
+            fs.renameSync(jsonFile, jsonFile + '.pre-sqlite');
+            warning = 'migrated from JSON store: ' + JSON.stringify(counts);
+          }
+        } catch (e) {
+          warning = 'json→sqlite migration skipped (' + String(e.message).split('\n')[0] + ')';
+        }
+      }
+      return { store, warning };
+    } catch (e) {
+      warning = 'sqlite via ' + mod + ' unavailable (' + String(e.message).split('\n')[0] + ')';
+    }
+  }
+  warning = (warning ? warning + '; ' : '') + 'using JSON store';
   return { store: new JsonStore(path.join(dataDir, 'store.json')), warning };
 }
 
-module.exports = { openStore, JsonStore, SqliteStore, id };
+module.exports = { openStore, JsonStore, SqliteStore, id, migrateJsonSnapshot };

@@ -56,6 +56,14 @@ if (-not $instDir) {
     $instDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
 $manifestPath = Join-Path $instDir 'share-target\AppxManifest.xml'
+# Appx schema requires Executable to be a real .exe; until the package can be
+# signed and the activation contract observed (design/24: needs one elevated
+# session + signtool), a placeholder copy of cmd.exe satisfies validation.
+$exePlaceholder = Join-Path $instDir 'share-target\MyAgentShareTarget.exe'
+if (-not (Test-Path $exePlaceholder)) {
+    Copy-Item (Join-Path $env:SystemRoot 'System32\cmd.exe') $exePlaceholder
+    Log 'placeholder forwarder exe created (activation contract finalized post-registration)'
+}
 Log '=== myagent register start ==='
 Log ('instDir=' + $instDir)
 Log ('manifest exists=' + (Test-Path $manifestPath))
@@ -102,18 +110,29 @@ try {
         $pkgPath = $manifestPath
     }
 
-    # 3) register (sparse: files stay in place)
+    # 3) register (sparse: files stay in place; ExternalLocation per MS docs)
     $out = Invoke-AppxJob -Desc 'Add-AppxPackage' -Operation {
-        param($p)
+        param($p, $loc)
         try {
             if ($p -like '*.msix') { Add-AppxPackage -Path $p -ErrorAction Stop }
-            else { Add-AppxPackage -Register $p -ErrorAction Stop }
+            else { Add-AppxPackage -Register $p -ExternalLocation $loc -ErrorAction Stop }
             'ADD_OK'
         } catch { 'ADD_ERR ' + $_.Exception.Message }
-    } -ArgumentList $pkgPath
+    } -ArgumentList @($pkgPath, $instDir)
     if (-not $out) { Log 'registration timed out'; exit 4 }
     Log ('Add-AppxPackage result: ' + $out)
-    if ($out -like 'ADD_ERR*') { exit 1 }
+    if ($out -like 'ADD_ERR*') {
+        if ($out -like '*0x80073CFF*' -or $out -like '*Unsigned*') {
+            Log 'REMAINING STEPS (manifest+schema already valid):'
+            Log '  1. Settings > System > For developers > enable Developer Mode (sideload)'
+            Log '  2. Install Windows SDK signing tools (makeappx + signtool), then:'
+            Log '     makeappx pack /o /d <stage> /p MyAgentShare.msix'
+            Log '     signtool sign /fd SHA256 /a /f MyAgentShare.pfx MyAgentShare.msix'
+            Log '  3. Elevated once: import CN=MyAgentShare cert into LocalMachine\TrustedPeople'
+            Log '     then: Add-AppxPackage -Path MyAgentShare.msix'
+        }
+        exit 1
+    }
 
     # 4) verify visibility
     $seen = Get-AppxPackage -Name 'MyAgentShare' -ErrorAction SilentlyContinue

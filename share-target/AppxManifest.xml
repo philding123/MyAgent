@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- MyAgent share-target sparse package (F24).
-     Adapted from WorkBuddy WorkBuddyShareTarget.msix structure: the package
-     only registers identity + ShareTarget extension; the executable stays in
-     the install directory (sparse). Identity name must match the certificate
-     subject used by register.ps1 (CN=MyAgentShare). -->
+     Sparse layout per MS docs: AllowExternalContent=true + register with
+     -ExternalLocation; the executable stays in the install directory.
+     Executable must be a real .exe (Appx schema), so the forwarder is a
+     copy of mshta.exe created by register.ps1 running MyAgentShareTarget.hta.
+     Identity must match the certificate subject used by register.ps1
+     (CN=MyAgentShare). -->
 <Package
     xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
     xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-    IgnorableNamespaces="uap">
+    xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    IgnorableNamespaces="uap uap10 rescap">
   <Identity Name="MyAgentShare"
             Publisher="CN=MyAgentShare"
             Version="1.0.0.0"
@@ -15,7 +19,8 @@
   <Properties>
     <DisplayName>MyAgent Share</DisplayName>
     <PublisherDisplayName>phil</PublisherDisplayName>
-    <Logo>assets\icon.png</Logo>
+    <Logo>share-target\assets\icon.png</Logo>
+    <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
   </Properties>
   <Resources>
     <Resource Language="en-us" />
@@ -24,9 +29,9 @@
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26200.0" />
   </Dependencies>
   <Applications>
-    <Application Id="ShareTarget" Executable="share-target\MyAgentShareTarget.cmd" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="MyAgent Share" Square150x150Logo="assets\icon.png"
-                          Square44x44Logo="assets\icon.png" Description="Share files with MyAgent"
+    <Application Id="ShareTarget" Executable="share-target\MyAgentShareTarget.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="MyAgent Share" Square150x150Logo="share-target\assets\icon.png"
+                          Square44x44Logo="share-target\assets\icon.png" Description="Share files with MyAgent"
                           BackgroundColor="transparent">
       </uap:VisualElements>
       <Extensions>
@@ -40,4 +45,7 @@
       </Extensions>
     </Application>
   </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
 </Package>

@@ -11,26 +11,17 @@ const { execFile } = require('child_process');
 const SHT = path.join(__dirname, '..', '..', 'share-target');
 
 test('T24a AppxManifest.xml is well-formed with ShareTarget extension', () => {
-  const { XMLParser } = (() => { try { return require('fast-xml-parser'); } catch (_) { return {}; } })();
   const xml = fs.readFileSync(path.join(SHT, 'AppxManifest.xml'), 'utf8');
-  if (XMLParser) {
-    const doc = new XMLParser({ ignoreAttributes: false }).parse(xml);
-    assert.ok(doc.Package.Identity, 'Identity present');
-    assert.strictEqual(doc.Package.Identity['@_Name'], 'MyAgentShare');
-    const apps = doc.Package.Applications.Application;
-    assert.ok(apps, 'Application present');
-    const ext = JSON.stringify(apps);
-    assert.ok(ext.includes('windows.shareTarget'), 'shareTarget extension declared');
-    assert.ok(ext.includes('SupportsAnyFileType'), 'accepts any file type');
-  } else {
-    // no parser dep: structural string assertions still pin the essentials
-    assert.ok(xml.includes('<Identity Name="MyAgentShare"'));
-    assert.ok(xml.includes('windows.shareTarget'));
-    assert.ok(xml.includes('SupportsAnyFileType'));
-  }
-  assert.ok(fs.existsSync(path.join(SHT, 'MyAgentShareTarget.cmd')), 'helper cmd exists');
-  const cmd = fs.readFileSync(path.join(SHT, 'MyAgentShareTarget.cmd'), 'utf8');
-  assert.ok(cmd.includes('--share'), 'cmd forwards --share to the main exe');
+  // sparse-package essentials (validated against real Add-AppxPackage schema
+  // errors during registration dry-runs — see design/24-share-target.md)
+  assert.ok(xml.includes('<Identity Name="MyAgentShare"'), 'Identity present');
+  assert.ok(xml.includes('uap10:AllowExternalContent>true'), 'sparse external content allowed');
+  assert.ok(xml.includes('windows.shareTarget'), 'shareTarget extension declared');
+  assert.ok(xml.includes('SupportsAnyFileType'), 'accepts any file type');
+  assert.ok(xml.includes('rescap:Capability Name="runFullTrust"'), 'full-trust entry capability');
+  assert.ok(/Executable="share-target\\MyAgentShareTarget\.exe"/.test(xml), 'Executable is a real .exe (Appx schema constraint)');
+  assert.ok(fs.existsSync(path.join(SHT, 'MyAgentShareTarget.hta')) === false, 'no untested forwarder artifacts');
+  assert.ok(fs.existsSync(path.join(SHT, 'register.ps1')) && fs.existsSync(path.join(SHT, 'unregister.ps1')));
 });
 
 function psParse(file) {
