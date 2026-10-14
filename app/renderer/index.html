@@ -9,39 +9,45 @@
 <link rel="stylesheet" href="../node_modules/katex/dist/katex.min.css">
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
 </head>
-<body data-theme="dark">
+<body data-theme="light">
 <div id="app">
   <aside id="sidebar">
-    <div class="side-head">
-      <span class="logo">MyAgent</span>
-      <button id="btn-new" title="New session">+</button>
-    </div>
+    <button id="btn-new" title="新建任务"><span class="plus">＋</span>新建任务</button>
+    <div class="side-section-label">任务</div>
     <ul id="session-list"></ul>
-    <div class="side-foot">
-      <button id="btn-settings">Settings</button>
-      <span id="daemon-status" class="status-dot ok"></span>
+    <div id="side-foot">
+      <span class="user-avatar" title="本地模式">M</span>
+      <button id="btn-settings">设置</button>
+      <span id="daemon-status" class="status-dot ok" title="daemon connected"></span>
     </div>
   </aside>
   <main id="main">
     <header id="topbar">
       <div id="session-title">—</div>
       <div id="mode-switch">
-        <button data-mode="ask" title="Read-only Q&A">ask</button>
-        <button data-mode="plan" title="Read + plan, writes need approval">plan</button>
-        <button data-mode="craft" title="Full agent">craft</button>
+        <button data-mode="ask" title="只读问答">ask</button>
+        <button data-mode="plan" title="读 + 规划，写入需批准">plan</button>
+        <button data-mode="craft" title="完整智能体">craft</button>
       </div>
-      <button id="btn-terminal" title="Toggle terminal">▮ terminal</button>
-      <button id="btn-preview" title="Preview a file (docx/pdf/xlsx/pptx…)">▤ preview</button>
-      <button id="btn-search" title="Global search">⌕</button>
+      <button id="btn-terminal" class="icon-btn" title="终端">▮</button>
+      <button id="btn-preview" class="icon-btn" title="预览文件 (docx/pdf/xlsx/pptx…)">▤</button>
+      <button id="btn-search" class="icon-btn" title="全局搜索">⌕</button>
     </header>
     <div id="messages"></div>
-    <div id="confirm-bar"></div>
+    <div id="confirm-bar" class="hidden"></div>
     <div id="terminal-panel" class="hidden">
       <div id="terminal-view"></div>
     </div>
     <footer id="composer">
-      <textarea id="input" rows="2" placeholder="Message MyAgent… (Enter to send, Shift+Enter for newline)"></textarea>
-      <button id="btn-send">Send</button>
+      <div class="composer-slot">
+        <div class="composer-card">
+          <textarea id="input" rows="2" placeholder="给 MyAgent 发消息…（Enter 发送，Shift+Enter 换行）"></textarea>
+          <div class="composer-foot">
+            <span class="composer-hint">Enter 发送 · Shift+Enter 换行</span>
+            <button id="btn-send">发送</button>
+          </div>
+        </div>
+      </div>
     </footer>
   </main>
 </div>

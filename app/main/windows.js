@@ -11,8 +11,8 @@ const RENDERER = path.join(__dirname, '..', 'renderer');
 const windows = new Map();
 
 function theme() {
-  // simple 2-theme system; nativeTheme could drive 'system'
-  return global.__myagentTheme || 'dark';
+  // WorkBuddy default is IDE Light (design/27-pixel-ui F29); simple 2-theme system
+  return global.__myagentTheme || 'light';
 }
 
 function baseOpts(title, size) {
@@ -21,7 +21,7 @@ function baseOpts(title, size) {
     width: size[0],
     height: size[1],
     show: !process.env.MYAGENT_SMOKE, // smoke tests keep windows hidden
-    backgroundColor: theme() === 'dark' ? '#101418' : '#f7f8fa',
+    backgroundColor: theme() === 'dark' ? '#1f1f1f' : '#ffffff',
     webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false },
   };
 }
@@ -56,7 +56,7 @@ function createMain(deps) {
 
 function createSettings() {
   if (windows.has('settings')) { windows.get('settings').focus(); return windows.get('settings'); }
-  const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [760, 620]), autoHideMenuBar: true });
+  const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [880, 640]), autoHideMenuBar: true });
   win.loadFile(path.join(RENDERER, 'settings.html'));
   win.on('closed', () => windows.delete('settings'));
   windows.set('settings', win);
@@ -65,7 +65,8 @@ function createSettings() {
 
 function createSearch() {
   if (windows.has('search')) { windows.get('search').focus(); return windows.get('search'); }
-  const win = new BrowserWindow({ ...baseOpts('Global Search', [720, 520]), autoHideMenuBar: true, frame: false });
+  // 800×640 command palette (WorkBuddy global-search window, design/27 F32)
+  const win = new BrowserWindow({ ...baseOpts('Global Search', [800, 640]), autoHideMenuBar: true, frame: false });
   win.loadFile(path.join(RENDERER, 'search.html'));
   win.on('closed', () => windows.delete('search'));
   windows.set('search', win);

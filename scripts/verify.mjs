@@ -122,6 +122,7 @@ const e2eMap = {
   T26: ['sync-status'],
   T27: ['phase4-fields'],
   T28: ['a2a-card'],
+  T29: ['ui-token', 'ui-main', 'ui-settings', 'ui-search', 'ui-paywall-zero'],
 };
 
 const featureNames = {
@@ -131,7 +132,7 @@ const featureNames = {
   T16: 'F16 托盘/Deeplink', T17: 'F17 渲染管线', T18: 'F18 设置/自检',
   T19: 'F19 mermaid 渲染', T20: 'F20 文档预览', T21: 'F21 自动更新器', T22: 'F22 Browser-use',
   T23: 'F23 IM 通道', T24: 'F24 分享目标', T25: 'F25 云端市场', T26: 'F26 端云同步',
-  T27: 'F27 云沙箱', T28: 'F28 A2A 协作',
+  T27: 'F27 云沙箱', T28: 'F28 A2A 协作', T29: 'F29-F33 像素级 UI（WorkBuddy 复刻，排除支付）',
 };
 
 let lines = [];
@@ -146,7 +147,7 @@ lines.push('- E2E 冒烟: ' + (results.e2e ? (results.e2e.code === 0 ? 'PASS' : 
 lines.push('');
 lines.push('| T | 功能点 | 结果 | 明细 |');
 lines.push('|---|---|---|---|');
-for (let i = 1; i <= 28; i++) {
+for (let i = 1; i <= 29; i++) {
   const tid = 'T' + String(i).padStart(2, '0');
   const subs = tIndex[tid] || [];
   const e2eNames = e2eMap[tid] || [];

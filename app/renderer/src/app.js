@@ -74,6 +74,8 @@ window.__renderTest = (sample) => {
 };
 
 function appendMessage(role, opts = {}) {
+  const hero = $('#messages .home-hero');
+  if (hero) hero.remove();
   const el = document.createElement('div');
   el.className = 'msg ' + role + (opts.err ? ' err' : '');
   if (role === 'user' || role === 'assistant') {
@@ -185,6 +187,17 @@ function showConfirm(ev) {
   }
 }
 
+// WorkBuddy home empty-state: brand title + scene chips (design/27 F30)
+function showHomeHero() {
+  const hero = document.createElement('div');
+  hero.className = 'home-hero';
+  hero.innerHTML = '<div class="home-hero__title">MyAgent</div>' +
+    '<div class="home-hero__chips"><span class="chip">日常办公</span>' +
+    '<span class="chip">代码开发</span><span class="chip">设计创意</span></div>' +
+    '<div class="home-hero__hint">选择场景，在下方输入框开始任务</div>';
+  $('#messages').appendChild(hero);
+}
+
 // ---------- sessions ----------
 async function refreshSessions(preloaded) {
   sessions = preloaded || await rpc('sessions.list');
@@ -206,6 +219,7 @@ async function openSession(id) {
   $('#session-title').textContent = s.title;
   updateModeButtons();
   $('#messages').innerHTML = '';
+  if (!(s.messages || []).length) showHomeHero();
   for (const m of s.messages || []) {
     if (m.role === 'user' || m.role === 'assistant') appendMessage(m.role, { content: m.content });
     else if (m.role === 'tool') appendMessage('tool', { tool: m.tool_name, summary: m.content, ok: true });
@@ -218,6 +232,7 @@ async function newSession() {
   current = await rpc('sessions.create', { title: 'Session ' + new Date().toLocaleString(), cwd });
   $('#session-title').textContent = current.title;
   $('#messages').innerHTML = '';
+  showHomeHero();
   refreshSessions();
 }
 
@@ -228,7 +243,7 @@ function updateModeButtons() {
 }
 
 // ---------- send ----------
-function setSendEnabled(on) { $('#btn-send').disabled = !on; $('#btn-send').textContent = on ? 'Send' : '…'; }
+function setSendEnabled(on) { $('#btn-send').disabled = !on; $('#btn-send').textContent = on ? '发送' : '…'; }
 
 async function send() {
   const input = $('#input');

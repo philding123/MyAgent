@@ -21,6 +21,9 @@
 「方案设计问题 / WorkBuddy 理解问题」归因并回改，直至对齐。
 Phase 2-4（F19–F28，仍排除支付）沿用同一口径：T19–T28 全绿 + 真实 token/注册类
 外部项按各设计文档「验证方法·手工」清单执行。
+Phase 5（F29–F33，design/27-pixel-ui.md）：渲染层像素级对齐 WorkBuddy（令牌/主窗/
+设置窗/搜索窗/预览窗），T29（ui-token/ui-main/ui-settings/ui-search/ui-paywall-zero）
+进 verify；支付 UI 排除清单见 design/27 §「支付/订阅 UI 排除清单」。
 
 ## 二、功能点总表（F01–F18）
 

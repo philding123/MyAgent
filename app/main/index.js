@@ -191,6 +191,35 @@ async function runSmoke() {
     const bridge = await mainWin.webContents.executeJavaScript('window.myagent ? window.myagent.ping() : "no-bridge"', true);
     step('preload-bridge', bridge === 'pong', String(bridge));
 
+    // T29 pixel UI (F29-F33, design/27-pixel-ui.md): tokens, layout, payment exclusion
+    const ui = await mainWin.webContents.executeJavaScript(`(() => {
+      const cs = getComputedStyle(document.body);
+      return {
+        brand: cs.getPropertyValue('--brand').trim(),
+        side: document.getElementById('sidebar').offsetWidth,
+        top: document.getElementById('topbar').offsetHeight,
+        heroOk: !!document.querySelector('#messages .home-hero') === !document.querySelector('#messages .msg'),
+      };
+    })()`, true);
+    step('ui-token', ui.brand === '#00c29a', JSON.stringify(ui));
+    step('ui-main', ui.side === 220 && ui.top === 48 && ui.heroOk, JSON.stringify(ui));
+    const stWin = windows.get('settings');
+    const stNav = await stWin.webContents.executeJavaScript(
+      'document.querySelector(".settings-modal__nav").offsetWidth', true).catch(() => null);
+    step('ui-settings', stNav === 200, String(stNav));
+    const shWin = windows.get('search');
+    const shInfo = await shWin.webContents.executeJavaScript(
+      '[window.innerWidth, window.innerHeight, document.getElementById("q").offsetHeight]', true).catch(() => null);
+    step('ui-search', !!shInfo && shInfo[0] === 800 && shInfo[1] === 640 && shInfo[2] >= 40, JSON.stringify(shInfo));
+    const payWords = ['套餐', '积分', '充值', '订阅', '购买', '收银台', '微信支付'];
+    const payHits = [];
+    for (const w of [mainWin, stWin, shWin]) {
+      if (!w || w.isDestroyed()) continue;
+      const txt = await w.webContents.executeJavaScript('document.body.innerText', true).catch(() => '');
+      for (const kw of payWords) if (txt.includes(kw)) payHits.push(kw);
+    }
+    step('ui-paywall-zero', payHits.length === 0, payHits.join(','));
+
     // deeplink queue (T16): register capture synchronously, then deliver
     await mainWin.webContents.executeJavaScript(
       'window.__cap=[]; window.myagent.onEvent((ev)=>{ if(ev.topic==="app:pendingUrls") window.__cap.push(...ev.payload); }); "armed"', true);

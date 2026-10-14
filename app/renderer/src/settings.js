@@ -12,7 +12,7 @@ async function loadSettings() {
   $('#llm-base').value = all['llm.baseUrl'] || '';
   $('#llm-model').value = all['llm.model'] || '';
   $('#prewarm-chk').checked = all['engine.prewarm'] === true;
-  const theme = await window.myagent.windowAction('theme') || 'dark';
+  const theme = await window.myagent.windowAction('theme') || 'light';
   $('#theme-select').value = theme;
   document.body.dataset.theme = theme;
   // F21/F25/F26/F27/F28 configuration surfaces
@@ -224,4 +224,14 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#im-msg').textContent = channel + ' 已停止';
     loadIm();
   };
+
+  // ---- WorkBuddy settings layout (design/27 F31): nav switching + window chrome ----
+  document.querySelectorAll('.settings-navigation__item').forEach((b) => {
+    b.onclick = () => {
+      document.querySelectorAll('.settings-navigation__item').forEach((x) => x.classList.toggle('active', x === b));
+      document.querySelectorAll('.settings-window-panel').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== b.dataset.panel));
+    };
+  });
+  const closeBtn = $('#btn-close-settings');
+  if (closeBtn) closeBtn.onclick = () => window.close();
 });
