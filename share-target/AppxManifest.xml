@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- MyAgent share-target sparse package (F24).
-     Sparse layout per MS docs: AllowExternalContent=true + register with
-     -ExternalLocation; the executable stays in the install directory.
-     Executable must be a real .exe (Appx schema), so the forwarder is a
-     copy of mshta.exe created by register.ps1 running MyAgentShareTarget.hta.
-     Identity must match the certificate subject used by register.ps1
-     (CN=MyAgentShare). -->
+     Shape aligned with WorkBuddy's WorkBuddyShareTarget.msix AppxManifest
+     (extracted 2026-10-14): no EntryPoint — instead uap10:TrustLevel=mediumIL
+     + RuntimeBehavior=win32App; runFullTrust + unvirtualizedResources
+     capabilities; ShareTarget carries DataFormat entries for share-host
+     enumeration; AllowExternalContent=true keeps binaries in place.
+     Identity must match the register.ps1 certificate (CN=MyAgentShare). -->
 <Package
     xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
     xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
@@ -17,35 +17,43 @@
             Version="1.0.0.0"
             ProcessorArchitecture="neutral" />
   <Properties>
-    <DisplayName>MyAgent Share</DisplayName>
+    <DisplayName>MyAgent</DisplayName>
     <PublisherDisplayName>phil</PublisherDisplayName>
-    <Logo>share-target\assets\icon.png</Logo>
+    <Logo>share-target\assets\Square150x150Logo.png</Logo>
     <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
   </Properties>
   <Resources>
+    <Resource Language="zh-cn" />
     <Resource Language="en-us" />
   </Resources>
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26200.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26200.0" />
   </Dependencies>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
   <Applications>
-    <Application Id="ShareTarget" Executable="share-target\MyAgentShareTarget.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="MyAgent Share" Square150x150Logo="share-target\assets\icon.png"
-                          Square44x44Logo="share-target\assets\icon.png" Description="Share files with MyAgent"
-                          BackgroundColor="transparent">
+    <Application Id="ShareTarget" Executable="share-target\MyAgentShareTarget.exe"
+                 uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
+      <uap:VisualElements AppListEntry="none" DisplayName="MyAgent" Description="Share to MyAgent"
+                          BackgroundColor="transparent"
+                          Square44x44Logo="share-target\assets\Square44x44Logo.png"
+                          Square150x150Logo="share-target\assets\Square150x150Logo.png">
       </uap:VisualElements>
       <Extensions>
         <uap:Extension Category="windows.shareTarget">
-          <uap:ShareTarget Description="Send to MyAgent">
+          <uap:ShareTarget Description="Share to MyAgent">
             <uap:SupportedFileTypes>
               <uap:SupportsAnyFileType />
             </uap:SupportedFileTypes>
+            <uap:DataFormat>StorageItems</uap:DataFormat>
+            <uap:DataFormat>Text</uap:DataFormat>
+            <uap:DataFormat>URI</uap:DataFormat>
+            <uap:DataFormat>Bitmap</uap:DataFormat>
           </uap:ShareTarget>
         </uap:Extension>
       </Extensions>
     </Application>
   </Applications>
-  <Capabilities>
-    <rescap:Capability Name="runFullTrust" />
-  </Capabilities>
 </Package>

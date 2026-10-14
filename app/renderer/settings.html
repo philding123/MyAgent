@@ -75,6 +75,25 @@
   <ul id="mem-list"></ul>
 </section>
 <section>
+  <h2>IM channels (F23)</h2>
+  <ul id="im-list"></ul>
+  <div>
+    <select id="im-channel">
+      <option value="telegram">telegram</option>
+      <option value="webhook">webhook</option>
+      <option value="slack">slack</option>
+      <option value="discord">discord</option>
+      <option value="dingtalk">dingtalk</option>
+      <option value="feishu">feishu</option>
+    </select>
+    <input id="im-token" type="password" placeholder="bot token（存入加密 vault）">
+    <button id="btn-im-save">Save token</button>
+    <button id="btn-im-start">Start</button>
+    <button id="btn-im-stop">Stop</button>
+  </div>
+  <span id="im-msg"></span>
+</section>
+<section>
   <h2>Self check</h2>
   <pre id="selfcheck"></pre>
 </section>

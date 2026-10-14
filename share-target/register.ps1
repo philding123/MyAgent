@@ -26,12 +26,12 @@ function Log([string]$m) {
         try {
             $parent = Split-Path -Parent $primaryLog
             if ($parent -and -not (Test-Path $parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
-            Add-Content -Path $primaryLog -Value $line
+            Add-Content -Path $primaryLog -Value $line -Encoding UTF8
         } catch {
-            try { Add-Content -Path $diagLog -Value ($line + ' [primary-write-failed]') } catch {}
+            try { Add-Content -Path $diagLog -Value ($line + ' [primary-write-failed]') -Encoding UTF8 } catch {}
         }
     }
-    try { Add-Content -Path $diagLog -Value $line } catch {}
+    try { Add-Content -Path $diagLog -Value $line -Encoding UTF8 } catch {}
 }
 
 $script:SHT_APPX_TIMEOUT_SEC = 60
@@ -56,14 +56,40 @@ if (-not $instDir) {
     $instDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
 $manifestPath = Join-Path $instDir 'share-target\AppxManifest.xml'
-# Appx schema requires Executable to be a real .exe; until the package can be
-# signed and the activation contract observed (design/24: needs one elevated
-# session + signtool), a placeholder copy of cmd.exe satisfies validation.
-$exePlaceholder = Join-Path $instDir 'share-target\MyAgentShareTarget.exe'
-if (-not (Test-Path $exePlaceholder)) {
-    Copy-Item (Join-Path $env:SystemRoot 'System32\cmd.exe') $exePlaceholder
-    Log 'placeholder forwarder exe created (activation contract finalized post-registration)'
+
+# 0) launch.ini — how the forwarder hands the shared file to MyAgent.
+#    packaged install -> <instDir>\MyAgent.exe --share {file}
+#    dev repo         -> node node_modules\electron\cli.js . --share {file}
+#    override         -> $env:MYAGENT_SHT_LAUNCH_JSON = {"cwd","exe","args"}
+$launchJson = $env:MYAGENT_SHT_LAUNCH_JSON
+if ($launchJson) {
+    $l = $launchJson | ConvertFrom-Json
+} elseif (Test-Path (Join-Path $instDir 'MyAgent.exe')) {
+    $l = [pscustomobject]@{ cwd = $instDir; exe = (Join-Path $instDir 'MyAgent.exe'); args = '--share "{file}"' }
+} elseif (Test-Path (Join-Path $instDir 'node_modules\electron\cli.js')) {
+    $node = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+    if (-not $node) { $node = Join-Path $PSHOME 'node.exe' }
+    $l = [pscustomobject]@{ cwd = $instDir; exe = $node; args = 'node_modules\electron\cli.js . --share "{file}"' }
+} else {
+    Log 'ERROR no launch target found (MyAgent.exe or electron cli.js under instDir)'; exit 2
 }
+$launchIni = Join-Path $instDir 'share-target\launch.ini'
+@($l.cwd, $l.exe, $l.args) | Set-Content -Path $launchIni -Encoding Ascii
+Log ('launch.ini written: exe=' + $l.exe)
+
+# 0b) forwarder exe — compile forwarder.cs with the .NET Framework bundler
+#     (csc.exe ships with Windows; no Visual Studio required). Fallback to a
+#     cmd.exe copy only if csc is somehow unavailable.
+$forwarder = Join-Path $instDir 'share-target\MyAgentShareTarget.exe'
+$csc = Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" -ErrorAction SilentlyContinue
+if ($csc) {
+    & $csc.FullName /nologo /target:winexe /out:$forwarder (Join-Path $instDir 'share-target\forwarder.cs') /r:System.dll 2>&1 | ForEach-Object { Log ('csc: ' + $_) }
+    Log ('forwarder compiled: ' + (Test-Path $forwarder))
+} else {
+    Copy-Item (Join-Path $env:SystemRoot 'System32\cmd.exe') $forwarder -Force
+    Log 'WARN csc.exe not found; placeholder forwarder (share will not forward)'
+}
+
 Log '=== myagent register start ==='
 Log ('instDir=' + $instDir)
 Log ('manifest exists=' + (Test-Path $manifestPath))

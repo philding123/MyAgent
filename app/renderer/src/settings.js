@@ -70,11 +70,24 @@ async function loadMemory() {
   }
 }
 
+async function loadIm() {
+  const channels = await rpc('im.status');
+  const ul = $('#im-list');
+  ul.innerHTML = '';
+  for (const c of channels) {
+    const li = document.createElement('li');
+    li.textContent = c.id + ' — ' + c.status + (c.credential === 'missing' ? '（未配置 token）' : '') +
+      (c.error ? ' · ' + c.error : '');
+    ul.appendChild(li);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   loadSettings().catch(() => {});
   loadSelfcheck().catch(() => {});
   loadSkills().catch(() => {});
   loadMemory().catch(() => {});
+  loadIm().catch(() => {});
 
   const save = (k, v) => rpc('settings.set', { key: k, value: v }).catch(() => {});
   $('#llm-base').onchange = (e) => save('llm.baseUrl', e.target.value.trim());
@@ -186,5 +199,29 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#a2a-enabled').onchange = async (e) => {
     const r = await rpc('a2a.enable', { enabled: e.target.checked });
     $('#a2a-msg').textContent = r.url ? ('serving at ' + r.url) : 'disabled';
+  };
+  // ---- F23 IM channels ----
+  $('#btn-im-save').onclick = async () => {
+    const channel = $('#im-channel').value;
+    const token = $('#im-token').value.trim();
+    if (!token) { $('#im-msg').textContent = 'token 为空'; return; }
+    await rpc('im.setCredential', { channel, token });
+    $('#im-token').value = '';
+    $('#im-msg').textContent = channel + ' token 已入 vault';
+    loadIm();
+  };
+  $('#btn-im-start').onclick = async () => {
+    const channel = $('#im-channel').value;
+    try {
+      const r = await rpc('im.start', { channel });
+      $('#im-msg').textContent = channel + ' → ' + r.state.status + (r.state.error ? ' (' + r.state.error + ')' : '');
+    } catch (e) { $('#im-msg').textContent = 'fail: ' + e.message; }
+    loadIm();
+  };
+  $('#btn-im-stop').onclick = async () => {
+    const channel = $('#im-channel').value;
+    await rpc('im.stop', { channel });
+    $('#im-msg').textContent = channel + ' 已停止';
+    loadIm();
   };
 });

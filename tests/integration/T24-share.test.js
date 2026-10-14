@@ -47,6 +47,13 @@ test('T24a register.ps1 keeps the evidence-grade engineering details', () => {
   assert.ok(src.match(/Timeout\s+\$script:SHT_APPX_TIMEOUT_SEC/) || src.includes('60s'), '60s AppX timeout');
   assert.ok(src.includes('exit 2') && src.includes('exit 3') && src.includes('exit 4'), 'evidence exit-code semantics');
   assert.ok(src.includes('TrustedPeople'), 'self-signed cert trusted for sparse package');
+  // forwarder chain: real exe compiled from forwarder.cs via the bundled csc,
+  // launch.ini tells it where MyAgent lives
+  assert.ok(src.includes('csc.exe'), 'compiles forwarder with .NET Framework csc (no VS needed)');
+  assert.ok(src.includes('launch.ini'), 'launch.ini written for the forwarder');
+  assert.ok(fs.existsSync(path.join(SHT, 'forwarder.cs')), 'forwarder source present');
+  assert.ok(fs.existsSync(path.join(SHT, 'assets', 'Square44x44Logo.png')), 'manifest logos exist');
+  assert.ok(fs.existsSync(path.join(SHT, 'assets', 'Square150x150Logo.png')), 'manifest logos exist');
   const un = fs.readFileSync(path.join(SHT, 'unregister.ps1'), 'utf8');
   assert.ok(un.includes('not registered; nothing to do'), 'best-effort unregister semantics');
 });
