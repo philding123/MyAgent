@@ -16,6 +16,16 @@ let updater = null;
 let smokeResult = { steps: [], ok: true };
 const pendingUrls = [];
 
+if (process.env.MYAGENT_SMOKE) {
+  // headless-ish smoke: on busy machines the sandboxed GPU process can
+  // crash-loop (bare electron repro: --no-sandbox recovers) and wedge
+  // BrowserWindow creation; smoke asserts logic, not compositing
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-gpu-compositing');
+  app.disableHardwareAcceleration();
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -23,6 +33,9 @@ if (!gotLock) {
   app.on('second-instance', (_e, argv) => {
     const url = argv.find((a) => String(a).startsWith('myagent://'));
     if (url) queueDeeplink(url);
+    // F24: share activation of a second instance forwards --share here
+    const sIdx = argv.indexOf('--share');
+    if (sIdx >= 0 && argv[sIdx + 1]) handleShare(argv[sIdx + 1]);
     const main = windows.get('main');
     if (main) { main.show(); main.focus(); }
   });
@@ -135,7 +148,7 @@ async function bootstrap() {
 
 /** E2E smoke (T01/T16/T17/T18 core): run assertions headless-ish, write JSON, exit. */
 async function runSmoke() {
-  const watchdog = setTimeout(() => finishSmoke(), 90000);
+  const watchdog = setTimeout(() => finishSmoke(), 180000);
   const step = (name, ok, detail) => {
     smokeResult.steps.push({ name, ok, detail: detail === undefined ? null : detail });
     if (!ok) smokeResult.ok = false;

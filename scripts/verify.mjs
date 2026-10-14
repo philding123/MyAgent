@@ -78,12 +78,12 @@ let unitTests = [], intTests = [];
     results.e2e = { code: 2, error: 'electron not installed' };
   } else {
     run('e2e-smoke', process.execPath, [electronJs, '.'], {
-      shell: true, log: false, timeout: 150000,
+      shell: true, log: false, timeout: 300000,
       env: { MYAGENT_SMOKE: '1', MYAGENT_SMOKE_OUT: out,
         MYAGENT_SMOKE_SHARE: path.join(ROOT, 'tests', 'fixtures', 'share-sample.txt') },
     });
     let parsed = null;
-    for (let i = 0; i < 120 && !parsed; i++) {
+    for (let i = 0; i < 300 && !parsed; i++) {
       if (existsSync(out)) {
         try { parsed = JSON.parse(readFileSync(out, 'utf8')); if (!('exitCode' in parsed)) parsed = null; } catch (_) { parsed = null; }
       }

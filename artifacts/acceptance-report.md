@@ -1,6 +1,6 @@
 # MyAgent 验收报告
 
-- 生成时间: 2026-10-14T14:08:18.764Z
+- 生成时间: 2026-10-14T15:02:40.045Z
 - 单元测试: PASS (50 cases)
 - 集成测试: PASS (41 cases)
 - E2E 冒烟: PASS
@@ -22,7 +22,7 @@
 | T13 | F13 记忆 | PASS | ✓ T13 preference reaches the LLM system message and deletion removes it<br>✓ T13 fact kind also injects |
 | T14 | F14 终端 | PASS | ✓ T14 terminal echo roundtrip |
 | T15 | F15 全局搜索 | PASS | ✓ T15 message + file hits with locators |
-| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"b1182cae-75e4-4912-afac-82dfe4c0e0b8"}])<br>✓ e2e:tray |
+| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"3ae3e5bc-18af-4bfc-b4f6-f37608b7060e"}])<br>✓ e2e:tray |
 | T17 | F17 渲染管线 | PASS | ✓ e2e:render-sanitize ({"pwned":false,"html":"<p>&lt;img src=x onerror=window.__pwned=1&gt;</p>\n"}) |
 | T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (sqlite)<br>✓ e2e:preload-bridge (pong) |
 | T19 | F19 mermaid 渲染 | PASS | ✓ e2e:mermaid-render ({"svg":true,"errors":0}) |
