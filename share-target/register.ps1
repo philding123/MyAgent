@@ -75,7 +75,16 @@ if ($launchJson) {
 }
 $launchIni = Join-Path $instDir 'share-target\launch.ini'
 @($l.cwd, $l.exe, $l.args) | Set-Content -Path $launchIni -Encoding Ascii
-Log ('launch.ini written: exe=' + $l.exe)
+# second copy in a fixed, package-independent location: sparse activation can
+# run the payload exe from the WindowsApps root, where no sibling ini exists
+try {
+    $pd = Join-Path $env:ALLUSERSPROFILE 'MyAgent'
+    New-Item -ItemType Directory -Force -Path $pd | Out-Null
+    @($l.cwd, $l.exe, $l.args) | Set-Content -Path (Join-Path $pd 'launch.ini') -Encoding Ascii
+    Log ('launch.ini written: ' + $launchIni + ' + ' + $pd)
+} catch {
+    Log ('launch.ini written: ' + $launchIni + ' (ProgramData copy failed: ' + $_.Exception.Message + ')')
+}
 
 # 0b) forwarder exe — compile forwarder.cs with the .NET Framework bundler
 #     (csc.exe ships with Windows; no Visual Studio required). Fallback to a
@@ -137,7 +146,16 @@ try {
         New-Item -ItemType Directory -Force -Path $staging | Out-Null
         Copy-Item $manifestPath (Join-Path $staging 'AppxManifest.xml')
         Copy-Item (Join-Path $instDir 'share-target\assets') (Join-Path $staging 'share-target\assets') -Recurse
+        # makeappx validates the manifest's Executable against package content,
+        # so the forwarder exe rides along in the signing payload (4.5KB).
+        # Sparse runtime resolves files from -ExternalLocation first, so the
+        # external copy is what actually executes.
+        Copy-Item $forwarder (Join-Path $staging 'share-target\MyAgentShareTarget.exe') -Force
         & $makeappx.FullName pack /o /d $staging /p $pkgPath 2>&1 | ForEach-Object { Log ('makeappx: ' + $_) }
+        if (-not (Test-Path $pkgPath)) {
+            Log 'ERROR makeappx produced no msix; aborting'
+            exit 1
+        }
         $pfx = Join-Path $instDir 'share-target\MyAgentShare.pfx'
         if (-not (Test-Path $pfx)) {
             $pfxPass = ConvertTo-SecureString -String $(if ($env:MYAGENT_SHT_PFX_PASS) { $env:MYAGENT_SHT_PFX_PASS } else { 'myagent-share' }) -Force -AsPlainText
