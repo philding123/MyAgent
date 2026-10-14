@@ -1,0 +1,8 @@
+node_modules/
+runtime-data/
+artifacts/smoke-result.json
+artifacts/verify-raw.json
+app/renderer/dist/
+.omx/
+.claude/memory/
+*.log

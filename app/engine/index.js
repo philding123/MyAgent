@@ -1,0 +1,167 @@
+'use strict';
+// Headless agent engine (F04/F06/F07/F09). Runs as its own Node process,
+// speaks JSON-Lines on stdio (same shape as WorkBuddy's codebuddy-headless
+// being driven by the desktop shell).
+
+// stdin control: {type:'init', sessionId, mode, workspace, llm:{baseUrl,apiKey,model},
+//                 systemExtras:[string], skills:[{name,description}]}
+//                {type:'user', text}
+//                {type:'confirm', id, approved}
+//                {type:'abort'}
+// stdout events: status/token/tool_call/tool_result/confirm_request/done/error
+
+const readline = require('readline');
+const { JsonlCodec } = require('../daemon/jsonl');
+const { Sandbox, defaultRules } = require('../daemon/sandbox');
+const { makeTools } = require('./tools/index');
+const { checkToolMode, systemPromptFragment } = require('./policy');
+const { LlmClient } = require('./llm');
+
+const state = {
+  init: null,
+  sandbox: null,
+  registry: null,
+  llm: null,
+  history: [], // [{role, content|tool_calls|tool_call_id...}]
+  pendingConfirms: new Map(),
+  aborted: false,
+};
+
+const emit = (ev) => process.stdout.write(JsonlCodec.encode(ev));
+
+async function handleInit(msg) {
+  state.init = msg;
+  state.mode = msg.mode || 'craft';
+  state.sandbox = new Sandbox(msg.sandboxRules || defaultRules(msg.workspace), { workspace: msg.workspace });
+  state.registry = { read: (name) => (msg.skills || []).find((s) => s.name === name) || null,
+    all: () => msg.skills || [] };
+  state.tools = makeTools({ sandbox: state.sandbox, skillRegistry: state.registry });
+  state.llm = new LlmClient(msg.llm || {});
+  state.history = [{ role: 'system', content: buildSystem(msg) }];
+  emit({ type: 'status', stage: 'ready', mode: state.mode });
+}
+
+function buildSystem(msg) {
+  const parts = [];
+  parts.push('You are MyAgent, a personal AI agent desktop assistant. You help the user with coding, files, and system tasks in their workspace: ' + (msg.workspace || '.'));
+  parts.push(systemPromptFragment(msg.mode || 'craft'));
+  if (msg.persona) parts.push('<persona>' + msg.persona + '</persona>');
+  if (msg.preferences && msg.preferences.length) {
+    parts.push('<user_preferences>\n' + msg.preferences.map((p) => '- ' + p).join('\n') + '\n</user_preferences>');
+  }
+  if (msg.memoryFacts && msg.memoryFacts.length) {
+    parts.push('<memory>\n' + msg.memoryFacts.slice(0, 10).map((m) => '- ' + m).join('\n') + '\n</memory>');
+  }
+  if (msg.skills && msg.skills.length) {
+    parts.push('<skills>\nAvailable skills (call skill_read to load full instructions before using one):\n'
+      + msg.skills.map((s) => '- ' + s.name + ': ' + s.description).join('\n') + '\n</skills>');
+  }
+  if (msg.systemExtras && msg.systemExtras.length) parts.push(...msg.systemExtras);
+  return parts.join('\n\n');
+}
+
+async function runTurn(userText) {
+  state.history.push({ role: 'user', content: userText });
+  emit({ type: 'status', stage: 'thinking' });
+  for (let step = 0; step < 16; step++) {
+    if (state.aborted) { emit({ type: 'done', reason: 'aborted' }); return; }
+    const reply = await state.llm.chat(state.history, state.tools.definitions);
+    const toolCalls = reply.tool_calls || [];
+    if (reply.content) {
+      emit({ type: 'token', text: reply.content });
+      state.history.push({ role: 'assistant', content: reply.content, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
+    } else if (toolCalls.length) {
+      state.history.push({ role: 'assistant', content: reply.content || '', tool_calls: toolCalls });
+    } else {
+      emit({ type: 'done', reason: 'complete' });
+      return;
+    }
+    if (!toolCalls.length) { emit({ type: 'done', reason: 'complete' }); return; }
+
+    for (const call of toolCalls) {
+      const name = call.function.name;
+      let args = {};
+      try { args = JSON.parse(call.function.arguments || '{}'); } catch (_) {}
+      emit({ type: 'tool_call', id: call.id, name, args });
+      const verdict = await gateTool(name, args);
+      if (verdict.blocked) {
+        state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: false, summary: verdict.reason }) });
+        emit({ type: 'tool_result', id: call.id, ok: false, summary: verdict.reason, reason: verdict.kind });
+        continue;
+      }
+      if (verdict.needConfirm) {
+        const approved = await askConfirm(verdict);
+        if (!approved) {
+          state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: false, summary: 'user denied: ' + verdict.describe }) });
+          emit({ type: 'tool_result', id: call.id, ok: false, summary: 'user denied', reason: 'denied' });
+          continue;
+        }
+      }
+      const tool = state.tools.tools[name];
+      const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
+      state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, summary: result.summary, data: result.data }) });
+      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary });
+    }
+  }
+  emit({ type: 'done', reason: 'max-steps' });
+}
+
+async function gateTool(name, args) {
+  const tool = state.tools.tools[name];
+  const kind = tool ? tool.kind : 'read';
+  // 1) mode policy (engine-enforced, mirrors interactionmode hard rules)
+  const modeV = checkToolMode(state.mode, kind, name, args);
+  if (modeV.verdict === 'deny') return { blocked: true, kind: 'policy', reason: modeV.reason };
+  // 2) sandbox for path-bearing tools
+  if (name === 'read_file' || name === 'write_file' || name === 'list_dir') {
+    const op = name === 'read_file' || name === 'list_dir' ? 'read' : 'write';
+    const chk = state.sandbox.checkFile(args.path, op);
+    if (!chk.ok) return { blocked: true, kind: 'sandbox', reason: 'sandbox denied (' + op + '): ' + chk.path };
+  }
+  if (name === 'skill_read') {
+    const s = state.registry.read(args.name);
+    if (!s) return { blocked: true, kind: 'policy', reason: 'skill not found: ' + args.name };
+  }
+  // 3) confirmation for exec
+  if (kind === 'exec') {
+    const cmdV = state.sandbox.checkCommand(args.command || '');
+    if (cmdV.verdict === 'deny') return { blocked: true, kind: 'sandbox', reason: 'command denied by rules' };
+    const needConfirm = cmdV.verdict === 'confirm' || modeV.verdict === 'confirm';
+    if (needConfirm) return { needConfirm: true, describe: args.command, confirmId: null };
+  }
+  if (kind === 'write' && modeV.verdict === 'confirm') {
+    return { needConfirm: true, describe: 'write ' + args.path };
+  }
+  return {};
+}
+
+function askConfirm(verdict) {
+  return new Promise((resolve) => {
+    const id = 'cf_' + Math.random().toString(36).slice(2, 10);
+    state.pendingConfirms.set(id, resolve);
+    const timer = setTimeout(() => { if (state.pendingConfirms.has(id)) { state.pendingConfirms.delete(id); resolve(false); } }, 120000);
+    state.pendingConfirms.set(id, (ok) => { clearTimeout(timer); resolve(ok); });
+    emit({ type: 'confirm_request', id, command: verdict.describe, reason: verdict.reason || 'confirmation required' });
+  });
+}
+
+const rl = readline.createInterface({ input: process.stdin });
+rl.on('line', (line) => {
+  let msg;
+  try { msg = JSON.parse(line); } catch (_) { return; }
+  (async () => {
+    try {
+      if (msg.type === 'init') await handleInit(msg);
+      else if (msg.type === 'user') await runTurn(msg.text);
+      else if (msg.type === 'confirm') {
+        const r = state.pendingConfirms.get(msg.id);
+        if (r) { state.pendingConfirms.delete(msg.id); r(!!msg.approved); }
+      } else if (msg.type === 'abort') state.aborted = true;
+    } catch (e) {
+      emit({ type: 'error', message: e.message });
+      emit({ type: 'done', reason: 'error' });
+    }
+  })();
+});
+rl.on('close', () => process.exit(0));
+process.on('message', (m) => { if (m && m.type === 'abort') state.aborted = true; });

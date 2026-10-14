@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>MyAgent Settings</title>
+<link rel="stylesheet" href="./style.css"></head>
+<body data-theme="dark" class="settings-page">
+<h1>Settings</h1>
+<section>
+  <h2>Model</h2>
+  <label>Base URL <input id="llm-base" placeholder="http://127.0.0.1:11434/v1"></label>
+  <label>API Key <input id="llm-key" type="password" placeholder="stored encrypted"></label>
+  <label>Model <input id="llm-model" placeholder="local-model"></label>
+  <button id="btn-test-llm" class="primary">Test connection</button>
+  <span id="llm-test-result"></span>
+</section>
+<section>
+  <h2>Appearance</h2>
+  <label>Theme
+    <select id="theme-select"><option value="dark">Dark</option><option value="light">Light</option></select>
+  </label>
+</section>
+<section>
+  <h2>Engine</h2>
+  <label><input type="checkbox" id="prewarm-chk"> Prewarm pool (faster first token)</label>
+</section>
+<section>
+  <h2>Skills</h2>
+  <ul id="skill-list"></ul>
+  <div>
+    <button id="btn-import-skill">Import skill (.zip / folder)</button>
+    <span id="skill-msg"></span>
+  </div>
+</section>
+<section>
+  <h2>Memory</h2>
+  <div><input id="mem-input" placeholder="remember: I prefer concise answers"><button id="btn-mem-add">Add</button></div>
+  <ul id="mem-list"></ul>
+</section>
+<section>
+  <h2>Self check</h2>
+  <pre id="selfcheck"></pre>
+</section>
+<section>
+  <h2>Data</h2>
+  <button id="btn-export">Export sessions JSON</button>
+  <button id="btn-clear" class="danger">Clear all data</button>
+  <span id="data-msg"></span>
+</section>
+<script src="./dist/settings.js"></script>
+</body>
+</html>

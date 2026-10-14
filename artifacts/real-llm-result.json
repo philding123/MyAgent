@@ -1,0 +1,38 @@
+{
+  "endpoint": "https://api.20230112.xyz/v1",
+  "model": "gpt-6.1-sol",
+  "checks": [
+    {
+      "name": "R0a key stored encrypted",
+      "ok": true
+    },
+    {
+      "name": "R0b test connection",
+      "ok": true,
+      "detail": "pong"
+    },
+    {
+      "name": "R1 craft: file created via tools",
+      "ok": true,
+      "detail": "tools=write_file,read_file"
+    },
+    {
+      "name": "R1 craft: read_file used",
+      "ok": true
+    },
+    {
+      "name": "R1 craft: assistant replied with path",
+      "ok": true,
+      "detail": "： ```text hello from myagent ``` 文件路径： ```text C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-real-lrY7eO\\hello-real.txt ```"
+    },
+    {
+      "name": "R2 ask: no file written",
+      "ok": true
+    },
+    {
+      "name": "R2 ask: refused (policy or explanation)",
+      "ok": true,
+      "detail": "当前处于 **Ask 模式（只读）**，我不能创建文件。请切换到 **Agent 模式**，然后我就可以创建 `ask-deny.txt` 并写入任意内容。"
+    }
+  ]
+}

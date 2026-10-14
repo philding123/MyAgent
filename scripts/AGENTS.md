@@ -1,0 +1,28 @@
+# AGENTS.md — scripts/
+
+## 职责与定位
+
+构建、验收与测试支撑脚本（ESM，`node scripts/*.mjs` 直跑）。
+
+## 结构
+
+| 脚本 | 职责 | 关键点 |
+|---|---|---|
+| `build.mjs` | esbuild 打包 renderer 三页面 → `app/renderer/dist/` | 改 renderer 后必须执行 |
+| `verify.mjs` | 验收 runner：build → unit(TAP) → integration(TAP) → e2e 冒烟 → `artifacts/acceptance-report.md` + `verify-raw.json` | 用例名 `T\d+` 正则映射功能点；Electron 退出码以冒烟 JSON 的 exitCode 为准，跑完收割 myagent 路径下的 electron 进程 |
+| `mock-llm.mjs` | OpenAI 兼容 mock server（scenario 队列：content/tool_calls/__error） | `startMockLlm()` 供集成测试 import；独立跑可当调试端点 |
+| `real-llm-check.js` | 真实模型检查（CJS） | 读 `~/.codex/{config.toml,auth.json}`，经 daemon RPC 配置（Key 进 vault），R0–R2 七项断言，结果写 `artifacts/real-llm-result.json` |
+
+## 铁律
+
+1. verify.mjs 的 TAP 解析与 e2e 轮询逻辑勿轻易改——它承载验收门槛（99-test-plan.md）。
+2. real-llm-check.js 是唯一允许触碰真实 `%APPDATA%/myagent` 配置的脚本。
+3. Windows 注意：spawnSync 对 GUI 子系统（electron.exe）拿不到退出码 → 走 shell + 结果 JSON（见 verify.mjs §e2e 注释）。
+
+## 命令
+
+```bash
+npm run build / npm run verify
+node scripts/real-llm-check.js
+node scripts/mock-llm.mjs
+```

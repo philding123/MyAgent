@@ -1,0 +1,29 @@
+{
+  "name": "myagent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal AI agent desktop workstation (WorkBuddy-inspired, no payment system)",
+  "main": "app/main/index.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "electron .",
+    "verify": "node scripts/verify.mjs",
+    "test:unit": "node --test tests/unit/",
+    "test:int": "node --test tests/integration/"
+  },
+  "dependencies": {
+    "dompurify": "^3.1.7",
+    "highlight.js": "^11.10.0",
+    "katex": "^0.16.11",
+    "marked": "^14.1.2"
+  },
+  "optionalDependencies": {
+    "@lydell/node-pty": "^1.2.0-beta.14",
+    "better-sqlite3": "^12.2.0"
+  },
+  "devDependencies": {
+    "@xterm/xterm": "^5.5.0",
+    "electron": "^37.2.0",
+    "esbuild": "^0.24.0"
+  }
+}
