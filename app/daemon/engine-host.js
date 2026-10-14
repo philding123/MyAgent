@@ -25,6 +25,14 @@ class EngineHandle {
           const w = this.readyWaiters.splice(0);
           w.forEach((fn) => fn());
         }
+        if (ev.type === 'daemon_tool_request' && pool.opts.daemonToolHandler) {
+          // F25: engine-side tools backed by daemon capabilities (market).
+          Promise.resolve()
+            .then(() => pool.opts.daemonToolHandler(ev.tool, ev.args))
+            .then((result) => this.send({ type: 'daemon_tool_result', id: ev.id, result }))
+            .catch((e) => this.send({ type: 'daemon_tool_result', id: ev.id, result: { ok: false, summary: e.message } }));
+          continue;
+        }
         this.listeners.forEach((fn) => fn(ev));
       }
     });

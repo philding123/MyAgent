@@ -6,3 +6,4 @@ app/renderer/dist/
 .omx/
 .claude/memory/
 *.log
+artifacts/smoke-debug.json

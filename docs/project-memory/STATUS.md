@@ -12,7 +12,7 @@
 ## Now
 
 - 手工抽查第 4 项：托盘点击交互（显示/恢复/退出）——留待日常使用验证，无代码工作。
-- Phase-2 立项评估：从 design/90-deferred.md 候选中选定首批（mermaid 渲染 / Office 文档预览 / 自动更新器）并补充设计文档。
+- F23 手工项：真实 Telegram bot token 收发一轮（slack/discord/feishu/dingtalk 骨架按需接 token）。
 
 ## Recent Activity
 

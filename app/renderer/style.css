@@ -83,3 +83,25 @@ input, textarea, select { background: var(--panel); color: var(--ink); border: 1
   padding: 10px 14px; margin: 8px 0; cursor: pointer; }
 #results .tag { background: var(--panel-2); border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--ink-dim); }
 #results code { color: var(--ink-dim); }
+
+/* F19 mermaid blocks */
+.mermaid-block { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px; margin: 8px 0; overflow-x: auto; text-align: center; }
+.mermaid-block svg { max-width: 100%; height: auto; }
+.mermaid-error { color: #e5484d; font-size: 12px; margin-top: 6px; text-align: left; }
+
+/* F20 preview window */
+.preview-body { display: flex; flex-direction: column; height: 100vh; margin: 0; }
+#preview-bar { display: flex; gap: 10px; align-items: baseline; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--panel); }
+#preview-title { font-weight: 600; }
+#preview-container { flex: 1; overflow: auto; padding: 16px; }
+.preview-info { color: var(--ink-dim); }
+.docx-host { background: #fff; color: #222; max-width: 860px; margin: 0 auto; border-radius: 6px; }
+.pdf-page { display: block; margin: 12px auto; box-shadow: 0 2px 10px rgba(0,0,0,.4); background: #fff; }
+.sheet-table table { border-collapse: collapse; font-size: 12px; }
+.sheet-table td { border: 1px solid var(--line); padding: 3px 8px; max-width: 320px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-image { max-width: 100%; }
+.preview-text { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px; white-space: pre-wrap; word-break: break-word; }

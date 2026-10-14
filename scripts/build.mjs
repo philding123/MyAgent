@@ -19,4 +19,5 @@ const common = {
 await build({ ...common, entryPoints: [path.join(root, 'app/renderer/src/app.js')], outfile: path.join(outdir, 'bundle.js') });
 await build({ ...common, entryPoints: [path.join(root, 'app/renderer/src/settings.js')], outfile: path.join(outdir, 'settings.js') });
 await build({ ...common, entryPoints: [path.join(root, 'app/renderer/src/search.js')], outfile: path.join(outdir, 'search.js') });
+await build({ ...common, entryPoints: [path.join(root, 'app/renderer/src/preview.js')], outfile: path.join(outdir, 'preview.js') });
 console.log('build ok');

@@ -6,11 +6,13 @@ const { app, ipcMain, dialog, BrowserWindow } = require('electron');
 const { DaemonClient } = require('./daemon-client');
 const windows = require('./windows');
 const { createTray, parseDeeplink } = require('./tray');
+const { Updater } = require('./updater');
 const fs = require('fs');
 const path = require('path');
 
 let daemon;
 let tray = null;
+let updater = null;
 let smokeResult = { steps: [], ok: true };
 const pendingUrls = [];
 
@@ -36,6 +38,23 @@ function queueDeeplink(url) {
   deliverPendingUrls();
 }
 
+/** F24: a shared file arrives → new session with a reference message. */
+async function handleShare(filePath) {
+  try {
+    const abs = path.resolve(filePath);
+    const r = await daemon.request('sessions.create', { title: 'Shared: ' + path.basename(abs) });
+    if (r.ok && r.result && r.result.id) {
+      await daemon.request('sessions.appendMessage', {
+        session_id: r.result.id, role: 'user', content: '[shared file] ' + abs,
+      });
+      pendingUrls.push({ action: 'session', id: r.result.id });
+      deliverPendingUrls();
+    }
+  } catch (e) {
+    console.error('[share] failed:', e.message);
+  }
+}
+
 function deliverPendingUrls() {
   const main = windows.get('main');
   if (main && !main.isDestroyed() && pendingUrls.length) {
@@ -48,11 +67,26 @@ async function bootstrap() {
   daemon.start();
 
   ipcMain.handle('rpc', (_e, req) => daemon.request(req.method, req.params));
-  ipcMain.handle('rpc.window', (_e, req) => {
+  ipcMain.handle('rpc.window', async (_e, req) => {
     if (req.action === 'openSettings') windows.createSettings();
     if (req.action === 'openSearch') windows.createSearch();
+    if (req.action === 'openPreview' && req.path) windows.createPreview(String(req.path));
+    if (req.action === 'pickFile') {
+      return dialog.showOpenDialog({ properties: ['openFile'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
+    }
     if (req.action === 'setTheme') windows.setTheme(req.theme);
     if (req.action === 'theme') return windows.theme();
+    if (req.action === 'updateCheck') {
+      const v = await daemon.request('settings.get', { key: 'update.manifestUrl' }).catch(() => null);
+      updater.manifestUrl = (v && v.result) || '';
+      return updater.check();
+    }
+    if (req.action === 'updateApply') {
+      const appRoot = path.dirname(app.getPath('exe'));
+      return updater.apply({ appRoot, exeName: path.basename(process.execPath),
+        quitFn: () => { global.__myagentQuitting = true; app.quit(); } });
+    }
+    if (req.action === 'updateState') return updater.status();
     if (req.action === 'pickDirectory') {
       return dialog.showOpenDialog({ properties: ['openDirectory'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
     }
@@ -62,6 +96,14 @@ async function bootstrap() {
   daemon.on('event', (msg) => windows.broadcast('rpc:event', { topic: msg.topic, payload: msg.payload }));
   daemon.on('ready', () => deliverPendingUrls());
   daemon.on('down', () => windows.broadcast('rpc:event', { topic: 'daemon:status', payload: { state: 'reconnecting' } }));
+
+  // F21 updater: shell-level concern (mirrors WorkBuddy updater outside the
+  // app-server). Manifest URL lives in daemon settings; progress broadcasts.
+  updater = new Updater({
+    manifestUrl: '',
+    currentVersion: app.getVersion(),
+    emit: (_stage, payload) => windows.broadcast('rpc:event', { topic: 'app:update', payload }),
+  });
 
   tray = createTray(require('electron'), {
     showMain: () => { const w = windows.createMain(null); w.show(); },
@@ -73,6 +115,10 @@ async function bootstrap() {
   // cold-start deeplink from argv (Windows)
   const url = process.argv.find((a) => String(a).startsWith('myagent://'));
   if (url) queueDeeplink(url);
+
+  // F24 share target: sparse MSIX helper forwards "--share <path>"
+  const shareIdx = process.argv.indexOf('--share');
+  if (shareIdx >= 0 && process.argv[shareIdx + 1]) handleShare(process.argv[shareIdx + 1]);
 
   app.on('activate', () => windows.createMain(null));
   app.on('before-quit', () => { global.__myagentQuitting = true; });
@@ -147,6 +193,77 @@ async function runSmoke() {
     const xss = await mainWin.webContents.executeJavaScript(
       `window.__renderTest ? window.__renderTest('<img src=x onerror=window.__pwned=1><script>window.__pwned=1</script>') : 'no-test-hook'`, true);
     step('render-sanitize', xss && xss.pwned === false, JSON.stringify(xss));
+
+    // T19 mermaid render pipeline (F19)
+    const mmd = await mainWin.webContents.executeJavaScript(
+      "window.__mermaidTest ? window.__mermaidTest('```mermaid\\ngraph TD; A-->B;\\n```') : 'no-hook'", true);
+    step('mermaid-render', mmd && mmd.svg === true && mmd.errors === 0, JSON.stringify(mmd));
+
+    // T20 preview: sandbox-checked binary read + preview window decode (F20)
+    const fx = path.join(__dirname, '..', '..', 'tests', 'fixtures', 'share-sample.txt');
+    fs.mkdirSync(path.dirname(fx), { recursive: true });
+    if (!fs.existsSync(fx)) fs.writeFileSync(fx, 'T20 fixture content\n');
+    const rb = await daemon.request('files.readBinary', { path: fx });
+    step('preview-readbinary', rb.ok && !!rb.result.base64
+      && Buffer.from(rb.result.base64, 'base64').toString('utf8').includes('T20 fixture'),
+    rb.ok ? rb.result.mime : JSON.stringify(rb.error));
+    const pv = windows.createPreview(fx);
+    await waitLoad(pv).catch(() => {});
+    let pvState = null;
+    for (let i = 0; i < 25 && !(pvState && pvState.ok); i++) {
+      pvState = await pv.webContents.executeJavaScript('window.__previewState || null', true).catch(() => null);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    step('preview-window', windows.ids().length >= 4 && pvState && pvState.ok === true && pvState.kind === 'text', JSON.stringify(pvState));
+
+    // T21 updater status fields (F21, no external calls)
+    const us = await mainWin.webContents.executeJavaScript('window.myagent.windowAction("updateState")', true);
+    step('updater-status', us && typeof us.enabled === 'boolean' && typeof us.currentVersion === 'string'
+      && 'manifest' in us && 'stage' in us, JSON.stringify(us && { enabled: us.enabled, stage: us.stage, v: us.currentVersion }));
+
+    // T22 browser tool availability probe (F22)
+    const scFull = await daemon.request('app.selfcheck');
+    step('browser-tool', scFull.ok && scFull.result.browser && typeof scFull.result.browser.available === 'boolean',
+      scFull.result.browser ? String(scFull.result.browser.channel) + '/' + String(scFull.result.browser.available) : 'missing');
+
+    // T23 IM channel table (F23)
+    const im = await daemon.request('im.status');
+    step('im-status', im.ok && Array.isArray(im.result) && im.result.some((c) => c.id === 'telegram')
+      && im.result.some((c) => c.id === 'webhook'), im.ok ? im.result.map((c) => c.id).join(',') : JSON.stringify(im.error));
+
+    // T25 market status (F25)
+    const mk = await daemon.request('market.status');
+    step('market-status', mk.ok && mk.result && Array.isArray(mk.result.sources) && typeof mk.result.allowInsecure === 'boolean', null);
+
+    // T26 sync status (F26)
+    const sy = await daemon.request('sync.status');
+    step('sync-status', sy.ok && sy.result && 'auto' in sy.result && 'dirty' in sy.result, null);
+
+    // T27 capability matrix carries phase-4 fields (F27)
+    step('phase4-fields', scFull.ok && scFull.result.browser && scFull.result.im && scFull.result.market
+      && scFull.result.sync && scFull.result.a2a, null);
+
+    // T28 a2a card over loopback (F28)
+    const a2aOn = await daemon.request('a2a.enable', { enabled: true });
+    let cardOk = false; let cardName = '';
+    if (a2aOn.ok && a2aOn.result && a2aOn.result.url) {
+      try {
+        const res = await fetch(a2aOn.result.url + '/.well-known/agent.json');
+        cardOk = res.status === 200;
+        cardName = (await res.json()).name;
+      } catch (_) {}
+    }
+    step('a2a-card', cardOk && cardName === 'MyAgent', cardName);
+    await daemon.request('a2a.enable', { enabled: false }).catch(() => {});
+
+    // T24 share argv (F24): run the share entrypoint like the MSIX helper would
+    if (process.env.MYAGENT_SMOKE_SHARE) {
+      await handleShare(process.env.MYAGENT_SMOKE_SHARE);
+      await new Promise((r) => setTimeout(r, 500));
+      const sl = await daemon.request('sessions.list');
+      const shared = sl.ok && sl.result.find((s) => String(s.title).startsWith('Shared: '));
+      step('share-argv', !!shared, shared && shared.title);
+    }
   } catch (e) {
     step('exception', false, String(e && e.stack || e));
   }

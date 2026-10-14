@@ -5,11 +5,48 @@ import { marked } from 'marked';
 import hljs from 'highlight.js';
 import katex from 'katex';
 import DOMPurify from 'dompurify';
+import mermaid from 'mermaid';
 
 const $ = (sel) => document.querySelector(sel);
 
-// ---------- render pipeline (F17) ----------
+// ---------- render pipeline (F17 + F19 mermaid) ----------
 marked.setOptions({ gfm: true, breaks: true });
+
+// F19: client-side mermaid, on-demand render, strict security. SVG output is
+// re-sanitized with the SVG profile so the XSS surface stays identical to T17.
+mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'dark' });
+let mermaidSeq = 0;
+
+async function hydrateMermaid(container) {
+  const blocks = container.querySelectorAll('pre code.language-mermaid');
+  for (const code of blocks) {
+    const src = code.textContent || '';
+    const host = document.createElement('div');
+    host.className = 'mermaid-block';
+    try {
+      const { svg } = await mermaid.render('mmd-' + (++mermaidSeq), src);
+      host.innerHTML = DOMPurify.sanitize(svg, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_ATTR: ['dominant-baseline', 'text-anchor', 'transform-origin'],
+      });
+      const pre = code.closest('pre');
+      pre.replaceWith(host);
+    } catch (e) {
+      const badge = document.createElement('div');
+      badge.className = 'mermaid-error';
+      badge.textContent = 'mermaid render failed: ' + String(e && e.message || e).slice(0, 120);
+      code.closest('pre').appendChild(badge);
+    }
+  }
+}
+
+// smoke hook (T19): render a mermaid sample through the full pipeline
+window.__mermaidTest = async (sample) => {
+  const div = document.createElement('div');
+  div.innerHTML = renderMarkdown(sample);
+  await hydrateMermaid(div);
+  return { svg: !!div.querySelector('.mermaid-block svg'), errors: div.querySelectorAll('.mermaid-error').length };
+};
 
 function renderMath(text) {
   // $$block$$ then $inline$
@@ -44,6 +81,7 @@ function appendMessage(role, opts = {}) {
     body.className = 'md';
     body.innerHTML = renderMarkdown(opts.content || '');
     el.appendChild(body);
+    if (role === 'assistant' && !opts.deferMermaid) hydrateMermaid(body);
   } else if (role === 'tool') {
     el.innerHTML = '<div class="tool-chip"><span class="tool-name">' + escapeHtml(opts.tool || '') +
       '</span><span class="tool-summary">' + escapeHtml(opts.summary || '') + '</span>' +
@@ -113,6 +151,8 @@ function handleEngineEvent(ev) {
   } else if (ev.type === 'confirm_request') {
     showConfirm(ev);
   } else if (ev.type === 'done') {
+    // stream finished: hydrate mermaid once on the final text (F19)
+    if (streamingEl && streamingEl.isConnected) hydrateMermaid(streamingEl.querySelector('.md'));
     finishStreaming();
     engineRunning = false;
     setSendEnabled(true);
@@ -240,6 +280,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#btn-new').onclick = newSession;
   $('#btn-send').onclick = send;
   $('#btn-terminal').onclick = toggleTerminal;
+  $('#btn-preview').onclick = async () => {
+    const file = await window.myagent.windowAction('pickFile');
+    if (file) window.myagent.windowAction('openPreview', { path: file });
+  };
   $('#btn-search').onclick = () => window.myagent.windowAction('openSearch');
   $('#btn-settings').onclick = () => window.myagent.windowAction('openSettings');
   $('#input').addEventListener('keydown', (e) => {

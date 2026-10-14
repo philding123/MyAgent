@@ -15,6 +15,20 @@ async function loadSettings() {
   const theme = await window.myagent.windowAction('theme') || 'dark';
   $('#theme-select').value = theme;
   document.body.dataset.theme = theme;
+  // F21/F25/F26/F27/F28 configuration surfaces
+  $('#update-url').value = all['update.manifestUrl'] || '';
+  $('#market-url').value = all['market.url'] || '';
+  $('#market-insecure').checked = all['market.allowInsecure'] === true;
+  const sync = await rpc('sync.status');
+  const cfg = await rpc('settings.get', { key: 'sync.config' }) || {};
+  $('#sync-dir').value = cfg.type === 'directory' ? (cfg.path || '') : '';
+  $('#sync-auto').checked = !!sync.auto;
+  $('#sandbox-backend').value = all['sandbox.backend'] || 'local';
+  $('#sandbox-cloud-url').value = all['sandbox.cloud.url'] || '';
+  $('#sandbox-cloud-id').value = all['sandbox.cloud.sandboxId'] || '';
+  const a2a = await rpc('a2a.status');
+  $('#a2a-enabled').checked = !!a2a.enabled;
+  $('#a2a-msg').textContent = a2a.url ? a2a.url : '';
 }
 
 async function loadSelfcheck() {
@@ -103,5 +117,74 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!confirm('Delete ALL sessions and memory?')) return;
     await rpc('data.clear');
     $('#data-msg').textContent = 'cleared';
+  };
+  // ---- F21 updater ----
+  $('#update-url').onchange = (e) => save('update.manifestUrl', e.target.value.trim());
+  $('#btn-update-check').onclick = async () => {
+    $('#update-msg').textContent = 'checking…';
+    try {
+      const r = await window.myagent.windowAction('updateCheck');
+      $('#update-msg').textContent = r.ok
+        ? (r.updateAvailable ? 'update available: ' + r.version : 'up to date')
+        : ('error: ' + (r.reason || 'disabled'));
+    } catch (e) { $('#update-msg').textContent = 'fail: ' + e.message; }
+  };
+  $('#btn-update-apply').onclick = async () => {
+    try {
+      const r = await window.myagent.windowAction('updateApply');
+      $('#update-msg').textContent = r.ok ? 'applying — app will restart' : ('error: ' + (r.reason || ''));
+    } catch (e) { $('#update-msg').textContent = 'fail: ' + e.message; }
+  };
+  // ---- F25 market ----
+  $('#market-url').onchange = (e) => save('market.url', e.target.value.trim());
+  $('#market-insecure').onchange = (e) => save('market.allowInsecure', e.target.checked);
+  $('#btn-market-search').onclick = async () => {
+    $('#market-msg').textContent = 'searching…';
+    try {
+      const ks = $('#market-keywords').value.split(/\s+/).filter(Boolean);
+      const hits = await rpc('market.search', { keywords: ks });
+      const un = hits.filter((h) => !h.installed);
+      $('#market-msg').textContent = hits.length
+        ? (un.length ? un[0].name + ' — ' + un[0].description : 'all hits already installed')
+        : 'no hits';
+    } catch (e) { $('#market-msg').textContent = 'fail: ' + e.message; }
+  };
+  $('#btn-market-install').onclick = async () => {
+    try {
+      const ks = $('#market-keywords').value.split(/\s+/).filter(Boolean);
+      const hits = (await rpc('market.search', { keywords: ks })).filter((h) => !h.installed);
+      if (!hits.length) { $('#market-msg').textContent = 'nothing to install'; return; }
+      const r = await rpc('market.install', { names: [hits[0].name] });
+      $('#market-msg').textContent = hits[0].name + ' → ' + r[0].status + (r[0].reason ? ' (' + r[0].reason + ')' : '');
+      loadSkills();
+    } catch (e) { $('#market-msg').textContent = 'fail: ' + e.message; }
+  };
+  // ---- F26 sync ----
+  $('#btn-sync-save').onclick = async () => {
+    const dir = $('#sync-dir').value.trim();
+    await rpc('sync.configure', { config: dir ? { type: 'directory', path: dir, auto: $('#sync-auto').checked } : null });
+    $('#sync-msg').textContent = dir ? 'target saved' : 'target cleared';
+  };
+  $('#sync-auto').onchange = async (e) => {
+    const dir = $('#sync-dir').value.trim();
+    if (dir) await rpc('sync.configure', { config: { type: 'directory', path: dir, auto: e.target.checked } });
+  };
+  $('#btn-sync-push').onclick = async () => {
+    const r = await rpc('sync.push');
+    $('#sync-msg').textContent = r.ok ? 'pushed ' + r.pushed : ('error: ' + r.reason);
+  };
+  $('#btn-sync-pull').onclick = async () => {
+    const r = await rpc('sync.pull');
+    $('#sync-msg').textContent = r.ok ? 'applied ' + r.applied + (r.conflicts ? ', conflicts ' + r.conflicts : '') : ('error: ' + r.reason);
+  };
+  // ---- F27 cloud sandbox ----
+  $('#sandbox-backend').onchange = (e) => save('sandbox.backend', e.target.value);
+  $('#sandbox-cloud-url').onchange = (e) => save('sandbox.cloud.url', e.target.value.trim());
+  $('#sandbox-cloud-id').onchange = (e) => save('sandbox.cloud.sandboxId', e.target.value.trim());
+  $('#sandbox-cloud-key').onchange = (e) => { if (e.target.value) { save('sandbox.cloud.apiKey', e.target.value); e.target.value = ''; } };
+  // ---- F28 a2a ----
+  $('#a2a-enabled').onchange = async (e) => {
+    const r = await rpc('a2a.enable', { enabled: e.target.checked });
+    $('#a2a-msg').textContent = r.url ? ('serving at ' + r.url) : 'disabled';
   };
 });

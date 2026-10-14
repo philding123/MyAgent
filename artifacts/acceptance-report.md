@@ -1,8 +1,8 @@
 # MyAgent 验收报告
 
-- 生成时间: 2026-10-13T17:53:50.518Z
-- 单元测试: PASS (32 cases)
-- 集成测试: PASS (18 cases)
+- 生成时间: 2026-10-14T01:45:48.000Z
+- 单元测试: PASS (49 cases)
+- 集成测试: PASS (41 cases)
 - E2E 冒烟: PASS
 
 | T | 功能点 | 结果 | 明细 |
@@ -22,49 +22,19 @@
 | T13 | F13 记忆 | PASS | ✓ T13 preference reaches the LLM system message and deletion removes it<br>✓ T13 fact kind also injects |
 | T14 | F14 终端 | PASS | ✓ T14 terminal echo roundtrip |
 | T15 | F15 全局搜索 | PASS | ✓ T15 message + file hits with locators |
-| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"eb54d504-2988-4cb3-ad73-66b4dede1e8a"}])<br>✓ e2e:tray |
+| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"8e6c15fc-f80f-4be9-98d4-490fcdd5413c"}])<br>✓ e2e:tray |
 | T17 | F17 渲染管线 | PASS | ✓ e2e:render-sanitize ({"pwned":false,"html":"<p>&lt;img src=x onerror=window.__pwned=1&gt;</p>\n"}) |
 | T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (json)<br>✓ e2e:preload-bridge (pong) |
+| T19 | F19 mermaid 渲染 | PASS | ✓ e2e:mermaid-render ({"svg":true,"errors":0}) |
+| T20 | F20 文档预览 | PASS | ✓ T20a extractMermaidBlocks finds mermaid fences only<br>✓ T20a pickPreviewKind maps office/image/text families<br>✓ e2e:preview-readbinary (text/plain)<br>✓ e2e:preview-window ({"path":"D:\\Proj\\ai_workspace\\myagent\\tests\\fixtures\\share-sample.txt","kind":"text","ok":true,"error":null,"bytes":20}) |
+| T21 | F21 自动更新器 | PASS | ✓ T21a compareSemver ordering<br>✓ T21a updater: malformed manifest -> error not throw<br>✓ T21a updater: missing manifest fields rejected<br>✓ T21a updater: sha256 mismatch deletes the artifact<br>✓ T21a updater: apply refuses when nothing ready<br>✓ T21b check→download→verify→ready with progress stages<br>✓ T21b corrupt artifact is refused and cleaned<br>✓ T21b unavailable source -> disabled/error states<br>✓ e2e:updater-status ({"enabled":false,"stage":"idle","v":"0.1.0"}) |
+| T22 | F22 Browser-use | PASS | ✓ T22a action kinds: read vs exec split is design-true<br>✓ T22a foreign ref rejected before any browser launch<br>✓ T22b navigate→content→snapshot→click→screenshot flow<br>✓ T22b unknown action and stale ref are value-errors, not throws<br>✓ e2e:browser-tool (msedge/true) |
+| T23 | F23 IM 通道 | PASS | ✓ T23a RingDedup keeps newest 500, drops duplicates<br>✓ T23a telegram token validation<br>✓ T23a markdown -> telegram html covers headings/bold/code/links<br>✓ T23a splitHtml chunks without cutting tags and stays under limit<br>✓ T23b full loop: valid token -> inbound -> dedup -> outbound reply<br>✓ T23b oversized reply is chunked into multiple sendMessage calls<br>✓ T23b invalid token -> AUTH_FAILED nonRecoverable<br>✓ T23b getMe 401 -> AUTH_FAILED; 5 network failures -> RECONNECT_EXHAUSTED<br>✓ T23c ChannelManager states: needs_credentials -> configured; status table<br>✓ e2e:im-status (telegram,webhook,slack,discord,dingtalk,feishu) |
+| T24 | F24 分享目标 | PASS | ✓ T24a AppxManifest.xml is well-formed with ShareTarget extension<br>✓ T24a register/unregister ps1 parse cleanly<br>✓ T24a register.ps1 keeps the evidence-grade engineering details<br>✓ e2e:share-argv (Shared: share-sample.txt) |
+| T25 | F25 云端市场 | PASS | ✓ T25a keywordsMatch requires all keywords (1-5)<br>✓ T25a market refuses plain http unless allowInsecure<br>✓ T25 search/install/already/refused(hash) through daemon RPC<br>✓ e2e:market-status |
+| T26 | F26 端云同步 | PASS | ✓ T26a SyncTargetDirectory put/get/list roundtrip<br>✓ T26 two daemons sync through a shared directory target<br>✓ T26 rev conflict preserves both sides (store-level)<br>✓ e2e:sync-status |
+| T27 | F27 云沙箱 | PASS | ✓ T27 fs/exec roundtrip on the cloud backend<br>✓ T27 401 triggers exactly one shared reconnect then succeeds<br>✓ T27 concurrent auth failures share one reconnect attempt<br>✓ T27 reconnect throttle: second auth error within 10s fails closed<br>✓ T27 tool layer routes through the cloud backend<br>✓ e2e:phase4-fields |
+| T28 | F28 A2A 协作 | PASS | ✓ T28 agentCard has A2A-required fields<br>✓ T28 message/send roundtrip + delegate client + card shape<br>✓ T28 delegate reports unreachable agent as a value error<br>✓ e2e:a2a-card (MyAgent) |
 
 ## 降级记录
 - Electron 运行时 store 模式: json
-## 问题归因记录（实现过程中发现并修复）
-
-按用户要求区分「方案设计问题」与「WorkBuddy 功能理解问题」：
-
-| # | 问题 | 归因 | 处置 |
-|---|---|---|---|
-| 1 | Electron/Windows 下 `app.exit`/`process.exit` 不终止进程树（18 个残留进程） | **方案设计问题**（退出策略不适用 GUI 子系统） | 冒烟结果+退出码写入 JSON，verify 轮询结果后强杀进程树；daemon 关闭改用 `taskkill /T /F`（设计 11 的孤儿防护本来就要求树杀，提前启用） |
-| 2 | `installSkill` 用 `renameSync` 导致源目录被移走、重复安装报 ENOENT | **实现缺陷**（设计文档写明市场安装为复制语义） | 改 `fs.cpSync` 复制 |
-| 3 | 引擎 `skill_read` 拿不到技能正文（init 只传 name/description） | **方案设计细化**（渐进披露要求引擎持有全文） | buildInit 传完整技能对象（含 body） |
-| 4 | daemon `stop`→`start` 竞态：旧引擎迟到的 exit 事件误删新引擎句柄 | **实现缺陷** | exit 回调加句柄同一性保护；stop 等待进程真正退出（上限 1s） |
-| 5 | 测试辅助 `waitEvent` 会匹配到上一轮的陈旧事件 / 实时分支不传事件索引 | **实现缺陷**（测试工具） | matcher 增加事件索引参数 |
-| 6 | better-sqlite3 损坏恢复在 Windows 失败（文件被打开句柄锁定，rename 失败后重开同一坏文件） | **实现缺陷** | 恢复前先 `db.close()`，清理 -wal/-shm 边车文件 |
-| 7 | 默认沙箱规则与 daemon 凭证目录路径不一致（.config vs APPDATA） | **实现缺陷** | `defaultRules` 与 `homeDir()` 同源推导（MYAGENT_HOME > APPDATA > ~/.config） |
-| 8 | main↔daemon 采用"长度前缀 JSON 帧"（设计原文）vs Node IPC 原生对象通道 | **方案设计简化**（等价实现，记录偏离） | 保留原生对象通道；JSON-Lines 编解码仅用于 engine stdio 边界（与设计一致） |
-| 9 | Electron 运行时 store 降级为 JSON（better-sqlite3 prebuild 为系统 Node ABI） | **已知降级**（设计 01 §4 降级矩阵预设路径） | selfcheck 上报 store.mode，集成测试验证 sqlite 实现本体 |
-
-结论：**无需回溯逆向 WorkBuddy**——本轮未出现"WorkBuddy 功能理解问题"；9 项全部为方案细节/实现缺陷，均已修复并回归通过。
-
-## 待用户手工抽查（需要真实 LLM 配置）
-
-1. Settings → Model 填入 OpenAI 兼容 baseUrl/API Key/模型 → Test connection。
-2. 新建会话（选工作目录），craft 模式发起一个真实任务，观察工具调用/确认弹窗。
-3. ask 模式让模型"创建文件"，确认拒绝话术与不落盘。
-4. 关闭主窗最小化到托盘 → 托盘菜单恢复/退出。
-
-## 真实 LLM 验证（2026-10-14 补充，完成手工抽查 1–3）
-
-配置来源：`~/.codex/config.toml`（base_url `https://api.20230112.xyz/v1`）+ `auth.json`（API Key，经 MyAgent 加密 vault 落盘，已验证库文件无明文）；模型 `gpt-6.1-sol`。
-运行方式：`node scripts/real-llm-check.js`（结果在 `artifacts/real-llm-result.json`）。
-
-| 检查 | 结果 | 说明 |
-|---|---|---|
-| R0a Key 加密存储 | PASS | vault.bin 中无明文 Key |
-| R0b 测试连接（走 MyAgent 自身 LlmClient） | PASS | 返回 pong |
-| R1 craft 模式真实工具循环 | PASS | 模型实际调用 write_file + read_file，文件落盘且内容正确，最终回复含文件路径 |
-| R1 read_file 使用 | PASS | 模型自主读回确认 |
-| R2 ask 模式只读策略（真实模型） | PASS | 模型收到只读硬规则后拒绝写文件，解释"Ask 模式只读，请切换 Agent 模式"，且无文件落盘 |
-| R2 无文件写入 | PASS | ask-deny.txt 未创建 |
-
-**至此 99-test-plan.md 手工抽查 1–3 完成；抽查 4（托盘交互）为纯 GUI 操作，留待用户日常使用验证（托盘对象创建已由 E2E 覆盖）。验收状态：ALL GREEN。**

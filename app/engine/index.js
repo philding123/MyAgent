@@ -24,10 +24,24 @@ const state = {
   llm: null,
   history: [], // [{role, content|tool_calls|tool_call_id...}]
   pendingConfirms: new Map(),
+  pendingDaemonTools: new Map(),
   aborted: false,
 };
 
 const emit = (ev) => process.stdout.write(JsonlCodec.encode(ev));
+
+/** F25: call a daemon-backed capability (market) from an engine tool. */
+function callDaemonTool(tool, args) {
+  const id = 'dt_' + Math.random().toString(36).slice(2, 10);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      state.pendingDaemonTools.delete(id);
+      resolve({ ok: false, summary: 'daemon tool timeout: ' + tool });
+    }, 120000);
+    state.pendingDaemonTools.set(id, (result) => { clearTimeout(timer); resolve(result); });
+    emit({ type: 'daemon_tool_request', id, tool, args });
+  });
+}
 
 async function handleInit(msg) {
   state.init = msg;
@@ -35,7 +49,32 @@ async function handleInit(msg) {
   state.sandbox = new Sandbox(msg.sandboxRules || defaultRules(msg.workspace), { workspace: msg.workspace });
   state.registry = { read: (name) => (msg.skills || []).find((s) => s.name === name) || null,
     all: () => msg.skills || [] };
-  state.tools = makeTools({ sandbox: state.sandbox, skillRegistry: state.registry });
+  // F22: one browser session per engine process; tool registered only when
+  // the environment can drive a browser (probe + lazy playwright-core load).
+  let browserDef = null;
+  try {
+    const { probeBrowser } = require('../shared/browser-probe');
+    const { makeBrowserSession, browserToolDefinition } = require('./tools/browser');
+    if (probeBrowser().available) {
+      state.browserSession = makeBrowserSession();
+      browserDef = browserToolDefinition(state.browserSession);
+    }
+  } catch (_) { /* browser stays unavailable */ }
+  // F27 cloud backend (e2b-compatible): file/command tools proxy to it when
+  // enabled; never both local-sandbox-checked and cloud (isolation delegated).
+  let cloud = null;
+  if (msg.cloud && msg.cloud.enabled && msg.cloud.apiUrl && msg.cloud.sandboxId) {
+    const { CloudSandbox } = require('./cloud-sandbox');
+    cloud = new CloudSandbox({
+      apiUrl: msg.cloud.apiUrl, sandboxId: msg.cloud.sandboxId, apiKey: msg.cloud.apiKey || '',
+      reconnectFn: async () => ({
+        apiUrl: msg.cloud.apiUrl, sandboxId: msg.cloud.sandboxId,
+        apiKey: (msg.cloud.refreshKey && await msg.cloud.refreshKey()) || msg.cloud.apiKey || '',
+      }),
+    });
+  }
+  state.tools = makeTools({ sandbox: state.sandbox, skillRegistry: state.registry, browser: browserDef, cloud,
+    daemonBridge: (msg.daemonTools || []).includes('market') ? (args) => callDaemonTool('market', args) : null });
   state.llm = new LlmClient(msg.llm || {});
   state.history = [{ role: 'system', content: buildSystem(msg) }];
   emit({ type: 'status', stage: 'ready', mode: state.mode });
@@ -108,7 +147,8 @@ async function runTurn(userText) {
 
 async function gateTool(name, args) {
   const tool = state.tools.tools[name];
-  const kind = tool ? tool.kind : 'read';
+  // per-arg kind (browser tool: read vs exec actions) wins over static kind
+  const kind = tool ? (typeof tool.kindOf === 'function' ? tool.kindOf(args) : tool.kind) : 'read';
   // 1) mode policy (engine-enforced, mirrors interactionmode hard rules)
   const modeV = checkToolMode(state.mode, kind, name, args);
   if (modeV.verdict === 'deny') return { blocked: true, kind: 'policy', reason: modeV.reason };
@@ -127,7 +167,7 @@ async function gateTool(name, args) {
     const cmdV = state.sandbox.checkCommand(args.command || '');
     if (cmdV.verdict === 'deny') return { blocked: true, kind: 'sandbox', reason: 'command denied by rules' };
     const needConfirm = cmdV.verdict === 'confirm' || modeV.verdict === 'confirm';
-    if (needConfirm) return { needConfirm: true, describe: args.command, confirmId: null };
+    if (needConfirm) return { needConfirm: true, describe: args.command || (name + ' ' + JSON.stringify(args).slice(0, 80)), confirmId: null };
   }
   if (kind === 'write' && modeV.verdict === 'confirm') {
     return { needConfirm: true, describe: 'write ' + args.path };
@@ -149,6 +189,16 @@ const rl = readline.createInterface({ input: process.stdin });
 rl.on('line', (line) => {
   let msg;
   try { msg = JSON.parse(line); } catch (_) { return; }
+  if (msg.type === 'daemon_tool_result') {
+    const fn = state.pendingDaemonTools.get(msg.id);
+    if (fn) { state.pendingDaemonTools.delete(msg.id); fn(msg.result); }
+    return;
+  }
+  // existing control handling below
+  handleControl(msg);
+});
+
+function handleControl(msg) {
   (async () => {
     try {
       if (msg.type === 'init') await handleInit(msg);
@@ -162,6 +212,6 @@ rl.on('line', (line) => {
       emit({ type: 'done', reason: 'error' });
     }
   })();
-});
+}
 rl.on('close', () => process.exit(0));
 process.on('message', (m) => { if (m && m.type === 'abort') state.aborted = true; });

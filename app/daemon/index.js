@@ -6,11 +6,16 @@ const path = require('path');
 const fs = require('fs');
 const { openStore } = require('./store');
 const { Sandbox, defaultRules } = require('./sandbox');
+const { MAX_PREVIEW_BYTES } = require('../shared/preview-kind');
 const { SkillRegistry, installSkill, uninstallSkill } = require('./skills');
 const { EngineHost } = require('./engine-host');
 const { TerminalHost } = require('./terminal');
 const { globalSearch } = require('./search');
 const { CredentialVault } = require('./crypto');
+const { ChannelManager } = require('./im');
+const { Market } = require('./market');
+const { SyncService } = require('./sync');
+const { A2aServer } = require('./a2a');
 
 const APP_VERSION = require('../../package.json').version;
 
@@ -65,7 +70,28 @@ function createDaemon({ send }) {
         preferences: store.listMemory('preference').map((m) => m.content),
         memoryFacts: store.listMemory('fact').map((m) => m.content),
         skills,
+        daemonTools: ['market'],
+        cloud: settings['sandbox.backend'] === 'cloud' ? {
+          enabled: true,
+          apiUrl: settings['sandbox.cloud.url'] || '',
+          sandboxId: settings['sandbox.cloud.sandboxId'] || '',
+          apiKey: vault.get('sandbox.cloud.apiKey') || '',
+        } : null,
       };
+    },
+    daemonToolHandler: async (tool, args) => {
+      if (tool === 'market') {
+        if (args.action === 'search') return { ok: true, summary: 'market search', data: { skills: await getMarket().search(args.keywords || []) } };
+        if (args.action === 'install') {
+          const results = await getMarket().installMany(args.names || []);
+          const failed = results.filter((r) => r.status === 'refused');
+          return { ok: results.some((r) => r.status === 'installed'),
+            summary: results.map((r) => r.name + '=' + r.status).join(', '),
+            data: { results }, refused: failed.length ? failed : undefined };
+        }
+        return { ok: false, summary: 'unknown market action: ' + args.action };
+      }
+      return { ok: false, summary: 'unknown daemon tool: ' + tool };
     },
   });
 
@@ -73,6 +99,87 @@ function createDaemon({ send }) {
     // idempotent-ish: engine-host handles re-piping cheaply via current handle
     engineHost.pipeEvents(sessionId);
   }
+
+  // Shared engine bridge for headless clients (F23 IM channels / F28 A2A):
+  // create-or-reuse a session, run one turn, return the assistant text.
+  const engineBridge = {
+    createSession: (p) => store.createSession(p),
+    async runTurn(sessionId, text) {
+      await engineHost.start(sessionId);
+      pipeEngine(sessionId);
+      const h = engineHost.engines.get(sessionId);
+      if (!h || !h.alive) throw new Error('engine not running');
+      let reply = '';
+      const offTokens = h.onEvent((ev) => { if (ev.type === 'token') reply += ev.text; });
+      try {
+        store.appendMessage({ session_id: sessionId, role: 'user', content: text });
+        await engineHost.userMessage(sessionId, text);
+        await new Promise((resolve) => {
+          const timer = setTimeout(resolve, 180000);
+          const off2 = h.onEvent((ev) => {
+            if (ev.type === 'done' || ev.type === 'error' || ev.type === 'engine_exit') { clearTimeout(timer); off2(); resolve(); }
+          });
+        });
+      } finally { offTokens(); }
+      return reply.trim() || null;
+    },
+  };
+
+  // ---- F25 cloud skill market (rebuilt when its settings change) ----
+  let market = null;
+  let marketSig = '';
+  function getMarket() {
+    const sources = String(store.getSetting('market.url') || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const allowInsecure = store.getSetting('market.allowInsecure') === true;
+    const sig = sources.join('|') + '#' + allowInsecure;
+    if (!market || marketSig !== sig) {
+      market = new Market({
+        sources,
+        skillsUser,
+        installSkill,
+        unzip: defaultZipExtractor(),
+        allowInsecure,
+        log: (scope, line) => store.log('info', scope, line),
+      });
+      marketSig = sig;
+    }
+    return market;
+  }
+
+  // ---- F26 session sync ----
+  const sync = new SyncService({ store, emit });
+  const savedSyncCfg = store.getSetting('sync.config');
+  if (savedSyncCfg) sync.configure(savedSyncCfg);
+
+  // ---- F23 IM channels ----
+  const im = new ChannelManager({
+    vault,
+    engineBridge,
+    log: (scope, line) => store.log('info', scope, line),
+  });
+
+  // ---- F28 A2A server (loopback, opt-in) ----
+  let a2aServer = null;
+  async function ensureA2a() {
+    if (store.getSetting('a2a.enabled') !== true) return null;
+    if (!a2aServer) {
+      a2aServer = new A2aServer({
+        port: Number(store.getSetting('a2a.port') || 41239),
+        name: 'MyAgent',
+        version: APP_VERSION,
+        handleSend: async (text) => {
+          let s = store.listSessions().find((x) => x.title === 'A2A');
+          if (!s) s = await engineBridge.createSession({ title: 'A2A' });
+          const reply = await engineBridge.runTurn(s.id, text);
+          return reply || '(no reply)';
+        },
+        log: (scope, line) => store.log('info', scope, line),
+      });
+      await a2aServer.start();
+    }
+    return a2aServer;
+  }
+  ensureA2a().catch((e) => store.log('warn', 'a2a', 'start failed: ' + e.message));
 
   const methods = {
     'app.version': async () => ({ version: APP_VERSION, platform: process.platform, storeWarning: warning || null }),
@@ -83,6 +190,11 @@ function createDaemon({ send }) {
       sandbox: { enabled: true, rules: defaultRules('.').file_rules.length },
       skills: { count: registry.scan().length, dirs: [skillsBuiltin, skillsUser] },
       engine: engineHost.status(),
+      browser: (() => { try { return require('../shared/browser-probe').probeBrowser(); } catch (_) { return { available: false }; } })(),
+      im: im.status(),
+      market: getMarket().status(),
+      sync: sync.status(),
+      a2a: { enabled: store.getSetting('a2a.enabled') === true, url: a2aServer ? a2aServer.url : null },
       vault: { mode: vault.mode, dir: path.join(home, 'keystore') },
       dataDir,
     }),
@@ -92,7 +204,10 @@ function createDaemon({ send }) {
       const s = store.getSession(p.id);
       return s ? { ...s, messages: store.listMessages(p.id) } : null;
     },
-    'sessions.appendMessage': async (p) => store.appendMessage(p),
+    'sessions.appendMessage': async (p) => {
+      sync.noteChange(p.session_id);
+      return store.appendMessage(p);
+    },
     'sessions.delete': async (p) => { engineHost.stop(p.id); return store.deleteSession(p.id); },
     'sessions.rename': async (p) => store.updateSession(p.id, { title: p.title }),
     'sessions.setMode': async (p) => {
@@ -115,6 +230,32 @@ function createDaemon({ send }) {
     'memory.add': async (p) => store.addMemory(p.kind || 'fact', p.content),
     'memory.list': async (p) => store.listMemory(p && p.kind),
     'memory.delete': async (p) => store.deleteMemory(p.id),
+    // ---- F23 IM channels ----
+    'im.status': async () => im.status(),
+    'im.start': async (p) => im.start(p.channel),
+    'im.stop': async (p) => im.stop(p.channel),
+    'im.setCredential': async (p) => im.setCredential(p.channel, p.token),
+    // ---- F25 cloud market ----
+    'market.search': async (p) => getMarket().search(p.keywords || []),
+    'market.install': async (p) => getMarket().installMany(p.names || []),
+    'market.status': async () => getMarket().status(),
+    // ---- F26 sync ----
+    'sync.configure': async (p) => {
+      const st = sync.configure(p.config);
+      if (p.config) store.setSetting('sync.config', p.config);
+      return st;
+    },
+    'sync.push': async () => sync.push(),
+    'sync.pull': async () => sync.pull(),
+    'sync.status': async () => sync.status(),
+    // ---- F28 A2A ----
+    'a2a.status': async () => ({ enabled: store.getSetting('a2a.enabled') === true, url: a2aServer ? a2aServer.url : null }),
+    'a2a.enable': async (p) => {
+      store.setSetting('a2a.enabled', !!p.enabled);
+      if (p.enabled) { await ensureA2a(); return { ok: true, url: a2aServer.url }; }
+      if (a2aServer) { await a2aServer.stop(); a2aServer = null; }
+      return { ok: true, url: null };
+    },
     'engine.start': async (p) => {
       const r = await engineHost.start(p.sessionId);
       pipeEngine(p.sessionId);
@@ -136,6 +277,20 @@ function createDaemon({ send }) {
     'search.query': async (p) => {
       const s = store.getSession(p.sessionId);
       return globalSearch(store, p.q, (s && s.cwd) || null);
+    },
+    // F20 preview source: sandbox-checked binary read (credential dirs stay
+    // denied by defaultRules; size capped). Returns base64 for the renderer.
+    'files.readBinary': async (p) => {
+      const sb = new Sandbox(defaultRules(process.cwd()), { workspace: process.cwd() });
+      const chk = sb.checkFile(p.path, 'read');
+      if (!chk.ok) { const e = new Error('sandbox denied: ' + chk.path); e.code = 'sandbox_denied'; throw e; }
+      const stat = fs.statSync(chk.path);
+      if (!stat.isFile()) { const e = new Error('not a file: ' + chk.path); e.code = 'not_file'; throw e; }
+      const cap = Math.min(p.maxBytes || MAX_PREVIEW_BYTES, MAX_PREVIEW_BYTES);
+      if (stat.size > cap) { const e = new Error('file too large: ' + stat.size + ' > ' + cap); e.code = 'too_large'; throw e; }
+      const { mimeForExt } = require('../shared/preview-kind');
+      const buf = fs.readFileSync(chk.path);
+      return { mime: mimeForExt(chk.path), size: stat.size, base64: buf.toString('base64') };
     },
     'memory.test.llm': async () => {
       const settings = store.allSettings();
@@ -176,6 +331,8 @@ function createDaemon({ send }) {
   function shutdown() {
     engineHost.stopAll();
     terminalHost.killAll();
+    try { im.dispose(); } catch (_) {}
+    try { if (a2aServer) a2aServer.stop(); } catch (_) {}
     try { store.checkpoint(); } catch (_) {}
     try { store.close(); } catch (_) {}
   }

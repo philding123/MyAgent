@@ -61,6 +61,18 @@ function createSearch() {
   return win;
 }
 
+// F20: document preview window. One window per file path (reused when the
+// same file is previewed again).
+function createPreview(filePath) {
+  const key = 'preview:' + filePath;
+  if (windows.has(key)) { windows.get(key).focus(); return windows.get(key); }
+  const win = new BrowserWindow({ ...baseOpts('MyAgent Preview', [980, 720]), autoHideMenuBar: true });
+  win.loadFile(path.join(RENDERER, 'preview.html'), { search: '?path=' + encodeURIComponent(filePath) });
+  win.on('closed', () => windows.delete(key));
+  windows.set(key, win);
+  return win;
+}
+
 function broadcast(channel, payload) {
   for (const win of windows.values()) {
     if (!win.isDestroyed()) win.webContents.send(channel, payload);
@@ -76,4 +88,4 @@ function ids() { return [...windows.keys()]; }
 function get(name) { return windows.get(name) || null; }
 function closeAll() { for (const w of windows.values()) w.destroy(); windows.clear(); }
 
-module.exports = { createMain, createSettings, createSearch, broadcast, setTheme, theme, ids, get, closeAll };
+module.exports = { createMain, createSettings, createSearch, createPreview, broadcast, setTheme, theme, ids, get, closeAll };

@@ -1,13 +1,15 @@
 'use strict';
 // Built-in tools (F06). Every tool returns {ok, summary, data?}; errors are
-// values, never throws. All paths go through the sandbox.
+// values, never throws. All paths go through the sandbox — unless the F27
+// cloud backend is enabled, in which case file/command ops execute inside the
+// remote sandbox (isolation delegated; policy kinds unchanged).
 
 const fs = require('fs');
 const path = require('path');
 
 const MAX_READ_LINES = 2000;
 
-function makeTools({ sandbox, skillRegistry }) {
+function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge }) {
   const tools = {
     read_file: {
       kind: 'read',
@@ -18,6 +20,17 @@ function makeTools({ sandbox, skillRegistry }) {
         required: ['path'],
       },
       run: async (args) => {
+        if (cloud) {
+          try {
+            const r = await cloud.read(args.path);
+            const text = String((r && r.content) ?? '');
+            const lines = text.split(/\r?\n/);
+            const offset = Math.max(0, (args.offset || 1) - 1);
+            const slice = lines.slice(offset, offset + Math.min(args.limit || MAX_READ_LINES, MAX_READ_LINES));
+            const numbered = slice.map((l, i) => String(offset + i + 1).padStart(5) + '\t' + l).join('\n');
+            return { ok: true, summary: 'cloud:' + args.path + ' (' + slice.length + ' lines)', data: { content: numbered } };
+          } catch (e) { return { ok: false, summary: 'cloud read failed: ' + (e.message || e) }; }
+        }
         const chk = sandbox.checkFile(args.path, 'read');
         if (!chk.ok) return { ok: false, summary: 'sandbox denied: ' + chk.path };
         const text = fs.readFileSync(chk.path, 'utf8');
@@ -37,6 +50,14 @@ function makeTools({ sandbox, skillRegistry }) {
         required: ['path'],
       },
       run: async (args) => {
+        if (cloud) {
+          try {
+            const r = await cloud.list(args.path);
+            const entries = (r && r.entries || []).map((e) =>
+              (e.type === 'dir' ? '[d] ' : '[f] ') + e.path.split('/').pop() + (e.type === 'file' ? ' (' + (e.size || 0) + 'B)' : ''));
+            return { ok: true, summary: 'cloud:' + args.path + ': ' + entries.length + ' entries', data: { entries } };
+          } catch (e) { return { ok: false, summary: 'cloud list failed: ' + (e.message || e) }; }
+        }
         const chk = sandbox.checkFile(args.path, 'read');
         if (!chk.ok) return { ok: false, summary: 'sandbox denied: ' + chk.path };
         const entries = fs.readdirSync(chk.path, { withFileTypes: true }).map((e) => {
@@ -56,6 +77,12 @@ function makeTools({ sandbox, skillRegistry }) {
         required: ['path', 'content'],
       },
       run: async (args) => {
+        if (cloud) {
+          try {
+            await cloud.write(args.path, args.content);
+            return { ok: true, summary: 'cloud:wrote ' + args.path + ' (' + Buffer.byteLength(args.content) + 'B)' };
+          } catch (e) { return { ok: false, summary: 'cloud write failed: ' + (e.message || e) }; }
+        }
         const chk = sandbox.checkFile(args.path, 'write');
         if (!chk.ok) return { ok: false, summary: 'sandbox denied: ' + chk.path };
         if (args.create_dirs !== false) fs.mkdirSync(path.dirname(chk.path), { recursive: true });
@@ -72,6 +99,13 @@ function makeTools({ sandbox, skillRegistry }) {
         required: ['command'],
       },
       run: async (args) => {
+        if (cloud) {
+          try {
+            const r = await cloud.execCommand(args.command, { timeoutMs: Math.min(args.timeout_ms || 60000, 300000) });
+            return { ok: r.code === 0, summary: 'cloud exit ' + r.code,
+              data: { code: r.code, stdout: r.stdout.slice(0, 20000), stderr: r.stderr.slice(0, 8000) } };
+          } catch (e) { return { ok: false, summary: 'cloud exec failed: ' + (e.message || e) }; }
+        }
         const { execFile } = require('child_process');
         const isWin = process.platform === 'win32';
         const bin = isWin ? 'cmd.exe' : '/bin/sh';
@@ -134,6 +168,46 @@ function makeTools({ sandbox, skillRegistry }) {
         if (!s) return { ok: false, summary: 'skill not found: ' + args.name };
         return { ok: true, summary: 'skill ' + s.name + ' (' + s.body.length + ' chars)', data: { skill: s } };
       },
+    },
+  };
+
+  // F22 browser tool: registered only when playwright-core + a system browser
+  // exist; absent tool = capability off (selfcheck reports it).
+  if (browser) tools.browser = browser;
+
+  // F25 market tool: capabilities live in the daemon; bridge request/response.
+  if (daemonBridge) {
+    tools.market = {
+      kind: 'read',
+      kindOf: (args) => (args.action === 'install' ? 'write' : 'read'),
+      description: 'Search and install skills from configured marketplaces. Args: {action: search|install, keywords?: string[], names?: string[]}',
+      schema: {
+        type: 'object',
+        properties: { action: { type: 'string', enum: ['search', 'install'] }, keywords: { type: 'array', items: { type: 'string' } }, names: { type: 'array', items: { type: 'string' } } },
+        required: ['action'],
+      },
+      run: async (args) => daemonBridge(args),
+    };
+  }
+
+  // F28 agent delegation (A2A client): direct HTTP from the engine, read-kind.
+  tools.agent_delegate = {
+    kind: 'read',
+    description: 'Delegate a task to a remote A2A agent. Args: {url, message}',
+    schema: {
+      type: 'object',
+      properties: { url: { type: 'string' }, message: { type: 'string' } },
+      required: ['url', 'message'],
+    },
+    run: async (args) => {
+      try {
+        const { delegate } = require('../daemon/a2a');
+        const r = await delegate(args.url, args.message, { timeoutMs: 120000 });
+        return { ok: true, summary: 'agent ' + (r.card && r.card.name || args.url) + ' replied (' + (r.text || '').length + ' chars)',
+          data: { text: r.text, agent: { name: r.card && r.card.name, url: r.card && r.card.url } } };
+      } catch (e) {
+        return { ok: false, summary: 'delegate failed: ' + (e.message || e) };
+      }
     },
   };
 

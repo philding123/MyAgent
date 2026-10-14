@@ -64,10 +64,22 @@ class JsonStore {
   }
   appendMessage(m) {
     const row = { id: m.id || id(), session_id: m.session_id, role: m.role, content: m.content || '',
-      tool_name: m.tool_name || null, tool_json: m.tool_json || null, created_at: Date.now() };
+      tool_name: m.tool_name || null, tool_json: m.tool_json || null, created_at: m.created_at || Date.now() };
     this.db.messages.push(row);
     const s = this.getSession(m.session_id); if (s) s.updated_at = Date.now();
     this._flush(); return row;
+  }
+  /** F26 sync: replace-or-create a session row from a remote snapshot. */
+  importSession(session, messages) {
+    if (this.getSession(session.id)) this.deleteSession(session.id);
+    const row = this.createSession({ id: session.id, title: session.title, mode: session.mode, cwd: session.cwd });
+    this.updateSession(row.id, { created_at: session.created_at || row.created_at });
+    if (session.updated_at) { row.updated_at = session.updated_at; this._flush(); }
+    for (const m of messages || []) {
+      this.appendMessage({ id: m.id, session_id: session.id, role: m.role, content: m.content,
+        tool_name: m.tool_name, tool_json: m.tool_json, created_at: m.created_at });
+    }
+    return row;
   }
   listMessages(sessionId) {
     return this.db.messages.filter((m) => m.session_id === sessionId).sort((a, b) => a.created_at - b.created_at);
@@ -144,10 +156,24 @@ class SqliteStore {
   }
   appendMessage(m) {
     const row = { id: m.id || id(), session_id: m.session_id, role: m.role, content: m.content || '',
-      tool_name: m.tool_name || null, tool_json: m.tool_json || null, created_at: Date.now() };
+      tool_name: m.tool_name || null, tool_json: m.tool_json || null, created_at: m.created_at || Date.now() };
     this.db.prepare('INSERT INTO messages(id,session_id,role,content,tool_name,tool_json,created_at) VALUES (?,?,?,?,?,?,?)')
       .run(row.id, row.session_id, row.role, row.content, row.tool_name, row.tool_json, row.created_at);
     this.db.prepare('UPDATE sessions SET updated_at=? WHERE id=?').run(Date.now(), m.session_id);
+    return row;
+  }
+  /** F26 sync: replace-or-create a session row from a remote snapshot. */
+  importSession(session, messages) {
+    if (this.getSession(session.id)) this.deleteSession(session.id);
+    const row = this.createSession({ id: session.id, title: session.title, mode: session.mode, cwd: session.cwd });
+    this.updateSession(row.id, { created_at: session.created_at || row.created_at });
+    for (const m of messages || []) {
+      this.appendMessage({ id: m.id, session_id: session.id, role: m.role, content: m.content,
+        tool_name: m.tool_name, tool_json: m.tool_json, created_at: m.created_at });
+    }
+    if (session.updated_at) {
+      this.db.prepare('UPDATE sessions SET updated_at=? WHERE id=?').run(session.updated_at, session.id);
+    }
     return row;
   }
   listMessages(sessionId) {

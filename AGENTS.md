@@ -17,12 +17,14 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 | 契约 | 内容 |
 |---|---|
 | RPC 请求/响应 | `{id, method, params}` → `{id, ok, result \| error:{code,message}}`；未知方法返回 `no_method` |
-| RPC 事件 | daemon → main → 所有窗广播 `rpc:event`，topic：`engine:{sessionId}`、`terminal:{id}:data`、`terminal:{id}:exit`、`daemon:ready`、`daemon:status` |
-| daemon 方法表 | 唯一注册处 `app/daemon/index.js` `methods{}`；`app.selfcheck` 返回能力矩阵（store/terminal.kind/sandbox/skills/engine/vault） |
-| 引擎 stdio | stdin 控制 `{type:init\|user\|confirm\|abort}`；stdout 事件 `{type:status\|token\|tool_call\|tool_result\|confirm_request\|done\|error}` |
-| 存储 DAO | `openStore()` 返回 sqlite 或 json 实现，接口一致：sessions/messages/settings/memory/logs + health/checkpoint |
-| 沙箱规则 | 格式同 WorkBuddy `tsbx_rules.json`：env 展开 + `**` glob + `read\|write\|delete=allow\|deny`，首条命中生效，无命中走 fail-safe |
+| RPC 事件 | daemon → main → 所有窗广播 `rpc:event`，topic：`engine:{sessionId}`、`terminal:{id}:data`、`terminal:{id}:exit`、`daemon:ready`、`daemon:status`、`app:update`（F21）、`app:sync`（F26） |
+| daemon 方法表 | 唯一注册处 `app/daemon/index.js` `methods{}`；`app.selfcheck` 返回能力矩阵（store/terminal.kind/sandbox/skills/engine/vault/browser/im/market/sync/a2a） |
+| 引擎 stdio | stdin 控制 `{type:init\|user\|confirm\|abort\|daemon_tool_result}`；stdout 事件 `{type:status\|token\|tool_call\|tool_result\|confirm_request\|done\|error\|daemon_tool_request}`（daemon_tool_* 是引擎工具回调 daemon 能力的桥，仅 market） |
+| 存储 DAO | `openStore()` 返回 sqlite 或 json 实现，接口一致：sessions/messages/settings/memory/logs + health/checkpoint + importSession（F26 同步导入） |
+| 沙箱规则 | 格式同 WorkBuddy `tsbx_rules.json`：env 展开 + `**` glob + `read\|write\|delete=allow\|deny`，首条命中生效，无命中走 fail-safe；`sandbox.backend=cloud` 时文件/命令工具走 e2b 兼容云沙箱（隔离责任转移，策略 kind 不变） |
 | 技能 | `SKILL.md` frontmatter：name/description/allowed-tools/disable；渐进披露（清单进 system，全文经 `skill_read`） |
+| IM 通道插件 | `{id, meta, capabilities, gateway, outbound, defaultReplyPolicy}`；入站 `{messageId, content[], sender, group?, timestamp, replyContext}`；500 环形去重；凭证入 vault `im.<channel>.token`（telegram 完整实现，slack/discord/dingtalk/feishu 骨架+真连手工，webhook 本地回环） |
+| 引擎工具面 | read_file/list_dir/write_file/run_command/search/skill_read + `browser`（F22，read 动作 browse、click/fill/press/scroll 经 kindOf 归 exec 受策略门控）+ `market`（F25，daemon 桥）+ `agent_delegate`（F28，A2A 客户端） |
 | 数据目录 | 真实：`%APPDATA%/myagent`（keystore/ data/ skills/）；测试用 `MYAGENT_HOME` 覆盖 |
 
 ## 不可破坏的全局不变式（Fail-Closed）
@@ -38,8 +40,8 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 ## Agent 调查预算规则
 
 - 渐进式研读：一批 3–4 个文件；单文件超 200 行用切片读取（Read offset/limit）。
-- 复杂任务先产出提纲再动代码；改功能前先读 `design/` 对应文档（每份含「WorkBuddy 观察→复现设计→验证方法」）。
-- 跑过 `npm run verify` 之前不要声称完成；报告以 `artifacts/acceptance-report.md` 为准。
+- 复杂任务先产出提纲再动代码；改功能前先读 `design/` 对应文档（每份含「WorkBuddy 观察→复现设计→验证方法」；F19–F28 见 design/20–26）。
+- 跑过 `npm run verify` 之前不要声称完成；报告以 `artifacts/acceptance-report.md` 为准（T01–T28）。
 - 大模型相关调试用 `scripts/mock-llm.mjs`（脚本化响应），不要烧真实 API。
 
 ## 全局分级地图索引
@@ -47,12 +49,14 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 | 层级 | 模块 | 入口 | 要点 |
 |---|---|---|---|
 | 根 | 本文件 + [CLAUDE.md](CLAUDE.md) + [GEMINI.md](GEMINI.md) | — | 命令/铁律/路由 |
-| L1 | app/main | [AGENTS.md](app/main/AGENTS.md) | 窗口/托盘/deeplink/DaemonClient 重连 |
-| L1 | app/daemon | [AGENTS.md](app/daemon/AGENTS.md) | 方法表/存储/沙箱/技能/搜索/终端/EngineHost |
-| L1 | app/engine | [AGENTS.md](app/engine/AGENTS.md) | 工具循环/policy/llm/tools |
-| L1 | app/renderer | [AGENTS.md](app/renderer/AGENTS.md) | 三页面 + 渲染管线（需 npm run build） |
+| L1 | app/main | [AGENTS.md](app/main/AGENTS.md) | 窗口/托盘/deeplink/DaemonClient 重连/更新器（updater.js）/--share |
+| L1 | app/daemon | [AGENTS.md](app/daemon/AGENTS.md) | 方法表/存储/沙箱/技能/搜索/终端/EngineHost/IM/市场/同步/A2A |
+| L1 | app/engine | [AGENTS.md](app/engine/AGENTS.md) | 工具循环/policy/llm/tools（browser/cloud-sandbox/agent_delegate） |
+| L1 | app/renderer | [AGENTS.md](app/renderer/AGENTS.md) | 四页面（主/设置/搜索/预览）+ 渲染管线（需 npm run build） |
 | L2 | app/preload | [AGENTS.md](app/preload/AGENTS.md) | contextBridge 安全边界 |
+| L2 | app/shared | — | preview-kind / browser-probe（daemon 与 engine 共用的纯逻辑） |
 | L2 | design/ | [AGENTS.md](design/AGENTS.md) | 00-roadmap 功能点 SSOT |
-| L2 | tests/ | [AGENTS.md](tests/AGENTS.md) | T 编号 = 验收映射 |
-| L2 | scripts/ | [AGENTS.md](scripts/AGENTS.md) | build/verify/mock/real-llm |
+| L2 | tests/ | [AGENTS.md](tests/AGENTS.md) | T 编号 = 验收映射（T01–T28） |
+| L2 | scripts/ | [AGENTS.md](scripts/AGENTS.md) | build/verify/mock/real-llm + update/（更新过渡窗） |
 | L2 | skills/ | [AGENTS.md](skills/AGENTS.md) | SKILL.md 格式规范 |
+| L2 | share-target/ | design/24-share-target.md | sparse MSIX + register/unregister 脚本 |

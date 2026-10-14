@@ -23,6 +23,45 @@
   <label><input type="checkbox" id="prewarm-chk"> Prewarm pool (faster first token)</label>
 </section>
 <section>
+  <h2>Updates (F21)</h2>
+  <label>Manifest URL <input id="update-url" placeholder="https://example.com/myagent/latest.json"></label>
+  <button id="btn-update-check" class="primary">Check now</button>
+  <button id="btn-update-apply">Apply downloaded update</button>
+  <span id="update-msg"></span>
+</section>
+<section>
+  <h2>Skill market (F25)</h2>
+  <label>Index URL <input id="market-url" placeholder="https://example.com/market/index.json (逗号分隔多个)"></label>
+  <label><input type="checkbox" id="market-insecure"> Allow http:// sources (loopback/testing)</label>
+  <div><input id="market-keywords" placeholder="code review"><button id="btn-market-search">Search</button><button id="btn-market-install">Install first hit</button></div>
+  <span id="market-msg"></span>
+</section>
+<section>
+  <h2>Sync (F26)</h2>
+  <label>Target directory <input id="sync-dir" placeholder="D:\sync\myagent (网盘目录即可)"></label>
+  <label><input type="checkbox" id="sync-auto"> Auto push after changes</label>
+  <div>
+    <button id="btn-sync-save" class="primary">Save target</button>
+    <button id="btn-sync-push">Push now</button>
+    <button id="btn-sync-pull">Pull now</button>
+  </div>
+  <span id="sync-msg"></span>
+</section>
+<section>
+  <h2>Cloud sandbox (F27)</h2>
+  <label>Backend
+    <select id="sandbox-backend"><option value="local">local (本机沙箱)</option><option value="cloud">cloud (e2b 兼容)</option></select>
+  </label>
+  <label>API URL <input id="sandbox-cloud-url" placeholder="https://api.e2b.app"></label>
+  <label>Sandbox ID <input id="sandbox-cloud-id" placeholder="sb-…"></label>
+  <label>API Key <input id="sandbox-cloud-key" type="password" placeholder="stored encrypted"></label>
+</section>
+<section>
+  <h2>A2A server (F28)</h2>
+  <label><input type="checkbox" id="a2a-enabled"> Expose loopback A2A endpoint (message/send)</label>
+  <span id="a2a-msg"></span>
+</section>
+<section>
   <h2>Skills</h2>
   <ul id="skill-list"></ul>
   <div>

@@ -23,7 +23,7 @@
     {
       "name": "R1 craft: assistant replied with path",
       "ok": true,
-      "detail": "： ```text hello from myagent ``` 文件路径： ```text C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-real-lrY7eO\\hello-real.txt ```"
+      "detail": "： ```text hello from myagent ``` 文件路径： ```text C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-real-CqDpQc\\hello-real.txt ```"
     },
     {
       "name": "R2 ask: no file written",
@@ -32,7 +32,7 @@
     {
       "name": "R2 ask: refused (policy or explanation)",
       "ok": true,
-      "detail": "当前处于 **Ask 模式（只读）**，我不能创建文件。请切换到 **Agent 模式**，然后我就可以创建 `ask-deny.txt` 并写入任意内容。"
+      "detail": "当前处于 **Ask 模式（只读）**，无法创建文件。请切换到 **Agent 模式**，我就可以创建 `ask-deny.txt` 并写入任意内容。"
     }
   ]
 }

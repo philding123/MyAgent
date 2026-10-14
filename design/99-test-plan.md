@@ -24,6 +24,16 @@
 | T16 | F16 deeplink/托盘 | e2e | 第二实例 `myagent://session/<id>` → 首实例 pendingUrls 消费；托盘已创建 |
 | T17 | F17 渲染 | e2e | 注入代码块/公式/XSS 样本 → highlight、katex、无 script 执行 |
 | T18 | F18 设置/自检 | unit+e2e | selfcheck 字段非空；设置改主题跨窗同步；导出/清空流程 |
+| T19 | F19 mermaid | unit+e2e | T20a 含 mermaid 提取断言；冒烟 `mermaid-render`：flowchart 样本 → svg 出现；XSS 不复活 |
+| T20 | F20 文档预览 | unit+e2e | T20a 类型识别表；冒烟 `preview-window`：`files.readBinary` 往返 + `openPreview` 第 4 窗 + base64 解码；真实渲染手工 |
+| T21 | F21 更新器 | unit+int+e2e | semver/sha256 失败路径；本地清单源 check→download→verify→ready；冒烟 `updater-status` 字段 |
+| T22 | F22 browser-use | unit+int | 动作协议校验与 read/exec 分层；系统 Edge headless 走 fixture 页 navigate→snapshot→click→screenshot；无浏览器 skip=DEGRADED |
+| T23 | F23 IM 通道 | unit+int+e2e | 去重环 500/分块/回退；mock Telegram API 全链路（入站→引擎→出站、401、5 连败）；状态机；冒烟 `im-status` |
+| T24 | F24 分享目标 | unit+e2e | AppxManifest XML 结构 + ps1 语法解析；冒烟 `--share` 参数 → 会话出现共享文件消息；真实注册手工 |
+| T25 | F25 云市场 | unit+int+e2e | 关键词匹配 + http 策略；本地源 search/install/already/refused(hash)；冒烟 `market-status` |
+| T26 | F26 同步 | int+e2e | 目录双实例互通；rev 冲突 `.conflict.json` 零丢失；webdav mini 服务同断言；冒烟 `sync-status` |
+| T27 | F27 云沙箱 | int+e2e | mock e2b 服务：fs/exec 往返；401 单次重连成功；持续 401 fail-closed；重连 10s 去重；冒烟 `cloud-sandbox-field` |
+| T28 | F28 A2A | int+e2e | `message/send` 往返（mock LLM）；agent_delegate 闭环；card 字段；冒烟 `a2a-card` HTTP 200 |
 
 **验收门槛**：全部 T 通过；`artifacts/acceptance-report.md` 逐项记录 PASS/DEGRADED（降级需注明原因）
 /FAIL。任何 FAIL → 归因二选一：(a) 方案设计问题 → 改实现；(b) WorkBuddy 理解问题 →
@@ -32,3 +42,6 @@
 **手工抽查清单**（自动化难覆盖，验收时人工过一遍）：
 1. 关闭主窗到托盘，再次点击恢复。 2. 崩溃模拟：任务管理器杀 renderer，daemon 会话仍在。
 3. 真实 LLM 端点一次完整任务对话（配置自备）。 4. ask 模式下让模型"创建文件"，观察拒绝话术。
+5. 真实 docx/pdf/xlsx/pptx 各开一次预览窗（F20）。 6. 真实 Telegram bot token 收发一轮（F23）。
+7. 管理员运行 register.ps1 后右键分享一个文件（F24）。 8. 自建更新源走一次完整 apply+过渡窗（F21）。
+9. 有 e2b 账号时云内跑一次命令（F27）；两机目录同步互通（F26）。
