@@ -6,6 +6,9 @@
 //   line 1: working directory
 //   line 2: executable path
 //   line 3: argument template containing {file}
+// The ini is looked up next to the exe AND in %ALLUSERSPROFILE%\MyAgent\ —
+// sparse-package activation may run the exe from the WindowsApps payload
+// root, where no sibling ini exists (register.ps1 writes both).
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -21,8 +24,8 @@ static class Forwarder
             if (a == null || a.StartsWith("-")) continue;
             if (File.Exists(a)) { file = a; break; }
         }
-        string ini = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "launch.ini");
-        if (file == null || !File.Exists(ini)) return 2;
+        string ini = FindIni();
+        if (file == null || ini == null) return 2;
         try
         {
             string[] lines = File.ReadAllLines(ini);
@@ -41,5 +44,15 @@ static class Forwarder
         {
             return 1;
         }
+    }
+
+    static string FindIni()
+    {
+        string beside = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "launch.ini");
+        if (File.Exists(beside)) return beside;
+        string programData = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "MyAgent", "launch.ini");
+        return File.Exists(programData) ? programData : null;
     }
 }
