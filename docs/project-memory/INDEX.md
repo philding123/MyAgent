@@ -10,7 +10,7 @@
 - [Current status snapshot](./STATUS.md)
 - [Current todo list](./todo.md)
 - [Latest daily progress](./daily/2026-10-14.md)
-- [Latest decision](./decisions/2026-10-14-smoke-exit-code-strategy.md)
+- [Latest decision](./decisions/2026-10-14-wsl-ghidra-native-analysis-engine.md)
 - [Latest issue](./issues/2026-10-14-sqlite-corrupt-recovery-locked-files.md)
 
 ## Recent Daily Notes
@@ -19,6 +19,7 @@
 
 ## Recent Decisions
 
+- [ADR 2026-10-14 · 原生逆向分析引擎选型：WSL2 Ubuntu-24.04 + Ghidra 12.1.4（经 REA）](./decisions/2026-10-14-wsl-ghidra-native-analysis-engine.md)
 - [ADR 2026-10-14 · Electron 冒烟退出码策略](./decisions/2026-10-14-smoke-exit-code-strategy.md)
 - [ADR 2026-10-13 · 存储双实现与降级矩阵](./decisions/2026-10-13-storage-degradation.md)
 - [ADR 2026-10-13 · 范围裁决：排除支付系统，延后腾讯专有服务](./decisions/2026-10-13-scope-exclusion-and-deferral.md)

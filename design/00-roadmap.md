@@ -42,11 +42,26 @@
 | F16 | 托盘 / Deeplink | `dock-recent-apps-repair.js`、`deeplink-landing`、`parse-buddy-preview-deeplink` chunks、`default-open-handler.win32.js` | P1 | 13-desktop.md | ✅ |
 | F17 | 消息渲染管线（MD/代码高亮/公式/图表） | renderer chunks：`vendor-markdown`、`vendor-highlight`、`vendor-katex`、`vendor-mermaid`、`markdown-editor` | P1(基础)/P2(mermaid) | 15-ui.md | ✅ |
 | F18 | 设置中心 / 自检 / 日志 | `ModelsSettingsPanel/DataManagementPanel/SystemPermissionsPanel`、`main/self-check.js`、`workbuddy-server-logger.js`、`log-acl-guard.js` | P1 | 15-ui.md / 14-data.md | ✅ |
-| — | 更新器（NSIS 静默 + 过渡窗） | `@genieworkbuddy-desktop-updater/installer.exe`、`resources/scripts/update-progress.ps1` | P2 | 90-deferred.md | 延后 |
-| — | Office/文档预览（docx/pdf/pptx/sheet） | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks、腾讯文档插件族 | P2 | 90-deferred.md | 延后 |
-| — | IM 通道接入 | `main/{feishu,slack,discord,telegram,dingtalk,qq,wecom-*,wechat*}.js` + 各官方 SDK | P3 | 90-deferred.md | 延后 |
-| — | 系统分享目标（MSIX） | `share-target/scripts/register.ps1`、`WorkBuddyShareTarget.msix` | P3 | 90-deferred.md | 延后 |
-| — | 云同步 / Edge Sync | `extensions/edge-sync`（事件上云 + 指令下发） | P4 | 90-deferred.md | 延后 |
+| F19 | Mermaid 图表渲染 | `renderer/assets/vendor-mermaid-*`（2.8MB）+ `mermaid-plugin-component-*`（按需初始化） | P2 | 20-mermaid-preview.md | P2 |
+| F20 | Office 文档预览（docx/pdf/pptx/sheet） | `{docx,pdf,pptx,sheet}-preview-component-*` 统一 props；lib 签名 docx-preview/pdfjs/XLSX+Univer/pptx | P2 | 20-mermaid-preview.md | P2 |
+| F21 | 自动更新（清单 + 过渡窗） | `resources/scripts/update-progress.ps1`（4 条关闭策略）+ `launch-update-progress.vbs`（无黑框机制） | P2 | 21-updater.md | P2 |
+| F22 | Browser-use（中立动作协议） | `@genie/workbuddy-browser-use`："Provider-neutral Browser protocol, input, DOM CUA, visual primitives" | P2 | 22-browser-use.md | P2 |
+| F23 | IM 通道 | `main/telegram.js` 插件六件套契约 + 长轮询/重连/4000 分块；`recordMsgId` 500 环形去重；im-channels extension fork 服务 | P3 | 23-im-channels.md | P2/3 |
+| F24 | 系统分享目标（sparse MSIX） | `share-target/scripts/register.ps1`（AppXSvc 超时 Job/退出码 0-4/双写日志）+ `WorkBuddyShareTarget.msix` | P3 | 24-share-target.md | P3 |
+| F25 | 云端技能市场 | `.codebuddy-plugin/marketplace.json` 索引结构 + `marketplace-skill-installer` SKILL.md（search/install、installed/already/refused） | P3 | 25-cloud-market.md | P3 |
+| F26 | 端云同步（Edge Sync 替代） | `extensions/edge-sync/extension.json`（Conversation 事件推送 + 指令下发，fork 服务） | P4 | 26-sync-sandbox-a2a.md | P4 |
+| F27 | 云沙箱（e2b 兼容） | `main/e2b-filesystem.js`（fs 接口 + 401 重连最小 10s） | P4 | 26-sync-sandbox-a2a.md | P4 |
+| F28 | 多 Agent 协作（A2A） | `@a2a-js/sdk` 依赖 + experts/teams | P4 | 26-sync-sandbox-a2a.md | P4 |
+| — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
+| — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |
+| — | mermaid 渲染 → 已由 F19 复刻 | `vendor-mermaid`、`mermaid-plugin-component` | — | 20-mermaid-preview.md | ✅→F19 |
+| — | Browser-use → 已由 F22 复刻 | `@genie/workbuddy-browser-use`、`browser` chunk | — | 22-browser-use.md | ✅→F22 |
+| — | IM 通道接入 → 已由 F23 复刻（协议公开平台；真 token 手工项） | `main/{feishu,slack,discord,telegram,dingtalk,qq,wecom-*,wechat*}.js` + 各官方 SDK | — | 23-im-channels.md | ✅→F23 |
+| — | 系统分享目标（MSIX）→ 已由 F24 复刻 | `share-target/scripts/register.ps1`、`WorkBuddyShareTarget.msix` | — | 24-share-target.md | ✅→F24 |
+| — | 云端技能市场 → 已由 F25 复刻 | `marketplace.json` 远端结构、`marketplace-skill-installer` | — | 25-cloud-market.md | ✅→F25 |
+| — | 云同步 / Edge Sync → 已由 F26 复刻 | `extensions/edge-sync`（事件上云 + 指令下发） | — | 26-sync-sandbox-a2a.md | ✅→F26 |
+| — | 云沙箱 → 已由 F27 复刻（e2b 兼容适配器） | e2b 依赖 + `e2b-filesystem.js` | — | 26-sync-sandbox-a2a.md | ✅→F27 |
+| — | 多 agent 协作 → 已由 F28 复刻（A2A 最小面） | `@a2a-js/sdk`、`disable-agent-teams` chunk、experts/teams | — | 26-sync-sandbox-a2a.md | ✅→F28 |
 | — | 支付/订阅 | `plugins/weixinpay`、`subscription-gate` | **排除** | — | — |
 
 ## 三、里程碑

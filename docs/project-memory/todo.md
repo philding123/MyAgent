@@ -11,6 +11,7 @@
 
 ## Later
 
+- WorkBuddy 原生模块深挖（sandbox-center.exe / tsbx.dll / turing-sdk）：用已就绪的 WSL Ghidra 引擎（ADR 2026-10-14-wsl-ghidra-native-analysis-engine）。
 - Phase-3：IM 通道接入（飞书/钉钉/Slack/Discord/Telegram，协议公开平台优先）。
 - Phase-3：系统分享目标（sparse MSIX）。
 - Phase-4：Edge Sync 式端云同步、云沙箱（e2b）、多 agent 协作（A2A）。
