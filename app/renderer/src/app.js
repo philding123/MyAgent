@@ -125,6 +125,12 @@ window.myagent.onEvent((msg) => {
   if (topic.startsWith('terminal:')) handleTerminalEvent(topic, payload);
   if (topic === 'app:pendingUrls') handlePendingUrls(payload);
   if (topic === 'app:theme') document.body.dataset.theme = payload.theme;
+  if (topic === 'menu:action') {
+    // F35: native menu delegates to renderer actions (design/31-menu.md)
+    if (payload.action === 'new-session') newSession();
+    if (payload.action === 'open-settings') window.myagent.windowAction('openSettings');
+    if (payload.action === 'open-search') window.myagent.windowAction('openSearch');
+  }
 });
 
 // F29: adopt the persisted theme at boot (index.html ships light by default)
@@ -241,8 +247,9 @@ async function openSession(id) {
 }
 
 async function newSession() {
-  const cwd = (await window.myagent.windowAction('pickDirectory')) || undefined;
-  current = await rpc('sessions.create', { title: 'Session ' + new Date().toLocaleString(), cwd });
+  // wb semantics: 新建任务 creates the task directly (no workspace picker);
+  // a cwd can be attached later from the terminal
+  current = await rpc('sessions.create', { title: 'Session ' + new Date().toLocaleString() });
   setHomeMode(false);
   $('#session-title').textContent = current.title;
   $('#messages').innerHTML = '';

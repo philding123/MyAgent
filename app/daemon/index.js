@@ -4,6 +4,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const { openStore } = require('./store');
 const { Sandbox, defaultRules } = require('./sandbox');
 const { MAX_PREVIEW_BYTES } = require('../shared/preview-kind');
@@ -48,6 +49,7 @@ function createDaemon({ send }) {
 
   const terminalHost = new TerminalHost(emit);
   let prewarmOn = store.getSetting('engine.prewarm') === true;
+  let mcpChild = null; // F34: spawned MCP stdio server handle (design/30-mcp.md)
 
   const engineHost = new EngineHost({
     emit,
@@ -195,6 +197,7 @@ function createDaemon({ send }) {
       market: getMarket().status(),
       sync: sync.status(),
       a2a: { enabled: store.getSetting('a2a.enabled') === true, url: a2aServer ? a2aServer.url : null },
+      mcp: { running: !!(mcpChild && mcpChild.exitCode === null) },
       vault: { mode: vault.mode, dir: path.join(home, 'keystore') },
       dataDir,
     }),
@@ -225,6 +228,23 @@ function createDaemon({ send }) {
     'skills.list': async () => registry.scan().map((s) => ({ ...s, body: undefined })),
     'skills.read': async (p) => registry.read(p.name),
     'skills.toggle': async (p) => { registry.setEnabled(p.name, p.enabled); return true; },
+    // F34: MCP server lifecycle (design/30-mcp.md). The child is a standalone
+    // stdio MCP server; start/stop only manage its lifetime here.
+    'mcp.start': async () => {
+      if (mcpChild && mcpChild.exitCode === null) return { running: true, pid: mcpChild.pid };
+      mcpChild = spawn(process.execPath, [path.join(__dirname, 'mcp-server-child.js')], {
+        env: process.env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      mcpChild.on('exit', () => { mcpChild = null; });
+      return { running: true, pid: mcpChild.pid };
+    },
+    'mcp.stop': async () => {
+      if (mcpChild) { mcpChild.kill(); }
+      mcpChild = null;
+      return { running: false };
+    },
+    'mcp.status': async () => ({ running: !!(mcpChild && mcpChild.exitCode === null), pid: mcpChild ? mcpChild.pid : null }),
     'skills.install': async (p) => installSkill(p.source, skillsUser, defaultZipExtractor()),
     'skills.uninstall': async (p) => uninstallSkill(p.name, skillsUser),
     'memory.add': async (p) => store.addMemory(p.kind || 'fact', p.content),

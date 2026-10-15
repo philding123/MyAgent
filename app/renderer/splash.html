@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>MyAgent</title>
+<style>
+  :root { --brand: #00c29a; --text-1: #1f2329; --text-2: #646a73; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; background: #fff; color: var(--text-1);
+    font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    -webkit-app-region: drag; user-select: none;
+  }
+  .brand { font-size: 28px; font-weight: 700; letter-spacing: 0.01em; }
+  .bar { width: 240px; height: 4px; border-radius: 9999px; background: #ebebeb; overflow: hidden; }
+  .bar::after {
+    content: ""; display: block; width: 40%; height: 100%; border-radius: 9999px;
+    background: var(--brand); animation: slide 1.2s ease-in-out infinite;
+  }
+  .hint { font-size: 13px; color: var(--text-2); }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+</style>
+</head>
+<body>
+  <div class="brand">MyAgent</div>
+  <div class="bar"></div>
+  <div class="hint">正在启动…</div>
+</body>
+</html>

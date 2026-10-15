@@ -2,11 +2,13 @@
 // Electron main entry (F01/F02/F16). Narrow IPC surface: one 'rpc' handle +
 // event broadcast, window controls, deeplink queue, smoke-test hook.
 
-const { app, ipcMain, dialog, BrowserWindow } = require('electron');
+const { app, ipcMain, dialog, BrowserWindow, Menu } = require('electron');
 const { DaemonClient } = require('./daemon-client');
 const windows = require('./windows');
 const { createTray, parseDeeplink } = require('./tray');
 const { Updater } = require('./updater');
+const { buildMenu } = require('./menu');
+const splash = require('./splash');
 const fs = require('fs');
 const path = require('path');
 
@@ -79,6 +81,11 @@ function deliverPendingUrls() {
 }
 
 async function bootstrap() {
+  // F36: splash first (wb resolveSplashPreload semantics), closed when the
+  // main window finishes loading; 15s failsafe so it can never stick.
+  splash.createSplash();
+  setTimeout(() => splash.closeSplash(), 15000);
+
   daemon = new DaemonClient();
   daemon.start();
 
@@ -141,7 +148,12 @@ async function bootstrap() {
   global.__myagentTray = tray;
   tray.on('double-click', () => { const w = windows.createMain(null); w.show(); });
 
-  windows.createMain({ onCreated: (_name, win) => { win.webContents.on('did-finish-load', deliverPendingUrls); } });
+  windows.createMain({ onCreated: (_name, win) => {
+    win.webContents.on('did-finish-load', () => { splash.closeSplash(); deliverPendingUrls(); });
+  } });
+
+  // F35: application menu (design/31-menu.md); actions ride rpc:event
+  buildMenu({ sendToMain: (msg) => windows.broadcast('rpc:event', msg) });
 
   // cold-start deeplink from argv (Windows)
   const url = process.argv.find((a) => String(a).startsWith('myagent://'));
@@ -265,6 +277,29 @@ async function runSmoke() {
     await mainWin.webContents.executeJavaScript(
       'window.myagent.windowAction("setTheme", { theme: "light" })', true);
     await new Promise((r) => setTimeout(r, 300));
+
+    // F35 native menu: the real application menu item closes the loop through
+    // the renderer (menu:action -> newSession -> sessions.create)
+    const beforeCount = (await daemon.request('sessions.list')).result.length;
+    const menuItem = Menu.getApplicationMenu() && Menu.getApplicationMenu().getMenuItemById('new-session');
+    if (menuItem) menuItem.click();
+    await new Promise((r) => setTimeout(r, 1000));
+    const afterCount = (await daemon.request('sessions.list')).result.length;
+    step('menu', !!menuItem && afterCount === beforeCount + 1,
+      JSON.stringify({ accelerator: menuItem ? menuItem.accelerator : null, before: beforeCount, after: afterCount }));
+
+    // F36 splash handoff: created before the main window, closed on its load
+    step('splash-handoff', (() => { const s = splash.getState(); return s.created === true && s.closed === true; })(),
+      JSON.stringify(splash.getState()));
+
+    // F34 MCP server lifecycle over daemon RPC
+    const mcpStart = await daemon.request('mcp.start');
+    const mcpRun = await daemon.request('mcp.status');
+    const mcpStop = await daemon.request('mcp.stop');
+    step('mcp-status', mcpStart.ok && mcpStart.result.running === true
+      && mcpRun.ok && mcpRun.result.running === true && mcpStop.ok,
+      JSON.stringify({ start: mcpStart.result, run: mcpRun.result }));
+
     for (const w of [mainWin, stWin, shWin, pvWin]) {
       if (!w || w.isDestroyed()) continue;
       const txt = await w.webContents.executeJavaScript('document.body.innerText', true).catch(() => '');

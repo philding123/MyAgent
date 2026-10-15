@@ -128,8 +128,12 @@
 |---|---|
 | 微信支付 / 订阅门 / 积分 / 邀请 / 加购 | `plugins/weixinpay`、`subscription-gate`、`wechatpay-cli.exe`、renderer `SubscriptionUsagePanel/AccountCreditsSection/addon-purchase`（**全部排除**，design/27 七面清单） |
 
-### M. 待深挖（打包基础设施或未知业务，不影响复刻验收）
-`acp.js`（zod schema 构造器族）、`celljs-deps`、`claw-content-utils`、`contract`、`handlers`、`hub`、`ioa`（企微 IOA 白名单已归 F 域）、`md5-worker`、`multipart-parser`、`poi-user-asset-service`（疑腾讯 POI 资产服务，账号系）、`source`、`esm*`。
+### M. 待深挖 → 已定性（2026-10-15，D9 关闭）
+`acp.js` = zod schema 构造器族（rolldown 打包基础设施，非 Agent Client Protocol）；
+`celljs-deps.js` = 表格（sheet）服务端依赖装配（引用 code-cache/server/tar，归 G 域文档办公）；
+`claw-content-utils.js` = 内容工具函数（wb agent 内部名，基础设施）；
+`poi-user-asset-service.js` = 腾讯 POI 用户资产服务（账号体系，**排除**）；
+其余（contract/handlers/hub/ioa/md5-worker/multipart-parser/source/esm*）为打包基础设施或已归前述域。
 
 ## §2 MyAgent 复刻对照（F01–F33，全部有证据）
 
@@ -168,6 +172,9 @@
 | F31 | 设置窗像素（900×680 + chrome/×/nav200） | ✅ | e2e:ui-settings + 像素 27.37%（骨架口径，见偏差 D1）；diff-settings.png |
 | F32 | 搜索窗像素（800×640 + 输入带 + spinner） | ✅ | e2e:ui-search + 像素 94.08%；diff-search.png |
 | F33 | 预览窗像素（980×720 + 32px 栏 + #f2f2f2） | ✅ | e2e:ui-preview + 像素 **94.42%**；diff-preview.png |
+| F34 | MCP 服务面（stdio server：sessions/search/skills 工具 + 会话资源） | ✅ | T30 八测 + e2e:mcp-status；`app/daemon/mcp.js`、`mcp-server-child.js` |
+| F35 | 原生菜单最小面（文件/编辑/视图/帮助 + 快捷键闭环） | ✅ | e2e:menu（Ctrl+N 点击 → 会话 +1）；`app/main/menu.js` |
+| F36 | 启动画面 splash（800×500 frameless → 主窗交接） | ✅ | e2e:splash-handoff；`app/main/splash.js` |
 | — | 支付排除（7 面） | ✅（排除项按清单不存在） | e2e:ui-paywall-zero 四窗 0 命中 |
 
 暗色补充：search-dark **99.88%**、settings-dark 27.37%（同口径）、main-dark/
@@ -188,9 +195,9 @@ galileo/qimei/Turing）、腾讯文档与 COS（G 域 sdk，F20 开源替代）�
 | D1 | 设置窗对比口径为「加载骨架」（真实 UI 渲染被 wb 宿主运行时握手挡死，四层错误链见 live-attempts.md 附录） | settings 27.37%，几何以 chrome/×/nav200 断言 | ui-settings PASS；live-attempts.md |
 | D2 | 会话独立窗（wb `conversation` 窗）未复刻：MyAgent 会话固定在主窗内 | 多会话并行查看不可用 | window-apps.js `conversation` vs `windows.js`（无独立会话窗） |
 | D3 | wb 独有窗口未复刻：developer-profile / office / im-merge-detail / im-reaction-users / demo | 对应 wb 业务（开发者主页、腾讯文档 office、IM 合并）不在 roadmap 范围 | §1 A 域 |
-| D4 | MCP 面缺失：wb 在 app-server 托管 MCP apps（mcpApps/mcpManager），MyAgent 无 MCP 服务面 | 无法把 MyAgent 能力暴露给 MCP 客户端 | `app-server-mcp-apps-host*.js` |
-| D5 | 原生菜单/快捷键面：wb 有 menu-builder+menu-i18n；MyAgent 用 autoHideMenuBar（无菜单） | 键盘党操作路径少 | `menu-builder.js` vs index.html |
-| D6 | 启动画面：wb 有 splash + 启动性能标记；MyAgent 直开主窗 | 冷启动观感 | `main/splash` |
+| D4 | ~~MCP 面缺失~~ **已修复**：F34 MCP 服务面（T30，stdio server + 四工具 + 会话资源） | 已消除 | `app/daemon/mcp.js` |
+| D5 | ~~原生菜单缺失~~ **已修复**：F35 最小菜单面（T31，Ctrl+N 闭环） | 已消除 | `app/main/menu.js` |
+| D6 | ~~无启动画面~~ **已修复**：F36 splash（T32，800×500 frameless 交接） | 已消除 | `app/main/splash.js` |
 | D7 | IM 覆盖面：MyAgent 6 通道 vs wb 15+ 模块（其中 8 个闭源协议已排除，公开协议平台对齐） | 长尾平台不可用（多数已裁决排除） | §1 F 域 |
 | D8 | 预览依赖审计遗留（xlsx GHSA×2 无上游修复、echarts XSS 经 pptx-preview） | 仅本地自选文件输入，风险受沙箱门控缓解 | 90-deferred §排除项末行 |
 | D9 | 待深挖模块（acp/celljs/claw/poi 等）未归类 | 清单完备性 | §1 M 域 |

@@ -26,7 +26,7 @@ Phase 5（F29–F33，design/27-pixel-ui.md）：渲染层像素级对齐 WorkBu
 ui-search/ui-preview/ui-token-dark/ui-paywall-zero）进 verify；支付 UI 排除清单见
 design/27 §「支付/订阅 UI 排除清单」。全量功能对照（wb 13 域 × MyAgent 覆盖 +
 偏差 D1–D9 + 修复计划）见 `artifacts/wb-feature-inventory.md`。
-Phase 6（P6 补面）：F34–F36 已立项待实现；F37（会话独立窗）P2 观察。
+Phase 6（P6 补面）：F34–F36 已实现并验收（T30–T32，2026-10-15）；F37（会话独立窗）P2 观察。
 
 ## 二、功能点总表（F01–F18）
 
@@ -65,9 +65,9 @@ Phase 6（P6 补面）：F34–F36 已立项待实现；F37（会话独立窗）
 | F31 | 设置窗像素复刻（900×680 + chrome/×/nav200 + gray-2 底） | `main/window-apps.js` settings 窗 + `settings-window-perf` CSS | P5 | 27-pixel-ui.md | ✅ 27.37%（骨架口径） |
 | F32 | 搜索窗像素复刻（800×640 + 输入带 + 空态 spinner） | bootstrap `sk-global-search-*` + `window-apps.js` | P5 | 27-pixel-ui.md | ✅ 94.08% |
 | F33 | 预览窗像素复刻（980×720 + 32px 栏 + #f2f2f2 底） | bootstrap `sk-image-viewer-*` + `window-apps.js` image-viewer | P5 | 27-pixel-ui.md | ✅ 94.42% |
-| F34 | MCP 服务面（会话/技能/搜索暴露为 MCP server） | `main/app-server-mcp-apps-host*.js`（mcpApps/mcpManager/mcpAppsDiag） | P6 | 待建 30-mcp.md | 立项 |
-| F35 | 原生菜单最小面（应用菜单 + 会话快捷键，menu-builder 语义） | `main/menu-builder.js`、`menu-i18n.js` | P6 | 待建 31-menu.md | 立项 |
-| F36 | 启动画面 splash（即显窗→主窗就绪交接） | `main/splash` + bootstrap 启动标记 | P6 | 待建 32-splash.md | 立项 |
+| F34 | MCP 服务面（会话/技能/搜索暴露为 MCP server） | `main/app-server-mcp-apps-host*.js`（mcpApps/mcpManager/mcpAppsDiag） | P6 | 30-mcp.md | ✅ T30 |
+| F35 | 原生菜单最小面（应用菜单 + 会话快捷键，menu-builder 语义） | `main/menu-builder.js`、`menu-i18n.js` | P6 | 31-menu.md | ✅ T31 |
+| F36 | 启动画面 splash（即显窗→主窗就绪交接） | `main/splash` + bootstrap 启动标记 | P6 | 32-splash.md | ✅ T32 |
 | F37 | 会话独立窗（P2 观察：个人并行会话需求出现再实施） | window-apps `conversation` + bootstrap `?windowKind=conversation` | P7 | — | 观察 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |
