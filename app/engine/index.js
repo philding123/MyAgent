@@ -74,6 +74,7 @@ async function handleInit(msg) {
     });
   }
   state.tools = makeTools({ sandbox: state.sandbox, skillRegistry: state.registry, browser: browserDef, cloud,
+    library: msg.libraryDir ? { dir: msg.libraryDir } : null,
     daemonBridge: (msg.daemonTools || []).includes('market') ? (args) => callDaemonTool('market', args) : null });
   state.llm = new LlmClient(msg.llm || {});
   state.history = [{ role: 'system', content: buildSystem(msg) }];

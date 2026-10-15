@@ -126,6 +126,11 @@ const e2eMap = {
   T30: ['mcp-status'],
   T31: ['menu'],
   T32: ['splash-handoff'],
+  T33: [],
+  T34: [],
+  T35: [],
+  T36: [],
+  T37: [],
 };
 
 const featureNames = {
@@ -137,6 +142,7 @@ const featureNames = {
   T23: 'F23 IM 通道', T24: 'F24 分享目标', T25: 'F25 云端市场', T26: 'F26 端云同步',
   T27: 'F27 云沙箱', T28: 'F28 A2A 协作', T29: 'F29-F33 像素级 UI（WorkBuddy 复刻，排除支付）',
   T30: 'F34 MCP 服务面', T31: 'F35 原生菜单最小面', T32: 'F36 启动画面 splash',
+  T33: 'F39 空间', T34: 'F40 定时任务', T35: 'F41 预设（助理）', T36: 'F42 资料库', T37: 'F43 @ 上下文',
 };
 
 let lines = [];

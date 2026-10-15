@@ -13,6 +13,9 @@
     <button class="settings-navigation__item" data-panel="engine"><span class="nav-ico">⚙</span>引擎</button>
     <button class="settings-navigation__item" data-panel="update"><span class="nav-ico">⬆</span>更新</button>
     <div class="settings-group-label">功能</div>
+    <button class="settings-navigation__item" data-panel="presets"><span class="nav-ico">🤖</span>助理预设</button>
+    <button class="settings-navigation__item" data-panel="tasks"><span class="nav-ico">⏰</span>定时任务</button>
+    <button class="settings-navigation__item" data-panel="library"><span class="nav-ico">📚</span>资料库</button>
     <button class="settings-navigation__item" data-panel="market"><span class="nav-ico">🏬</span>技能市场</button>
     <button class="settings-navigation__item" data-panel="skills"><span class="nav-ico">✦</span>技能</button>
     <button class="settings-navigation__item" data-panel="memory"><span class="nav-ico">◈</span>记忆</button>
@@ -46,6 +49,35 @@
       <h2>引擎</h2>
       <div class="settings-card">
         <label><input type="checkbox" id="prewarm-chk"> 预热进程池（更快首 token）</label>
+      </div>
+    </section>
+    <section class="settings-window-panel hidden" data-panel="presets">
+      <h2>助理预设</h2>
+      <div class="settings-card">
+        <ul id="preset-list"></ul>
+        <label>名称 <input id="preset-name" placeholder="给助理起个名字"></label>
+        <label>系统提示 <textarea id="preset-prompt" rows="3" placeholder="你是一位…"></textarea></label>
+        <div class="row"><button id="btn-preset-add" class="primary">创建预设</button><button id="btn-preset-remove">删除选中</button></div>
+        <span id="preset-msg" class="msg-line">会话可通过 sessions.setPreset 绑定预设</span>
+      </div>
+    </section>
+    <section class="settings-window-panel hidden" data-panel="tasks">
+      <h2>定时任务</h2>
+      <div class="settings-card">
+        <ul id="task-list"></ul>
+        <label>名称 <input id="task-name" placeholder="每周周报"></label>
+        <label>Prompt <textarea id="task-prompt" rows="2" placeholder="要自动执行的话"></textarea></label>
+        <label>间隔（分钟） <input id="task-interval" type="number" value="60" min="1"></label>
+        <div class="row"><button id="btn-task-add" class="primary">创建</button><button id="btn-task-remove">删除选中</button><button id="btn-task-refresh">刷新</button></div>
+        <span id="task-msg" class="msg-line"></span>
+      </div>
+    </section>
+    <section class="settings-window-panel hidden" data-panel="library">
+      <h2>资料库</h2>
+      <div class="settings-card">
+        <ul id="lib-list"></ul>
+        <div class="row"><button id="btn-lib-add" class="primary">添加文件</button><button id="btn-lib-remove">移除选中</button><button id="btn-lib-refresh">刷新</button></div>
+        <span id="lib-msg" class="msg-line">引擎可通过 library_list / library_read 工具访问</span>
       </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="update">

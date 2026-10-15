@@ -103,6 +103,23 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// F44 artifact cards: files the agent writes render as wb-style cards
+function appendArtifact(p) {
+  let grid = document.querySelector('#messages .artifact-grid');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.className = 'artifact-grid';
+    $('#messages').appendChild(grid);
+  }
+  const card = document.createElement('button');
+  card.className = 'artifact-card';
+  card.title = p;
+  card.innerHTML = '<span class="af-ico">📄</span><span class="af-name">' + escapeHtml(p.split(/[\\/]/).pop()) + '</span>';
+  card.onclick = () => window.myagent.windowAction('openPreview', { path: p });
+  grid.appendChild(card);
+  grid.scrollIntoView({ block: 'end' });
+}
+
 // ---------- state ----------
 let sessions = [];
 let current = null; // session row
@@ -160,6 +177,8 @@ function handleEngineEvent(ev) {
     streamingEl.scrollIntoView({ block: 'end' });
   } else if (ev.type === 'tool_call') {
     appendMessage('tool', { tool: ev.name, summary: JSON.stringify(ev.args).slice(0, 140), ok: true });
+    // F44: written files surface as artifact cards (wb 产物卡片)
+    if (ev.name === 'write_file' && ev.args && ev.args.path) appendArtifact(ev.args.path);
   } else if (ev.type === 'tool_result') {
     appendMessage('tool', { tool: ev.id, summary: ev.summary, ok: ev.ok, detail: ev.reason && ev.reason !== 'denied' ? ev.reason : '' });
   } else if (ev.type === 'confirm_request') {
@@ -263,13 +282,15 @@ async function refreshSessions(preloaded) {
   sessions = preloaded || await rpc('sessions.list');
   const ul = $('#session-list');
   ul.innerHTML = '';
-  // v5.8.2 grouping: 任务 = sessions without a workspace cwd; 空间 = by cwd
+  // F39/v5.8.2 grouping: 任务 = sessions without space/cwd; 空间 = named
+  // space first, then cwd-derived groups
   const loose = [];
   const spaces = new Map();
   for (const s of sessions) {
-    if (s.cwd) {
-      if (!spaces.has(s.cwd)) spaces.set(s.cwd, []);
-      spaces.get(s.cwd).push(s);
+    const key = s.space || s.cwd;
+    if (key) {
+      if (!spaces.has(key)) spaces.set(key, { label: s.space || basename(s.cwd), list: [] });
+      spaces.get(key).list.push(s);
     } else loose.push(s);
   }
   $('#tasks-label').textContent = loose.length ? `任务 (${loose.length})` : '任务';
@@ -282,14 +303,14 @@ async function refreshSessions(preloaded) {
   loose.forEach((s) => ul.appendChild(sessionRow(s)));
   const sg = $('#space-groups');
   sg.innerHTML = '';
-  for (const [cwd, list] of spaces) {
+  for (const [, g] of spaces) {
     const label = document.createElement('div');
     label.className = 'side-section-label';
-    label.textContent = `${basename(cwd)} (${list.length})`;
+    label.textContent = `${g.label} (${g.list.length})`;
     sg.appendChild(label);
     const nested = document.createElement('ul');
     nested.className = 'session-list-nested';
-    list.forEach((s) => nested.appendChild(sessionRow(s)));
+    g.list.forEach((s) => nested.appendChild(sessionRow(s)));
     sg.appendChild(nested);
   }
 }
@@ -338,14 +359,17 @@ async function send() {
   const text = input.value.trim();
   if (!text || !current) return;
   input.value = '';
-  appendMessage('user', { content: text });
+  // F43: @"path" tokens become engine context (stripped from the message)
+  const context = [...text.matchAll(/@"([^"]+)"/g)].map((m) => m[1]);
+  const clean = context.length ? text.replace(/@"[^"]+"/g, '').replace(/ {2,}/g, ' ').trim() : text;
+  appendMessage('user', { content: clean });
   try {
     if (!engineRunning) {
       await rpc('engine.start', { sessionId: current.id });
       engineRunning = true;
       setSendEnabled(false);
     }
-    await rpc('engine.userMessage', { sessionId: current.id, text });
+    await rpc('engine.userMessage', { sessionId: current.id, text: clean, context });
   } catch (e) {
     appendMessage('event', { content: 'send failed: ' + e.message });
     engineRunning = false;
@@ -395,6 +419,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#nav-market').onclick = () => window.myagent.windowAction('openSettings', { panel: 'market' });
   $('#nav-skills').onclick = () => window.myagent.windowAction('openSettings', { panel: 'skills' });
   $('#nav-memory').onclick = () => window.myagent.windowAction('openSettings', { panel: 'memory' });
+  $('#nav-assistant').onclick = () => window.myagent.windowAction('openSettings', { panel: 'presets' });
+  $('#nav-tasks').onclick = () => window.myagent.windowAction('openSettings', { panel: 'tasks' });
+  $('#nav-library').onclick = () => window.myagent.windowAction('openSettings', { panel: 'library' });
   document.querySelectorAll('#band .menu-label').forEach((el) => {
     el.onclick = () => window.myagent.windowAction('menu-popup', { section: el.dataset.menu });
   });
@@ -402,6 +429,21 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#win-max').onclick = () => window.myagent.windowAction('win-maximize');
   $('#win-close').onclick = () => window.myagent.windowAction('win-close');
   $('#btn-plus').onclick = () => $('#input').focus();
+  // F43: @ file context + / skill invocation (design/34)
+  $('#btn-context').onclick = async () => {
+    const file = await window.myagent.windowAction('pickFile');
+    if (file) { const i = $('#input'); i.value = i.value.replace(/\s*$/, '') + ` @"${file}" `; i.focus(); }
+  };
+  $('#btn-slash').onclick = async () => {
+    try {
+      const skills = await rpc('skills.list');
+      const names = skills.map((s) => s.name);
+      if (!names.length) return;
+      const pick = prompt('调用技能（输入序号）：\n' + names.map((n, i) => (i + 1) + '. ' + n).join('\n'));
+      const idx = parseInt(pick, 10) - 1;
+      if (names[idx]) { const i = $('#input'); i.value = '/' + names[idx] + ' ' + i.value; i.focus(); }
+    } catch (_) {}
+  };
   $('#sub-mode').onclick = () => {
     if (!current) return;
     const order = ['ask', 'plan', 'craft'];

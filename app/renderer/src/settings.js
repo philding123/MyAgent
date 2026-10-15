@@ -95,6 +95,9 @@ window.addEventListener('DOMContentLoaded', () => {
   loadSkills().catch(() => {});
   loadMemory().catch(() => {});
   loadIm().catch(() => {});
+  loadTasks().catch(() => {});
+  loadPresets().catch(() => {});
+  loadLibrary().catch(() => {});
 
   const save = (k, v) => rpc('settings.set', { key: k, value: v }).catch(() => {});
   $('#llm-base').onchange = (e) => save('llm.baseUrl', e.target.value.trim());
@@ -231,6 +234,74 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#im-msg').textContent = channel + ' 已停止';
     loadIm();
   };
+
+  // ---- F40 scheduled tasks (design/34) ----
+  let selectedTask = null;
+  async function loadTasks() {
+    const list = await rpc('tasks.list');
+    const ul = $('#task-list');
+    ul.innerHTML = '';
+    for (const t of list) {
+      const li = document.createElement('li');
+      li.textContent = (t.enabled ? '⏰ ' : '⏸ ') + t.name + ' — 每 ' + Math.max(1, Math.round(t.intervalMs / 60000)) + ' 分钟';
+      li.onclick = () => { selectedTask = t.id; [...ul.children].forEach((x) => x.classList.remove('active')); li.classList.add('active'); };
+      ul.appendChild(li);
+    }
+  }
+  $('#btn-task-add').onclick = async () => {
+    try {
+      await rpc('tasks.create', { name: $('#task-name').value.trim(), prompt: $('#task-prompt').value, intervalMs: (Math.max(1, +$('#task-interval').value || 60)) * 60000 });
+      $('#task-msg').textContent = '已创建';
+      loadTasks();
+    } catch (e) { $('#task-msg').textContent = e.message; }
+  };
+  $('#btn-task-remove').onclick = async () => { if (selectedTask) { await rpc('tasks.remove', { id: selectedTask }); selectedTask = null; loadTasks(); } };
+  $('#btn-task-refresh').onclick = loadTasks;
+
+  // ---- F41 presets (助理) ----
+  let selectedPreset = null;
+  async function loadPresets() {
+    const list = await rpc('presets.list');
+    const ul = $('#preset-list');
+    ul.innerHTML = '';
+    for (const p of list) {
+      const li = document.createElement('li');
+      li.textContent = p.name + (p.description ? ' — ' + p.description : '');
+      li.onclick = () => { selectedPreset = p.id; [...ul.children].forEach((x) => x.classList.remove('active')); li.classList.add('active'); };
+      ul.appendChild(li);
+    }
+  }
+  $('#btn-preset-add').onclick = async () => {
+    try {
+      await rpc('presets.create', { name: $('#preset-name').value.trim(), prompt: $('#preset-prompt').value });
+      $('#preset-msg').textContent = '已创建';
+      $('#preset-name').value = ''; $('#preset-prompt').value = '';
+      loadPresets();
+    } catch (e) { $('#preset-msg').textContent = e.message; }
+  };
+  $('#btn-preset-remove').onclick = async () => { if (selectedPreset) { await rpc('presets.remove', { id: selectedPreset }); selectedPreset = null; loadPresets(); } };
+
+  // ---- F42 library (资料库) ----
+  let selectedLib = null;
+  async function loadLibrary() {
+    const list = await rpc('library.list');
+    const ul = $('#lib-list');
+    ul.innerHTML = '';
+    for (const f of list) {
+      const li = document.createElement('li');
+      li.textContent = f.name + ' (' + f.size + 'B)';
+      li.onclick = () => { selectedLib = f.name; [...ul.children].forEach((x) => x.classList.remove('active')); li.classList.add('active'); };
+      ul.appendChild(li);
+    }
+  }
+  $('#btn-lib-add').onclick = async () => {
+    const file = await window.myagent.windowAction('pickFile');
+    if (!file) return;
+    await rpc('library.add', { path: file });
+    loadLibrary();
+  };
+  $('#btn-lib-remove').onclick = async () => { if (selectedLib) { await rpc('library.remove', { name: selectedLib }); selectedLib = null; loadLibrary(); } };
+  $('#btn-lib-refresh').onclick = loadLibrary;
 
   // ---- WorkBuddy settings layout (design/27 F31 / 33 v5.8.2): grouped nav,
   // search filter, ?panel= deep link, window chrome ----

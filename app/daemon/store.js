@@ -48,7 +48,8 @@ class JsonStore {
   }
   createSession(s) {
     const row = { id: s.id || id(), title: s.title || 'New session', mode: s.mode || 'craft',
-      created_at: Date.now(), updated_at: Date.now(), cwd: s.cwd || os.homedir() };
+      created_at: Date.now(), updated_at: Date.now(), cwd: s.cwd || os.homedir(),
+      space: s.space || '', preset: s.preset || '' };
     this.db.sessions.unshift(row); this._flush(); return row;
   }
   listSessions() { return this.db.sessions.slice().sort((a, b) => b.updated_at - a.updated_at); }
@@ -127,17 +128,23 @@ class SqliteStore {
         try { fs.renameSync(f, f + '.corrupt-' + Date.now()); }
         catch (_) { try { fs.unlinkSync(f); } catch (_) {} }
       }
-      this.db = new Database(file);
-      this.db.pragma('journal_mode = WAL');
-      this.recovered = true;
-    }
-    this.db.exec(SCHEMA);
+    this.db = new Database(file);
+    this.db.pragma('journal_mode = WAL');
+    this.recovered = true;
   }
+  this.db.exec(SCHEMA);
+  // F39/F41: space + preset columns for stores created before Phase 8
+  for (const col of ['space', 'preset']) {
+    const cols = this.db.pragma('table_info(sessions)').map((c) => c.name);
+    if (!cols.includes(col)) this.db.exec('ALTER TABLE sessions ADD COLUMN ' + col + " TEXT DEFAULT ''");
+  }
+}
   createSession(s) {
     const row = { id: s.id || id(), title: s.title || 'New session', mode: s.mode || 'craft',
-      created_at: Date.now(), updated_at: Date.now(), cwd: s.cwd || os.homedir() };
-    this.db.prepare('INSERT INTO sessions(id,title,mode,created_at,updated_at,cwd) VALUES (?,?,?,?,?,?)')
-      .run(row.id, row.title, row.mode, row.created_at, row.updated_at, row.cwd);
+      created_at: Date.now(), updated_at: Date.now(), cwd: s.cwd || os.homedir(),
+      space: s.space || '', preset: s.preset || '' };
+    this.db.prepare('INSERT INTO sessions(id,title,mode,created_at,updated_at,cwd,space,preset) VALUES (?,?,?,?,?,?,?,?)')
+      .run(row.id, row.title, row.mode, row.created_at, row.updated_at, row.cwd, row.space, row.preset);
     return row;
   }
   listSessions() { return this.db.prepare('SELECT * FROM sessions ORDER BY updated_at DESC').all(); }
@@ -145,8 +152,8 @@ class SqliteStore {
   updateSession(idv, patch) {
     const s = this.getSession(idv); if (!s) return null;
     Object.assign(s, patch, { updated_at: Date.now() });
-    this.db.prepare('UPDATE sessions SET title=?,mode=?,updated_at=?,cwd=?,created_at=? WHERE id=?')
-      .run(s.title, s.mode, s.updated_at, s.cwd, s.created_at, idv);
+    this.db.prepare('UPDATE sessions SET title=?,mode=?,updated_at=?,cwd=?,created_at=?,space=?,preset=? WHERE id=?')
+      .run(s.title, s.mode, s.updated_at, s.cwd, s.created_at, s.space || '', s.preset || '', idv);
     return s;
   }
   deleteSession(idv) {

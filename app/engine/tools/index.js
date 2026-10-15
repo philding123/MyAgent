@@ -9,7 +9,7 @@ const path = require('path');
 
 const MAX_READ_LINES = 2000;
 
-function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge }) {
+function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, library }) {
   const tools = {
     read_file: {
       kind: 'read',
@@ -210,6 +210,34 @@ function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge }) {
       }
     },
   };
+
+  // F42 library (design/34): the daemon-owned 资料库 directory is a trusted
+  // read-only domain of its own — basename-guarded, outside the workspace
+  // sandbox by design.
+  if (library && library.dir) {
+    tools.library_list = {
+      kind: 'read',
+      description: 'List files in the MyAgent library (资料库). Args: {}',
+      schema: { type: 'object', properties: {}, additionalProperties: false },
+      run: async () => {
+        const entries = fs.readdirSync(library.dir, { withFileTypes: true })
+          .filter((d) => d.isFile())
+          .map((d) => { const st = fs.statSync(path.join(library.dir, d.name)); return d.name + ' (' + st.size + 'B)'; });
+        return { ok: true, summary: 'library: ' + entries.length + ' files', data: { entries } };
+      },
+    };
+    tools.library_read = {
+      kind: 'read',
+      description: 'Read a file from the MyAgent library (资料库). Args: {name}',
+      schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+      run: async (args) => {
+        const p = path.join(library.dir, path.basename(args.name));
+        if (!fs.existsSync(p)) return { ok: false, summary: 'not in library: ' + args.name };
+        const text = fs.readFileSync(p, 'utf8');
+        return { ok: true, summary: p + ' (' + text.length + ' chars)', data: { content: text } };
+      },
+    };
+  }
 
   const definitions = Object.entries(tools).map(([name, t]) => ({
     type: 'function',

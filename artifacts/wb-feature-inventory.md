@@ -176,6 +176,12 @@
 | F35 | 原生菜单最小面（编辑/窗口/帮助/关于 + 快捷键闭环，v5.8.2 band 顺序） | ✅ | e2e:menu（Ctrl+N 点击 → 会话 +1）；`app/main/menu.js` |
 | F36 | 启动画面 splash（800×500 frameless → 主窗交接） | ✅ | e2e:splash-handoff；`app/main/splash.js` |
 | F38 | v5.8.2 真实 UI 对齐（窗带 30/侧栏 360/顶栏 64/hero/composer 卡/设置白卡/搜索 Tab；实机 CDP 基线） | ✅ | 实机对比 main(home) 61.49% / settings 57.26% / search 93.35%；design/33 + wb-live-* 证据 |
+| F39 | 空间（space 字段 + 任务/空间分组） | ✅ | T33；`sessions.setSpace`、app.js 分组 |
+| F40 | 定时任务（持久化调度器 + 设置面板） | ✅ | T34；`app/daemon/tasks.js`、tasks 面板 |
+| F41 | 预设/助理（persona 通道 + 面板） | ✅ | T35；`app/daemon/presets.js`、presets 面板 |
+| F42 | 资料库（library 目录 + 引擎工具 + 面板） | ✅ | T36；library_list/library_read、library 面板 |
+| F43 | @ 上下文 / 技能调用 | ✅ | T37 augmentContext；composer @// 按钮 |
+| F44 | 产物卡片（write_file → 卡片网格，点击预览） | ✅ | 渲染层 artifact-grid；app.js appendArtifact |
 | — | 支付排除（7 面） | ✅（排除项按清单不存在） | e2e:ui-paywall-zero 四窗 0 命中 |
 
 暗色补充：search-dark **99.88%**、settings-dark 27.37%（同口径）、main-dark/

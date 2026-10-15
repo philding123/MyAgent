@@ -9,6 +9,9 @@ const { openStore } = require('./store');
 const { Sandbox, defaultRules } = require('./sandbox');
 const { MAX_PREVIEW_BYTES } = require('../shared/preview-kind');
 const { SkillRegistry, installSkill, uninstallSkill } = require('./skills');
+const { createPresetStore } = require('./presets');
+const { createScheduler } = require('./tasks');
+const { augmentContext } = require('./context');
 const { EngineHost } = require('./engine-host');
 const { TerminalHost } = require('./terminal');
 const { globalSearch } = require('./search');
@@ -44,12 +47,35 @@ function createDaemon({ send }) {
   const { store, warning } = openStore(dataDir);
   const vault = new CredentialVault(path.join(home, 'keystore'), null);
   const registry = new SkillRegistry([skillsBuiltin, skillsUser]);
+  const presetsStore = createPresetStore(path.join(home, 'presets'));
+  const libraryDir = path.join(home, 'library');
+  fs.mkdirSync(libraryDir, { recursive: true });
 
   const emit = (topic, payload) => send({ kind: 'event', topic, payload });
 
   const terminalHost = new TerminalHost(emit);
   let prewarmOn = store.getSetting('engine.prewarm') === true;
   let mcpChild = null; // F34: spawned MCP stdio server handle (design/30-mcp.md)
+  // F40 scheduled tasks (design/34): due schedules run as engine turns on
+  // their session (or a dedicated ⏰ session)
+  const scheduler = createScheduler({
+    store,
+    tickMs: 1000,
+    runSchedule: async (t) => {
+      let sid = t.sessionId;
+      if (sid && !store.getSession(sid)) sid = null;
+      if (!sid) {
+        const s = store.createSession({ title: '⏰ ' + t.name });
+        sid = s.id;
+        t.sessionId = sid;
+        store.setSetting('tasks.schedule.' + t.id, JSON.stringify(t));
+      }
+      await methods['engine.start']({ sessionId: sid });
+      await methods['engine.userMessage']({ sessionId: sid, text: t.prompt });
+      emit('app:sync', { kind: 'schedule-fired', id: t.id, sessionId: sid });
+    },
+  });
+  scheduler.start();
 
   const engineHost = new EngineHost({
     emit,
@@ -58,17 +84,20 @@ function createDaemon({ send }) {
       const s = store.getSession(sessionId) || {};
       const settings = store.allSettings();
       const skills = registry.enabled().map((x) => ({ name: x.name, description: x.description, body: x.body }));
+      // F41: a bound preset overrides the settings persona (wb「助理/专家」语义)
+      const presetPrompt = s.preset ? (presetsStore.read(s.preset) || {}).prompt : null;
       return {
         mode: s.mode || 'craft',
         workspace: s.cwd || process.cwd(),
         sandboxRules: defaultRules(s.cwd || process.cwd()),
+        libraryDir,
         llm: {
           baseUrl: settings['llm.baseUrl'] || 'http://127.0.0.1:11434/v1',
           apiKey: vault.get('llm.apiKey') || settings['llm.apiKey'] || '',
           model: settings['llm.model'] || 'local-model',
           temperature: settings['llm.temperature'],
         },
-        persona: settings['persona'] || '',
+        persona: presetPrompt || settings['persona'] || '',
         preferences: store.listMemory('preference').map((m) => m.content),
         memoryFacts: store.listMemory('fact').map((m) => m.content),
         skills,
@@ -228,6 +257,27 @@ function createDaemon({ send }) {
     'skills.list': async () => registry.scan().map((s) => ({ ...s, body: undefined })),
     'skills.read': async (p) => registry.read(p.name),
     'skills.toggle': async (p) => { registry.setEnabled(p.name, p.enabled); return true; },
+    // F39 spaces / F41 presets (design/34)
+    'sessions.setSpace': async (p) => (store.updateSession(p.id, { space: p.space || '' }), { ok: true }),
+    'sessions.setPreset': async (p) => (store.updateSession(p.id, { preset: p.preset || '' }), { ok: true }),
+    'presets.list': async () => presetsStore.list(),
+    'presets.create': async (p) => presetsStore.create(p),
+    'presets.remove': async (p) => presetsStore.remove(p.id),
+    // F40 scheduled tasks
+    'tasks.create': async (p) => scheduler.create(p),
+    'tasks.list': async () => scheduler.list(),
+    'tasks.remove': async (p) => scheduler.remove(p.id),
+    'tasks.toggle': async (p) => scheduler.toggle(p.id, p.enabled),
+    // F42 library (资料库)
+    'library.list': async () => fs.readdirSync(libraryDir, { withFileTypes: true })
+      .filter((d) => d.isFile())
+      .map((d) => { const st = fs.statSync(path.join(libraryDir, d.name)); return { name: d.name, size: st.size }; }),
+    'library.add': async (p) => {
+      if (!p.path) throw new Error('path required');
+      fs.copyFileSync(p.path, path.join(libraryDir, path.basename(p.path)));
+      return { ok: true };
+    },
+    'library.remove': async (p) => { fs.rmSync(path.join(libraryDir, path.basename(p.name)), { force: true }); return { ok: true }; },
     // F34: MCP server lifecycle (design/30-mcp.md). The child is a standalone
     // stdio MCP server; start/stop only manage its lifetime here.
     'mcp.start': async () => {
@@ -283,9 +333,12 @@ function createDaemon({ send }) {
     },
     'engine.stop': async (p) => engineHost.stop(p.sessionId),
     'engine.userMessage': async (p) => {
+      // F43: @"path" tokens / explicit context files are inlined for the
+      // engine; the stored user message keeps the original text
+      const aug = augmentContext(p.text, p.context || []);
       store.appendMessage({ session_id: p.sessionId, role: 'user', content: p.text });
-      await engineHost.userMessage(p.sessionId, p.text);
-      return { ok: true };
+      await engineHost.userMessage(p.sessionId, aug.text);
+      return { ok: true, contextUsed: aug.used };
     },
     'engine.confirm': async (p) => engineHost.confirm(p.id, p.approved),
     'engine.mode': async (p) => methods['sessions.setMode'](p),

@@ -32,7 +32,10 @@
     </div>
     <nav id="sb-nav">
       <button class="nav-item active" id="btn-new" title="新建任务"><span class="nav-ico">＋</span>新建任务</button>
+      <button class="nav-item" id="nav-assistant" data-panel="presets"><span class="nav-ico">🤖</span>助理</button>
       <button class="nav-item" id="nav-market" data-panel="market"><span class="nav-ico">⚙</span>技能市场</button>
+      <button class="nav-item" id="nav-tasks" data-panel="tasks"><span class="nav-ico">⏰</span>定时任务</button>
+      <button class="nav-item" id="nav-library" data-panel="library"><span class="nav-ico">📚</span>资料库</button>
       <button class="nav-item" id="nav-skills" data-panel="skills"><span class="nav-ico">✦</span>技能</button>
       <button class="nav-item" id="nav-memory" data-panel="memory"><span class="nav-ico">◈</span>记忆</button>
       <button class="nav-item" id="nav-search"><span class="nav-ico">⌕</span>全局搜索</button>
@@ -71,6 +74,8 @@
           <textarea id="input" rows="2" placeholder="今天帮你做些什么？@ 添加上下文，/调用技能与指令"></textarea>
           <div class="composer-foot">
             <button id="btn-plus" class="icon-btn" title="添加">＋</button>
+            <button id="btn-context" class="icon-btn" title="@ 添加上下文文件">@</button>
+            <button id="btn-slash" class="icon-btn" title="/ 调用技能与指令">/</button>
             <span class="composer-hint">Enter 发送 · Shift+Enter 换行</span>
             <span id="composer-model" class="model-chip" title="模型（设置中修改）"></span>
             <button id="btn-send" title="发送">↑</button>

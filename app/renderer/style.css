@@ -427,14 +427,30 @@ body[data-theme="dark"] .settings-card { border-color: var(--border); }
 .settings-window-panel select { width: 100%; max-width: 420px; }
 .settings-window-panel .row { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
 .settings-window-panel .msg-line { font-size: var(--fs-caption); color: var(--text-3); }
-#skill-list, #mem-list, #im-list {
+#skill-list, #mem-list, #im-list, #task-list, #preset-list, #lib-list {
   list-style: none; padding: 0; margin: 4px 0; max-width: 460px;
   max-height: 220px; overflow: auto; font-size: var(--fs-base);
 }
-#skill-list li, #mem-list li, #im-list li {
-  display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0;
+#skill-list li, #mem-list li, #im-list li, #task-list li, #preset-list li, #lib-list li {
+  display: flex; align-items: center; gap: var(--sp-2); padding: 5px 6px;
   border-bottom: 1px dashed var(--border-subtle); color: var(--text-2);
+  border-radius: var(--radius-md); cursor: pointer;
 }
+#task-list li.active, #preset-list li.active, #lib-list li.active { background: var(--gray-3); color: var(--text-1); }
+
+/* F44 artifact cards (wb 产物卡片) */
+.artifact-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  max-width: 832px; margin: 12px auto;
+}
+.artifact-card {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl); cursor: pointer; color: var(--text-1); text-align: left;
+}
+.artifact-card:hover { background: var(--fill-hover); }
+.artifact-card .af-ico { font-size: 16px; }
+.artifact-card .af-name { font-size: var(--fs-body); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #selfcheck {
   font-size: var(--fs-caption); max-height: 260px; overflow: auto;
   background: var(--gray-1); border: 1px solid var(--border-subtle);
