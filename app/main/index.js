@@ -292,15 +292,19 @@ async function runSmoke() {
       'window.myagent.windowAction("setTheme", { theme: "light" })', true);
     await new Promise((r) => setTimeout(r, 300));
 
-    // F35 native menu: the real application menu item closes the loop through
-    // the renderer (menu:action -> newSession -> sessions.create)
+    // F35 native menu: 新建任务 enters the wb draft state (no session created
+    // until first send — behavior parity with wb, design/33)
     const beforeCount = (await daemon.request('sessions.list')).result.length;
     const menuItem = Menu.getApplicationMenu() && Menu.getApplicationMenu().getMenuItemById('new-session');
     if (menuItem) menuItem.click();
     await new Promise((r) => setTimeout(r, 1000));
+    const menuState = await mainWin.webContents.executeJavaScript(`({
+      home: document.getElementById('main').classList.contains('home'),
+      count: document.querySelectorAll('#messages .msg').length,
+    })`, true).catch(() => null);
     const afterCount = (await daemon.request('sessions.list')).result.length;
-    step('menu', !!menuItem && afterCount === beforeCount + 1,
-      JSON.stringify({ accelerator: menuItem ? menuItem.accelerator : null, before: beforeCount, after: afterCount }));
+    step('menu', !!menuItem && !!menuState && menuState.home === true && menuState.count === 0 && afterCount === beforeCount,
+      JSON.stringify({ accelerator: menuItem ? menuItem.accelerator : null, menuState, before: beforeCount, after: afterCount }));
 
     // F36 splash handoff: created before the main window, closed on its load
     step('splash-handoff', (() => { const s = splash.getState(); return s.created === true && s.closed === true; })(),

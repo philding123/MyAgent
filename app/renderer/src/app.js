@@ -73,7 +73,7 @@ window.__renderTest = (sample) => {
   return { pwned: !!window.__pwned || !!div.querySelector('script'), html: div.innerHTML.slice(0, 200) };
 };
 // smoke hook (T29-b): let the harness drive the task view deterministically
-window.__myagentTest = { openSession: (id) => openSession(id) };
+window.__myagentTest = { openSession: (id) => openSession(id), refresh: () => refreshSessions() };
 
 function appendMessage(role, opts = {}) {
   const hero = $('#messages .home-hero');
@@ -144,7 +144,7 @@ window.myagent.onEvent((msg) => {
   if (topic === 'app:theme') document.body.dataset.theme = payload.theme;
   if (topic === 'menu:action') {
     // F35: native menu delegates to renderer actions (design/31-menu.md)
-    if (payload.action === 'new-session') newSession();
+    if (payload.action === 'new-session') newTask();
     if (payload.action === 'open-settings') window.myagent.windowAction('openSettings');
     if (payload.action === 'open-search') window.myagent.windowAction('openSearch');
   }
@@ -257,7 +257,9 @@ function renderSuggestions() {
 }
 
 // zero-session startup renders the wb home (hero + centered composer, no
-// task header); openSession/newSession switch to the task view
+// task header); openSession/newTask switch between task view and draft home.
+// The composer sub row (选择工作空间/允许完全访问) is HOME-only — wb's
+// conversation composer has no access chip (live capture wb-live-main.png).
 function setHomeMode(on) {
   document.getElementById('main').classList.toggle('home', on);
   const sug = $('#suggestion-list');
@@ -330,15 +332,17 @@ async function openSession(id) {
   refreshSessions();
 }
 
-async function newSession() {
-  // wb semantics: 新建任务 creates the task directly (no workspace picker);
-  // a cwd can be attached later from the terminal
-  current = await rpc('sessions.create', { title: 'Session ' + new Date().toLocaleString() });
-  setHomeMode(false);
-  $('#session-title').textContent = current.title;
+// wb semantics (behavior parity round): 新建任务 = draft state — focus the
+// composer on the home view; the session is created when the first message
+// is sent (title taken from it)
+function newTask() {
+  current = null;
+  setHomeMode(true);
+  $('#session-title').textContent = '新任务';
   $('#messages').innerHTML = '';
   showHomeHero();
   refreshSessions();
+  $('#input').focus();
 }
 
 function updateModeButtons() {
@@ -357,7 +361,13 @@ function setSendEnabled(on) { $('#btn-send').disabled = !on; $('#btn-send').text
 async function send() {
   const input = $('#input');
   const text = input.value.trim();
-  if (!text || !current) return;
+  if (!text) return;
+  // draft → session materializes on first send (wb behavior)
+  if (!current) {
+    current = await rpc('sessions.create', { title: text.slice(0, 30) });
+    setHomeMode(false);
+    $('#session-title').textContent = current.title;
+  }
   input.value = '';
   // F43: @"path" tokens become engine context (stripped from the message)
   const context = [...text.matchAll(/@"([^"]+)"/g)].map((m) => m[1]);
@@ -404,7 +414,7 @@ function handleTerminalEvent(topic, payload) {
 
 // ---------- wire up ----------
 window.addEventListener('DOMContentLoaded', async () => {
-  $('#btn-new').onclick = newSession;
+  $('#btn-new').onclick = newTask;
   $('#btn-send').onclick = send;
   $('#btn-terminal').onclick = toggleTerminal;
   $('#btn-preview').onclick = async () => {
@@ -444,12 +454,27 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (names[idx]) { const i = $('#input'); i.value = '/' + names[idx] + ' ' + i.value; i.focus(); }
     } catch (_) {}
   };
+  $('#band-toggle').onclick = () => document.body.classList.toggle('side-collapsed');
   $('#sub-mode').onclick = () => {
-    if (!current) return;
-    const order = ['ask', 'plan', 'craft'];
-    mode = order[(order.indexOf(mode) + 1) % order.length];
-    updateModeButtons();
-    rpc('sessions.setMode', { id: current.id, mode }).catch(() => {});
+    // wb behavior: the access chip opens a selection menu (not cycle-toggle)
+    const existing = document.getElementById('mode-menu');
+    if (existing) { existing.remove(); return; }
+    const menuEl = document.createElement('div');
+    menuEl.id = 'mode-menu';
+    const labels = { ask: '只读问答', plan: '计划模式', craft: '允许完全访问' };
+    for (const k of ['ask', 'plan', 'craft']) {
+      const b = document.createElement('button');
+      b.className = 'mode-menu-item' + (mode === k ? ' active' : '');
+      b.textContent = labels[k];
+      b.onclick = () => {
+        menuEl.remove();
+        mode = k;
+        updateModeButtons();
+        if (current) rpc('sessions.setMode', { id: current.id, mode }).catch(() => {});
+      };
+      menuEl.appendChild(b);
+    }
+    $('#composer-sub').appendChild(menuEl);
   };
   rpc('app.version').then((v) => { $('#app-version').textContent = 'V' + v.version; }).catch(() => {});
   rpc('settings.get', { key: 'llm.model' }).then((m) => {

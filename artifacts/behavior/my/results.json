@@ -1,0 +1,59 @@
+[
+  {
+    "id": "new-task",
+    "pass": true,
+    "note": "会话数不变（0→0），标题=\"新任务\"，composer 已聚焦",
+    "shots": [
+      "new-task-before",
+      "new-task-after"
+    ]
+  },
+  {
+    "id": "mode-menu",
+    "pass": true,
+    "note": "菜单 3 项，选择后 chip=\"计划模式 ▾\"",
+    "shots": [
+      "mode-menu-open"
+    ]
+  },
+  {
+    "id": "open-session",
+    "pass": true,
+    "note": "会话 2 个，active 行=0",
+    "shots": [
+      "open-session-after"
+    ]
+  },
+  {
+    "id": "open-search",
+    "pass": true,
+    "note": "搜索窗出现",
+    "shots": []
+  },
+  {
+    "id": "open-settings",
+    "pass": true,
+    "note": "设置窗出现",
+    "shots": []
+  },
+  {
+    "id": "composer-type",
+    "pass": true,
+    "note": "composer 值=\"行为对比测试输入\"",
+    "shots": []
+  },
+  {
+    "id": "sidebar-toggle",
+    "pass": true,
+    "note": "360→0→360",
+    "shots": []
+  },
+  {
+    "id": "send-message",
+    "pass": true,
+    "note": "助手回复=\"mock default reply\"，会话 2→3（草稿物化）",
+    "shots": [
+      "send-after"
+    ]
+  }
+]

@@ -119,6 +119,17 @@ body { display: flex; flex-direction: column; }
 #band .band-close:hover { background: #e81123; color: #fff; }
 .band-spring { flex: 1; }
 #app { flex: 1; min-height: 0; display: flex; }
+body.side-collapsed #sidebar { display: none; }
+#composer-sub { position: relative; }
+#mode-menu {
+  position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 30;
+  background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  box-shadow: var(--mode-shadow); display: flex; flex-direction: column; min-width: 150px; padding: 4px;
+}
+.mode-menu-item { border: none; background: transparent; text-align: left; padding: 7px 10px; border-radius: var(--radius-md); font-size: var(--fs-base); }
+.mode-menu-item:hover { background: var(--fill-hover); }
+.mode-menu-item.active { color: var(--brand-deep); font-weight: 600; }
+body[data-theme="dark"] .mode-menu-item.active { color: var(--brand); }
 
 #sidebar {
   width: 360px; flex-shrink: 0; background: var(--bg-content);
