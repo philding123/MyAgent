@@ -30,4 +30,4 @@
 | Job Object 进程树绑定 | 用 taskkill /T 兜底简化（效果近似） |
 | IM 平台中闭源协议端（微信/企微个人号/QQ 非官方协议/元宝/Teams） | 协议不公开或需企业资质；F23 覆盖协议公开平台 + 通用 webhook 兜底 |
 | e2b 真实云账号绑定 | 需外部账号；F27 以 e2b 兼容适配器 + mock 实现并验证协议面，真实接入为手工项 |
-| 预览依赖审计遗留（echarts XSS 经 pptx-preview 1.0.7 传递；uuid 已 ^10 安全） | xlsx 两条高危 GHSA **已解决**（2026-10-15：换 SheetJS CDN 源装 0.20.3，T20 回归 PASS，审计命中 0）。剩余 echarts 链：pptx-preview 1.0.0（去 echarts，breaking）+ 回归 T20，待依赖轮 |
+| 预览依赖审计遗留（echarts XSS 经 pptx-preview 传递） | xlsx 两条高危 GHSA **已解决**（2026-10-15：换 SheetJS CDN 源装 0.20.3，T20 回归 PASS，审计命中 0）。剩余 echarts 链：**勘误**——echarts ^5.5.1 是 pptx-preview 1.0.7 的硬依赖（1.0.0 并不移除），无上游升级路径；仅处理本地自选文件且沙箱门控，接受风险；如需根除须更换 pptx 渲染组件 |
