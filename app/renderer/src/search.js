@@ -10,6 +10,8 @@ let sessions = [];
 async function run() {
   const q = $('#q').value.trim();
   if (!q) return;
+  const spinner = $('#gs-spinner');
+  if (spinner) spinner.classList.add('hidden');
   if (!sessions.length) sessions = await rpc('sessions.list');
   const results = await rpc('search.query', { q });
   const ul = $('#results');
@@ -29,6 +31,9 @@ async function run() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // F29: adopt the persisted theme and follow cross-window changes
+  window.myagent.windowAction('theme').then((t) => { if (t) document.body.dataset.theme = t; });
+  window.myagent.onEvent((msg) => { if (msg.topic === 'app:theme') document.body.dataset.theme = msg.payload.theme; });
   $('#q').focus();
   $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
 });

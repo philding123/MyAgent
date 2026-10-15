@@ -34,7 +34,8 @@ body[data-theme="dark"] {
   --brand: #4ecba0; --brand-deep: #00c29a; /* wb-brand-bright for dark accents */
   --text-1: #ffffff; --text-2: rgba(255, 255, 255, 0.65); --text-3: rgba(255, 255, 255, 0.5);
   --bg-content: #1a1a1a; --bg-side: #1f1f1f; --bg-titlebar: #1f1f1f; --bg-statusbar: #1f1f1f;
-  --gray-1: #1f1f1f; --gray-2: #262626; --gray-3: #2a2a2a; --gray-4: #333333; --gray-5: #3a3a3a;
+  /* dark gray ladder = wb dark palette exactly (tokens-Df-i-zsO.css) */
+  --gray-1: #141414; --gray-2: #292929; --gray-3: #1f1f1f; --gray-4: #242424; --gray-5: #3a3a3a;
   --fill-hover: rgba(255, 255, 255, 0.08); --fill-active: rgba(255, 255, 255, 0.15);
   --border: #262626; --border-subtle: rgba(255, 255, 255, 0.1);
   --input-bg: #262626;
@@ -98,8 +99,18 @@ input, textarea, select {
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--brand); }
 input::placeholder, textarea::placeholder { color: var(--text-3); }
 
-/* ---------- app shell (F30) ---------- */
-#app { display: flex; height: 100vh; }
+/* ---------- app shell (F30: wb index.html skeleton — full-width 38px
+ * titlebar on top, 22px statusbar at the bottom, sidebar+content between) ---------- */
+body { display: flex; flex-direction: column; }
+#titlebar {
+  flex: 0 0 38px; background: var(--bg-titlebar);
+  -webkit-app-region: drag; user-select: none;
+}
+#app { flex: 1; min-height: 0; display: flex; }
+#statusbar {
+  flex: 0 0 22px; background: var(--bg-statusbar);
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 10px;
+}
 
 #sidebar {
   width: 220px; flex-shrink: 0; background: var(--bg-side);
@@ -183,9 +194,10 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 .msg { width: 100%; max-width: 832px; margin: 0 auto; }
 
-/* home hero (WorkBuddy home: brand + scene chips) */
+/* home hero (WorkBuddy home: brand + scene chips; the skeleton centers the
+ * title/tags/input stack in the content area — .sk-content justify center) */
 .home-hero {
-  max-width: 848px; margin: 0 auto; padding: 72px 24px 0;
+  max-width: 848px; margin: 0 auto;
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-7);
 }
 .home-hero__title {
@@ -198,7 +210,12 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   background: var(--gray-3); color: var(--text-2); font-size: var(--fs-base);
   cursor: default;
 }
-.home-hero__hint { font-size: var(--fs-base); color: var(--text-3); }
+/* startup with zero sessions = wb home: no task header, the composer sits
+ * right under the hero, the whole stack is vertically centered */
+#main.home #topbar { display: none; }
+#main.home #messages { flex: 0 0 auto; padding: 0 24px; }
+#main.home #composer { padding-top: 0; }
+#main.home { justify-content: center; }
 
 /* user message card (cr-user-message-editor: 15px/1.75) */
 .msg.user .md {
@@ -298,7 +315,9 @@ body[data-theme="dark"] .tool-name { color: var(--brand); }
 /* ---------- settings window (F31) ---------- */
 .settings-window-root {
   display: flex; flex-direction: column; width: 100vw; height: 100vh;
-  background: var(--bg-content); color: var(--text-1); overflow: hidden;
+  /* wb settings window rides on the secondary bg (skeleton: --wb-bg-secondary
+   * → --wb-palette-gray-2 #f7f7f7); nav transparent over it, panel column white */
+  background: var(--gray-2); color: var(--text-1); overflow: hidden;
 }
 .settings-window-chrome {
   -webkit-app-region: drag; user-select: none; flex: 0 0 32px; min-height: 32px;
@@ -372,9 +391,21 @@ body[data-theme="dark"] .tool-name { color: var(--brand); }
   width: 100%; height: 40px; border-radius: var(--radius-lg); border: none;
   background: rgba(0, 0, 0, 0.04); padding: 0 14px; font-size: var(--fs-body);
 }
+/* empty-state spinner = wb search skeleton (.sk-global-search-body centers a
+ * 20px spinner in the area under the input) */
+#results-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.gs-spinner {
+  margin: auto; width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.12); border-top-color: #646a73;
+  animation: gs-spin 0.8s linear infinite;
+}
+body[data-theme="dark"] .gs-spinner {
+  border-color: rgba(255, 255, 255, 0.16); border-top-color: #b7bac0;
+}
+@keyframes gs-spin { to { transform: rotate(360deg); } }
 body[data-theme="dark"] #q { background: rgba(255, 255, 255, 0.06); }
 #q:focus { border: none; background: rgba(0, 0, 0, 0.06); }
-#results { list-style: none; margin: 12px 16px 0; padding: 0; overflow-y: auto; flex: 1; }
+#results { list-style: none; margin: 12px 16px 0; padding: 0; overflow-y: auto; }
 #results li {
   background: var(--card); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg); padding: 10px 14px; margin: 8px 0;
@@ -387,12 +418,12 @@ body[data-theme="dark"] #q { background: rgba(255, 255, 255, 0.06); }
 }
 #results code { color: var(--text-2); font-family: Consolas, monospace; font-size: 12px; }
 
-/* ---------- preview window (F33) ---------- */
-.preview-body { display: flex; flex-direction: column; height: 100vh; margin: 0; }
+/* ---------- preview window (F33: wb image-viewer backdrop #f2f2f2, 32px drag
+ * band; MyAgent keeps a functional 32px title bar on the same backdrop) ---------- */
+.preview-body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: var(--gray-3); }
 #preview-bar {
-  display: flex; gap: var(--sp-3); align-items: center; height: 40px; flex-shrink: 0;
-  padding: 0 16px; border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-content);
+  display: flex; gap: var(--sp-3); align-items: center; height: 32px; flex-shrink: 0;
+  padding: 0 16px; background: var(--gray-3);
 }
 #preview-title {
   font-weight: 500; font-size: var(--fs-base); color: var(--text-1);
@@ -402,7 +433,7 @@ body[data-theme="dark"] #q { background: rgba(255, 255, 255, 0.06); }
   background: var(--gray-3); border-radius: var(--radius-full); padding: 1px 10px;
   font-size: var(--fs-caption); color: var(--text-2);
 }
-#preview-container { flex: 1; overflow: auto; padding: 16px; background: var(--bg-content); }
+#preview-container { flex: 1; overflow: auto; padding: 16px; }
 .preview-info { color: var(--text-2); }
 .docx-host {
   background: #fff; color: #222; max-width: 860px; margin: 0 auto;

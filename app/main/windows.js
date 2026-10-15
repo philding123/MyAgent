@@ -56,7 +56,8 @@ function createMain(deps) {
 
 function createSettings() {
   if (windows.has('settings')) { windows.get('settings').focus(); return windows.get('settings'); }
-  const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [880, 640]), autoHideMenuBar: true });
+  // 900×680 = WorkBuddy settings window size (window-apps.js, design/27 F31)
+  const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [900, 680]), autoHideMenuBar: true });
   win.loadFile(path.join(RENDERER, 'settings.html'));
   win.on('closed', () => windows.delete('settings'));
   windows.set('settings', win);
@@ -73,12 +74,13 @@ function createSearch() {
   return win;
 }
 
-// F20: document preview window. One window per file path (reused when the
-// same file is previewed again).
+// F20/F33: document preview window. One window per file path (reused when the
+// same file is previewed again). useContentSize: the 980×720 spec (design/27
+// F33) is the CONTENT area, matching the pixel-evidence viewport.
 function createPreview(filePath) {
   const key = 'preview:' + filePath;
   if (windows.has(key)) { windows.get(key).focus(); return windows.get(key); }
-  const win = new BrowserWindow({ ...baseOpts('MyAgent Preview', [980, 720]), autoHideMenuBar: true });
+  const win = new BrowserWindow({ ...baseOpts('MyAgent Preview', [980, 720]), autoHideMenuBar: true, useContentSize: true });
   win.loadFile(path.join(RENDERER, 'preview.html'), { search: '?path=' + encodeURIComponent(filePath) });
   win.on('closed', () => windows.delete(key));
   windows.set(key, win);
@@ -93,7 +95,9 @@ function broadcast(channel, payload) {
 
 function setTheme(t) {
   global.__myagentTheme = t;
-  broadcast('appearance', { theme: t });
+  // rpc:event envelope so the preload onEvent bridge delivers it (F29 dark
+  // theme end-to-end); topic documented in the contract table
+  broadcast('rpc:event', { topic: 'app:theme', payload: { theme: t } });
 }
 
 function ids() { return [...windows.keys()]; }

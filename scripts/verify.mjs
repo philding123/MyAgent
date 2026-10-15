@@ -122,7 +122,7 @@ const e2eMap = {
   T26: ['sync-status'],
   T27: ['phase4-fields'],
   T28: ['a2a-card'],
-  T29: ['ui-token', 'ui-main', 'ui-settings', 'ui-search', 'ui-paywall-zero'],
+  T29: ['ui-token', 'ui-shell', 'ui-main', 'ui-settings', 'ui-search', 'ui-preview', 'ui-token-dark', 'ui-paywall-zero'],
 };
 
 const featureNames = {

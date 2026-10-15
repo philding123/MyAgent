@@ -90,7 +90,11 @@ async function bootstrap() {
     if (req.action === 'pickFile') {
       return dialog.showOpenDialog({ properties: ['openFile'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
     }
-    if (req.action === 'setTheme') windows.setTheme(req.theme);
+    if (req.action === 'setTheme') {
+      windows.setTheme(req.theme);
+      // F29: persist so relaunch and new windows come back in the same theme
+      daemon.request('settings.set', { key: 'appearance.theme', value: req.theme }).catch(() => {});
+    }
     if (req.action === 'theme') return windows.theme();
     if (req.action === 'updateCheck') {
       const v = await daemon.request('settings.get', { key: 'update.manifestUrl' }).catch(() => null);
@@ -110,7 +114,14 @@ async function bootstrap() {
   });
 
   daemon.on('event', (msg) => windows.broadcast('rpc:event', { topic: msg.topic, payload: msg.payload }));
-  daemon.on('ready', () => deliverPendingUrls());
+  daemon.on('ready', () => {
+    deliverPendingUrls();
+    // F29: restore the persisted theme before any window paints its default
+    daemon.request('settings.get', { key: 'appearance.theme' }).then((r) => {
+      const t = r && r.result;
+      if (t === 'dark' || t === 'light') windows.setTheme(t);
+    }).catch(() => {});
+  });
   daemon.on('down', () => windows.broadcast('rpc:event', { topic: 'daemon:status', payload: { state: 'reconnecting' } }));
 
   // F21 updater: shell-level concern (mirrors WorkBuddy updater outside the
@@ -200,12 +211,21 @@ async function runSmoke() {
       return {
         brand: cs.getPropertyValue('--brand').trim(),
         side: document.getElementById('sidebar').offsetWidth,
-        top: document.getElementById('topbar').offsetHeight,
-        heroOk: !!document.querySelector('#messages .home-hero') === !document.querySelector('#messages .msg'),
+        titlebar: document.getElementById('titlebar').offsetHeight,
+        statusbar: document.getElementById('statusbar').offsetHeight,
       };
     })()`, true);
     step('ui-token', ui.brand === '#00c29a', JSON.stringify(ui));
-    step('ui-main', ui.side === 220 && ui.top === 48 && ui.heroOk, JSON.stringify(ui));
+    // shell = wb skeleton: 220 sidebar between a 38px titlebar and a 22px statusbar
+    step('ui-shell', ui.side === 220 && ui.titlebar === 38 && ui.statusbar === 22, JSON.stringify(ui));
+    // task view: open the smoke session via the renderer hook, then header 48
+    await mainWin.webContents.executeJavaScript(
+      'window.__myagentTest.openSession(' + JSON.stringify(s1.result.id) + ')', true);
+    const ui2 = await mainWin.webContents.executeJavaScript(`(() => ({
+      top: document.getElementById('topbar').offsetHeight,
+      heroOk: !!document.querySelector('#messages .home-hero') === !document.querySelector('#messages .msg'),
+    }))()`, true);
+    step('ui-main', ui2.top === 48 && ui2.heroOk, JSON.stringify(ui2));
     const stWin = windows.get('settings');
     const stNav = await stWin.webContents.executeJavaScript(
       'document.querySelector(".settings-modal__nav").offsetWidth', true).catch(() => null);
@@ -216,7 +236,36 @@ async function runSmoke() {
     step('ui-search', !!shInfo && shInfo[0] === 800 && shInfo[1] === 640 && shInfo[2] >= 40, JSON.stringify(shInfo));
     const payWords = ['套餐', '积分', '充值', '订阅', '购买', '收银台', '微信支付'];
     const payHits = [];
-    for (const w of [mainWin, stWin, shWin]) {
+    // design/27: the exclusion scan covers all four pages — open the preview
+    // window on the shared fixture so it is scanned too
+    const pvWin = windows.createPreview(path.join(__dirname, '..', '..', 'tests', 'fixtures', 'share-sample.txt'));
+    await new Promise((r) => setTimeout(r, 600));
+    // F33 geometry: 980×720 window, 32px bar on the #f2f2f2 backdrop
+    const pvInfo = await pvWin.webContents.executeJavaScript(
+      '[window.innerWidth, window.innerHeight, document.getElementById("preview-bar").offsetHeight, getComputedStyle(document.body).backgroundColor]', true).catch(() => null);
+    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvInfo[1] === 720 && pvInfo[2] === 32
+      && /242,\s*242,\s*242/.test(pvInfo[3]), JSON.stringify(pvInfo));
+    // F29 dark tokens end-to-end: setTheme over the real chain (persist +
+    // rpc:event app:theme broadcast → renderer applies data-theme)
+    await mainWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("setTheme", { theme: "dark" })', true);
+    await new Promise((r) => setTimeout(r, 400));
+    const dark = await mainWin.webContents.executeJavaScript(`(() => {
+      const cs = getComputedStyle(document.body);
+      return {
+        attr: document.body.dataset.theme,
+        brand: cs.getPropertyValue('--brand').trim(),
+        content: cs.getPropertyValue('--bg-content').trim(),
+        side: cs.getPropertyValue('--bg-side').trim(),
+        gray2: cs.getPropertyValue('--gray-2').trim(),
+      };
+    })()`, true);
+    step('ui-token-dark', dark.attr === 'dark' && dark.brand === '#4ecba0'
+      && dark.content === '#1a1a1a' && dark.side === '#1f1f1f' && dark.gray2 === '#292929', JSON.stringify(dark));
+    await mainWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("setTheme", { theme: "light" })', true);
+    await new Promise((r) => setTimeout(r, 300));
+    for (const w of [mainWin, stWin, shWin, pvWin]) {
       if (!w || w.isDestroyed()) continue;
       const txt = await w.webContents.executeJavaScript('document.body.innerText', true).catch(() => '');
       for (const kw of payWords) if (txt.includes(kw)) payHits.push(kw);

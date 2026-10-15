@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
 </head>
 <body data-theme="light">
+<div id="titlebar"></div>
 <div id="app">
   <aside id="sidebar">
     <button id="btn-new" title="新建任务"><span class="plus">＋</span>新建任务</button>
@@ -18,7 +19,6 @@
     <div id="side-foot">
       <span class="user-avatar" title="本地模式">M</span>
       <button id="btn-settings">设置</button>
-      <span id="daemon-status" class="status-dot ok" title="daemon connected"></span>
     </div>
   </aside>
   <main id="main">
@@ -51,6 +51,7 @@
     </footer>
   </main>
 </div>
+<div id="statusbar"><span id="daemon-status" class="status-dot ok" title="daemon connected"></span></div>
 <script src="./dist/bundle.js"></script>
 </body>
 </html>

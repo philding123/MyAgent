@@ -119,4 +119,8 @@ function renderText(buf) {
   container().appendChild(pre);
 }
 
+// F29: adopt the persisted theme and follow cross-window changes
+window.myagent.windowAction('theme').then((t) => { if (t) document.body.dataset.theme = t; });
+window.myagent.onEvent((msg) => { if (msg.topic === 'app:theme') document.body.dataset.theme = msg.payload.theme; });
+
 window.addEventListener('DOMContentLoaded', main);

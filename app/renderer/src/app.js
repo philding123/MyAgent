@@ -72,6 +72,8 @@ window.__renderTest = (sample) => {
   div.innerHTML = renderMarkdown(sample);
   return { pwned: !!window.__pwned || !!div.querySelector('script'), html: div.innerHTML.slice(0, 200) };
 };
+// smoke hook (T29-b): let the harness drive the task view deterministically
+window.__myagentTest = { openSession: (id) => openSession(id) };
 
 function appendMessage(role, opts = {}) {
   const hero = $('#messages .home-hero');
@@ -122,7 +124,11 @@ window.myagent.onEvent((msg) => {
   if (current && topic === 'engine:' + current.id) handleEngineEvent(payload);
   if (topic.startsWith('terminal:')) handleTerminalEvent(topic, payload);
   if (topic === 'app:pendingUrls') handlePendingUrls(payload);
+  if (topic === 'app:theme') document.body.dataset.theme = payload.theme;
 });
+
+// F29: adopt the persisted theme at boot (index.html ships light by default)
+window.myagent.windowAction('theme').then((t) => { if (t) document.body.dataset.theme = t; });
 
 function handlePendingUrls(list) {
   for (const u of list) {
@@ -187,15 +193,21 @@ function showConfirm(ev) {
   }
 }
 
-// WorkBuddy home empty-state: brand title + scene chips (design/27 F30)
+// WorkBuddy home empty-state: brand title + scene chips (design/27 F30);
+// hint text dropped for pixel parity — wb home shows title/tags/composer only
 function showHomeHero() {
   const hero = document.createElement('div');
   hero.className = 'home-hero';
   hero.innerHTML = '<div class="home-hero__title">MyAgent</div>' +
     '<div class="home-hero__chips"><span class="chip">日常办公</span>' +
-    '<span class="chip">代码开发</span><span class="chip">设计创意</span></div>' +
-    '<div class="home-hero__hint">选择场景，在下方输入框开始任务</div>';
+    '<span class="chip">代码开发</span><span class="chip">设计创意</span></div>';
   $('#messages').appendChild(hero);
+}
+
+// zero-session startup renders the wb home (hero + centered composer, no
+// task header); openSession/newSession switch to the task view
+function setHomeMode(on) {
+  document.getElementById('main').classList.toggle('home', on);
 }
 
 // ---------- sessions ----------
@@ -216,6 +228,7 @@ async function refreshSessions(preloaded) {
 async function openSession(id) {
   const s = await rpc('sessions.get', { id });
   current = s; mode = s.mode || 'craft';
+  setHomeMode(false);
   $('#session-title').textContent = s.title;
   updateModeButtons();
   $('#messages').innerHTML = '';
@@ -230,6 +243,7 @@ async function openSession(id) {
 async function newSession() {
   const cwd = (await window.myagent.windowAction('pickDirectory')) || undefined;
   current = await rpc('sessions.create', { title: 'Session ' + new Date().toLocaleString(), cwd });
+  setHomeMode(false);
   $('#session-title').textContent = current.title;
   $('#messages').innerHTML = '';
   showHomeHero();
@@ -318,7 +332,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     setDaemonStatus(true);
     await refreshSessions();
     if (sessions.length) await openSession(sessions[0].id);
-    else await newSession();
+    else { setHomeMode(true); showHomeHero(); } // wb home, no dir-picker on startup
   } catch (e) {
     setDaemonStatus(false);
     appendMessage('event', { content: 'daemon not reachable: ' + e.message });

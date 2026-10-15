@@ -83,6 +83,13 @@ async function loadIm() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // F29: follow theme changes made in any other window
+  window.myagent.onEvent((msg) => {
+    if (msg.topic === 'app:theme') {
+      document.body.dataset.theme = msg.payload.theme;
+      $('#theme-select').value = msg.payload.theme;
+    }
+  });
   loadSettings().catch(() => {});
   loadSelfcheck().catch(() => {});
   loadSkills().catch(() => {});

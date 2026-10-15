@@ -1,0 +1,80 @@
+[
+  {
+    "surface": "main",
+    "viewport": "1280x800",
+    "a": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\wb-main.png",
+    "b": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\my-main.png",
+    "diff": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\diff-main.png",
+    "width": 1280,
+    "height": 800,
+    "diffPixels": 62861,
+    "totalPixels": 1024000,
+    "diffRatio": 0.0614,
+    "matchPct": 93.86
+  },
+  {
+    "surface": "settings",
+    "viewport": "900x680",
+    "a": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\wb-settings.png",
+    "b": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\my-settings.png",
+    "diff": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\diff-settings.png",
+    "width": 900,
+    "height": 680,
+    "diffPixels": 444473,
+    "totalPixels": 612000,
+    "diffRatio": 0.7263,
+    "matchPct": 27.37
+  },
+  {
+    "surface": "search",
+    "viewport": "800x640",
+    "a": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\wb-search.png",
+    "b": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\my-search.png",
+    "diff": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\diff-search.png",
+    "width": 800,
+    "height": 640,
+    "diffPixels": 30336,
+    "totalPixels": 512000,
+    "diffRatio": 0.0592,
+    "matchPct": 94.08
+  },
+  {
+    "surface": "preview",
+    "viewport": "980x720",
+    "a": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\wb-preview.png",
+    "b": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\my-preview.png",
+    "diff": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\diff-preview.png",
+    "width": 980,
+    "height": 720,
+    "diffPixels": 39379,
+    "totalPixels": 705600,
+    "diffRatio": 0.0558,
+    "matchPct": 94.42
+  },
+  {
+    "surface": "settings-dark",
+    "viewport": "900x680",
+    "a": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\wb-settings-dark.png",
+    "b": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\my-settings-dark.png",
+    "diff": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\diff-settings-dark.png",
+    "width": 900,
+    "height": 680,
+    "diffPixels": 444533,
+    "totalPixels": 612000,
+    "diffRatio": 0.7264,
+    "matchPct": 27.36
+  },
+  {
+    "surface": "search-dark",
+    "viewport": "800x640",
+    "a": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\wb-search-dark.png",
+    "b": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\my-search-dark.png",
+    "diff": "D:\\Proj\\ai_workspace\\myagent\\artifacts\\pixel-evidence\\diff-search-dark.png",
+    "width": 800,
+    "height": 640,
+    "diffPixels": 608,
+    "totalPixels": 512000,
+    "diffRatio": 0.0012,
+    "matchPct": 99.88
+  }
+]
