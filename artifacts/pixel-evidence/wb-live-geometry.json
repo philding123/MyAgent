@@ -1,0 +1,77 @@
+{
+  "title": "WorkBuddy",
+  "bodyText": "编辑(E) | 窗口(W) | 帮助(H) | 关于(A) | WorkBuddy | V5.8.2 | 发现应用 | 新建任务 | 助理 | BETA | 专家·技能·连接器 | 定时任务 | 资料库 | 更多 | 灵感 | 任务 (0) | 暂无任务 | 空间 (3) | ai_workspace | 调研AI文档分析项目 | 21小时前 | 调研REA最火skill的用途与使用 | 2天前 | 技术问答 | 排查Hermes agent云端token配置问题 | 9月7日 | 项目新手指引 | 生成项目功能介绍 | 6月13日 | 131****9237 | WorkBuddy, 我帮你 | 办公 | 开发 | 设计 | 创作文档 | 金融服务 | 分析数据 | 制作PPT | 深度研究 | 策划方案 | 定时任务 | ﻿ | 今天帮你做些什么？@ 添加上下文，/调用技能与指令 | Deepseek-V4.1-Flash | 选择工作空间 | 允许完全访问 | 做一张应收、应付和开票查询表 | 每周一提醒我安排本周工作重点 | 做一份年报审计准备清单 | 开会前30分钟",
+  "theme": "light",
+  "viewport": {
+    "w": 1280,
+    "h": 800,
+    "dpr": 1.0000000298023224
+  },
+  "sidebar": [
+    {
+      "sel": "[class*=\"sidebar\"]:conversation-sidebar",
+      "x": 0,
+      "y": 30,
+      "w": 360,
+      "h": 770,
+      "bg": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "sel": "[class*=\"sidebar\"]:sidebar-next sidebar-next--windows-chrome",
+      "x": 0,
+      "y": 30,
+      "w": 0,
+      "h": 770,
+      "bg": "rgb(255, 255, 255)"
+    },
+    {
+      "sel": "[class*=\"sidebar\"]:sidebar-next-body",
+      "x": 0,
+      "y": 30,
+      "w": 0,
+      "h": 770,
+      "bg": "rgba(0, 0, 0, 0)"
+    }
+  ],
+  "keyEls": [
+    null,
+    null,
+    {
+      "sel": "[class*=\"topbar\"]",
+      "x": 360,
+      "y": 30,
+      "w": 920,
+      "h": 64,
+      "bg": "rgba(0, 0, 0, 0)",
+      "radius": "0px"
+    },
+    {
+      "sel": "[class*=\"header\"]",
+      "x": 0,
+      "y": 30,
+      "w": 359,
+      "h": 288,
+      "bg": "rgba(0, 0, 0, 0)",
+      "radius": "0px"
+    },
+    {
+      "sel": "[class*=\"composer\"]",
+      "x": 415,
+      "y": 266,
+      "w": 800,
+      "h": 519,
+      "bg": "rgba(0, 0, 0, 0)",
+      "radius": "0px"
+    },
+    {
+      "sel": "[class*=\"home\"]",
+      "x": 360,
+      "y": 30,
+      "w": 920,
+      "h": 770,
+      "bg": "rgb(255, 255, 255)",
+      "radius": "0px"
+    },
+    null
+  ]
+}

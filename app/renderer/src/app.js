@@ -199,35 +199,98 @@ function showConfirm(ev) {
   }
 }
 
-// WorkBuddy home empty-state: brand title + scene chips (design/27 F30);
-// hint text dropped for pixel parity — wb home shows title/tags/composer only
+// WorkBuddy v5.8.2 home (design/33): 「MyAgent, 我帮你」 title + scene pill
+// row + chips row; suggestions live under the composer
 function showHomeHero() {
   const hero = document.createElement('div');
   hero.className = 'home-hero';
-  hero.innerHTML = '<div class="home-hero__title">MyAgent</div>' +
-    '<div class="home-hero__chips"><span class="chip">日常办公</span>' +
-    '<span class="chip">代码开发</span><span class="chip">设计创意</span></div>';
+  hero.innerHTML = '<div class="home-hero__title">MyAgent, 我帮你</div>' +
+    '<div class="home-hero__pills">' +
+    '<button class="pill active">💼 办公</button>' +
+    '<button class="pill">⌨ 开发</button>' +
+    '<button class="pill">🎨 设计</button></div>' +
+    '<div class="home-hero__chips">' +
+    '<span class="chip">写周报</span><span class="chip">分析数据</span>' +
+    '<span class="chip">制作PPT</span><span class="chip">深度研究</span></div>';
   $('#messages').appendChild(hero);
+  renderSuggestions();
+  hero.querySelectorAll('.home-hero__chips .chip').forEach((c) => {
+    c.onclick = () => { const i = $('#input'); i.value = c.textContent; i.focus(); };
+  });
+}
+
+const SUGGESTIONS = [
+  '做一张应收、应付和开票查询表',
+  '每周一提醒我安排本周工作重点',
+  '做一份年报审计准备清单',
+  '开会前30分钟提醒我准备会议资料',
+];
+function renderSuggestions() {
+  const list = $('#suggestion-list');
+  list.innerHTML = '';
+  for (const s of SUGGESTIONS) {
+    const b = document.createElement('button');
+    b.className = 'suggestion';
+    b.innerHTML = escapeHtml(s) + ' <span class="arr">↗</span>';
+    b.onclick = () => { const i = $('#input'); i.value = s; i.focus(); };
+    list.appendChild(b);
+  }
 }
 
 // zero-session startup renders the wb home (hero + centered composer, no
 // task header); openSession/newSession switch to the task view
 function setHomeMode(on) {
   document.getElementById('main').classList.toggle('home', on);
+  const sug = $('#suggestion-list');
+  if (sug) sug.classList.toggle('hidden', !on);
+  const sub = $('#composer-sub');
+  if (sub) sub.classList.toggle('hidden', !on);
 }
 
 // ---------- sessions ----------
+function basename(p) { return String(p || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop(); }
+
+function sessionRow(s) {
+  const li = document.createElement('li');
+  li.textContent = s.title;
+  li.dataset.id = s.id;
+  if (current && s.id === current.id) li.classList.add('active');
+  li.onclick = () => openSession(s.id);
+  return li;
+}
+
 async function refreshSessions(preloaded) {
   sessions = preloaded || await rpc('sessions.list');
   const ul = $('#session-list');
   ul.innerHTML = '';
+  // v5.8.2 grouping: 任务 = sessions without a workspace cwd; 空间 = by cwd
+  const loose = [];
+  const spaces = new Map();
   for (const s of sessions) {
-    const li = document.createElement('li');
-    li.textContent = s.title;
-    li.dataset.id = s.id;
-    if (current && s.id === current.id) li.classList.add('active');
-    li.onclick = () => openSession(s.id);
-    ul.appendChild(li);
+    if (s.cwd) {
+      if (!spaces.has(s.cwd)) spaces.set(s.cwd, []);
+      spaces.get(s.cwd).push(s);
+    } else loose.push(s);
+  }
+  $('#tasks-label').textContent = loose.length ? `任务 (${loose.length})` : '任务';
+  if (!loose.length) {
+    const d = document.createElement('div');
+    d.className = 'side-empty';
+    d.textContent = '暂无任务';
+    ul.appendChild(d);
+  }
+  loose.forEach((s) => ul.appendChild(sessionRow(s)));
+  const sg = $('#space-groups');
+  sg.innerHTML = '';
+  for (const [cwd, list] of spaces) {
+    const label = document.createElement('div');
+    label.className = 'side-section-label';
+    label.textContent = `${basename(cwd)} (${list.length})`;
+    sg.appendChild(label);
+    const nested = document.createElement('ul');
+    nested.className = 'session-list-nested';
+    list.forEach((s) => nested.appendChild(sessionRow(s)));
+    sg.appendChild(nested);
   }
 }
 
@@ -261,6 +324,10 @@ function updateModeButtons() {
   document.querySelectorAll('#mode-switch button').forEach((b) => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
+  // F38: composer sub-mode chip mirrors the session mode (wb 允许完全访问)
+  const labels = { ask: '只读问答 ▾', plan: '计划模式 ▾', craft: '允许完全访问 ▾' };
+  const chipEl = $('#sub-mode');
+  if (chipEl) chipEl.textContent = labels[mode] || labels.craft;
 }
 
 // ---------- send ----------
@@ -322,6 +389,30 @@ window.addEventListener('DOMContentLoaded', async () => {
   };
   $('#btn-search').onclick = () => window.myagent.windowAction('openSearch');
   $('#btn-settings').onclick = () => window.myagent.windowAction('openSettings');
+  // F38 band + sidebar nav (v5.8.2 real UI)
+  $('#band-search').onclick = () => window.myagent.windowAction('openSearch');
+  $('#nav-search').onclick = () => window.myagent.windowAction('openSearch');
+  $('#nav-market').onclick = () => window.myagent.windowAction('openSettings', { panel: 'market' });
+  $('#nav-skills').onclick = () => window.myagent.windowAction('openSettings', { panel: 'skills' });
+  $('#nav-memory').onclick = () => window.myagent.windowAction('openSettings', { panel: 'memory' });
+  document.querySelectorAll('#band .menu-label').forEach((el) => {
+    el.onclick = () => window.myagent.windowAction('menu-popup', { section: el.dataset.menu });
+  });
+  $('#win-min').onclick = () => window.myagent.windowAction('win-minimize');
+  $('#win-max').onclick = () => window.myagent.windowAction('win-maximize');
+  $('#win-close').onclick = () => window.myagent.windowAction('win-close');
+  $('#btn-plus').onclick = () => $('#input').focus();
+  $('#sub-mode').onclick = () => {
+    if (!current) return;
+    const order = ['ask', 'plan', 'craft'];
+    mode = order[(order.indexOf(mode) + 1) % order.length];
+    updateModeButtons();
+    rpc('sessions.setMode', { id: current.id, mode }).catch(() => {});
+  };
+  rpc('app.version').then((v) => { $('#app-version').textContent = 'V' + v.version; }).catch(() => {});
+  rpc('settings.get', { key: 'llm.model' }).then((m) => {
+    $('#composer-model').textContent = m || 'local-model';
+  }).catch(() => {});
   $('#input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });

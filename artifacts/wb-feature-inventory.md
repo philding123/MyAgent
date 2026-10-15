@@ -173,8 +173,9 @@
 | F32 | 搜索窗像素（800×640 + 输入带 + spinner） | ✅ | e2e:ui-search + 像素 94.08%；diff-search.png |
 | F33 | 预览窗像素（980×720 + 32px 栏 + #f2f2f2） | ✅ | e2e:ui-preview + 像素 **94.42%**；diff-preview.png |
 | F34 | MCP 服务面（stdio server：sessions/search/skills 工具 + 会话资源） | ✅ | T30 八测 + e2e:mcp-status；`app/daemon/mcp.js`、`mcp-server-child.js` |
-| F35 | 原生菜单最小面（文件/编辑/视图/帮助 + 快捷键闭环） | ✅ | e2e:menu（Ctrl+N 点击 → 会话 +1）；`app/main/menu.js` |
+| F35 | 原生菜单最小面（编辑/窗口/帮助/关于 + 快捷键闭环，v5.8.2 band 顺序） | ✅ | e2e:menu（Ctrl+N 点击 → 会话 +1）；`app/main/menu.js` |
 | F36 | 启动画面 splash（800×500 frameless → 主窗交接） | ✅ | e2e:splash-handoff；`app/main/splash.js` |
+| F38 | v5.8.2 真实 UI 对齐（窗带 30/侧栏 360/顶栏 64/hero/composer 卡/设置白卡/搜索 Tab；实机 CDP 基线） | ✅ | 实机对比 main(home) 61.49% / settings 57.26% / search 93.35%；design/33 + wb-live-* 证据 |
 | — | 支付排除（7 面） | ✅（排除项按清单不存在） | e2e:ui-paywall-zero 四窗 0 命中 |
 
 暗色补充：search-dark **99.88%**、settings-dark 27.37%（同口径）、main-dark/
@@ -192,7 +193,7 @@ galileo/qimei/Turing）、腾讯文档与 COS（G 域 sdk，F20 开源替代）�
 
 | # | 偏差 | 影响 | 现状证据 |
 |---|---|---|---|
-| D1 | 设置窗对比口径为「加载骨架」（真实 UI 渲染被 wb 宿主运行时握手挡死，四层错误链见 live-attempts.md 附录） | settings 27.37%，几何以 chrome/×/nav200 断言 | ui-settings PASS；live-attempts.md |
+| D1 | ~~设置窗对比口径为「加载骨架」~~ **已解决（2026-10-15）**：实机 V5.8.2 CDP 直连成功，settings 真实 UI 已采集并对齐（57.26% 实机口径）；v5.7.7 骨架口径数字保留作历史 | 已消除 | wb-live-settings.png、design/33 |
 | D2 | 会话独立窗（wb `conversation` 窗）未复刻：MyAgent 会话固定在主窗内 | 多会话并行查看不可用 | window-apps.js `conversation` vs `windows.js`（无独立会话窗） |
 | D3 | wb 独有窗口未复刻：developer-profile / office / im-merge-detail / im-reaction-users / demo | 对应 wb 业务（开发者主页、腾讯文档 office、IM 合并）不在 roadmap 范围 | §1 A 域 |
 | D4 | ~~MCP 面缺失~~ **已修复**：F34 MCP 服务面（T30，stdio server + 四工具 + 会话资源） | 已消除 | `app/daemon/mcp.js` |

@@ -7,13 +7,15 @@ const rpc = async (method, params) => {
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 let sessions = [];
+let activeTab = 'all';
 async function run() {
   const q = $('#q').value.trim();
-  if (!q) return;
-  const spinner = $('#gs-spinner');
+  const spinner = $('#gs-spinner') || document.getElementById('gs-empty');
+  if (!q) { renderEmpty(); return; }
   if (spinner) spinner.classList.add('hidden');
   if (!sessions.length) sessions = await rpc('sessions.list');
-  const results = await rpc('search.query', { q });
+  const results = (await rpc('search.query', { q })).filter((r) =>
+    activeTab === 'all' ? true : activeTab === 'message' ? r.type === 'message' : r.type !== 'message');
   const ul = $('#results');
   ul.innerHTML = '';
   for (const r of results) {
@@ -34,6 +36,16 @@ window.addEventListener('DOMContentLoaded', () => {
   // F29: adopt the persisted theme and follow cross-window changes
   window.myagent.windowAction('theme').then((t) => { if (t) document.body.dataset.theme = t; });
   window.myagent.onEvent((msg) => { if (msg.topic === 'app:theme') document.body.dataset.theme = msg.payload.theme; });
+  // F38: wb search tabs (全部/任务/文件) + footer ESC
+  document.querySelectorAll('.gs-tab').forEach((b) => {
+    b.onclick = () => {
+      document.querySelectorAll('.gs-tab').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+      activeTab = b.dataset.tab;
+      if ($('#q').value.trim()) run(); else renderEmpty();
+    };
+  });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.close(); });
   $('#q').focus();
   $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
 });

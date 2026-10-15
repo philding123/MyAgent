@@ -10,15 +10,42 @@
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
 </head>
 <body data-theme="light">
-<div id="titlebar"></div>
+<!-- F38 v5.8.2 band: app icons + menu labels + window controls (frameless) -->
+<div id="band">
+  <button id="band-search" class="band-icon" title="全局搜索 (Ctrl+Shift+F)">⌕</button>
+  <span class="menu-label" data-menu="edit">编辑(E)</span>
+  <span class="menu-label" data-menu="window">窗口(W)</span>
+  <span class="menu-label" data-menu="help">帮助(H)</span>
+  <span class="menu-label" data-menu="about">关于(A)</span>
+  <div class="band-spring"></div>
+  <button id="win-min" class="band-icon" title="最小化">—</button>
+  <button id="win-max" class="band-icon" title="最大化">□</button>
+  <button id="win-close" class="band-icon band-close" title="关闭">✕</button>
+</div>
 <div id="app">
   <aside id="sidebar">
-    <button id="btn-new" title="新建任务"><span class="plus">＋</span>新建任务</button>
-    <div class="side-section-label">任务</div>
-    <ul id="session-list"></ul>
+    <div class="sb-head">
+      <div>
+        <div class="brand">MyAgent</div>
+        <div class="version" id="app-version"></div>
+      </div>
+    </div>
+    <nav id="sb-nav">
+      <button class="nav-item active" id="btn-new" title="新建任务"><span class="nav-ico">＋</span>新建任务</button>
+      <button class="nav-item" id="nav-market" data-panel="market"><span class="nav-ico">⚙</span>技能市场</button>
+      <button class="nav-item" id="nav-skills" data-panel="skills"><span class="nav-ico">✦</span>技能</button>
+      <button class="nav-item" id="nav-memory" data-panel="memory"><span class="nav-ico">◈</span>记忆</button>
+      <button class="nav-item" id="nav-search"><span class="nav-ico">⌕</span>全局搜索</button>
+    </nav>
+    <div class="sb-scroll">
+      <div class="side-section-label" id="tasks-label">任务</div>
+      <ul id="session-list"></ul>
+      <div id="space-groups"></div>
+    </div>
     <div id="side-foot">
       <span class="user-avatar" title="本地模式">M</span>
       <button id="btn-settings">设置</button>
+      <span id="daemon-status" class="status-dot ok" title="daemon connected"></span>
     </div>
   </aside>
   <main id="main">
@@ -41,17 +68,24 @@
     <footer id="composer">
       <div class="composer-slot">
         <div class="composer-card">
-          <textarea id="input" rows="2" placeholder="给 MyAgent 发消息…（Enter 发送，Shift+Enter 换行）"></textarea>
+          <textarea id="input" rows="2" placeholder="今天帮你做些什么？@ 添加上下文，/调用技能与指令"></textarea>
           <div class="composer-foot">
+            <button id="btn-plus" class="icon-btn" title="添加">＋</button>
             <span class="composer-hint">Enter 发送 · Shift+Enter 换行</span>
-            <button id="btn-send">发送</button>
+            <span id="composer-model" class="model-chip" title="模型（设置中修改）"></span>
+            <button id="btn-send" title="发送">↑</button>
           </div>
         </div>
+        <div id="composer-sub" class="hidden">
+          <span class="sub-chip" id="sub-workspace" title="当前会话工作空间">选择工作空间 ▾</span>
+          <span class="sub-chip sub-warn" id="sub-mode" title="点击切换模式">允许完全访问 ▾</span>
+        </div>
+        <div id="suggestion-list"></div>
       </div>
     </footer>
+    <div id="disclaimer">内容由 AI 生成，请核实重要信息</div>
   </main>
 </div>
-<div id="statusbar"><span id="daemon-status" class="status-dot ok" title="daemon connected"></span></div>
 <script src="./dist/bundle.js"></script>
 </body>
 </html>

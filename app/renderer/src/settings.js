@@ -232,12 +232,23 @@ window.addEventListener('DOMContentLoaded', () => {
     loadIm();
   };
 
-  // ---- WorkBuddy settings layout (design/27 F31): nav switching + window chrome ----
-  document.querySelectorAll('.settings-navigation__item').forEach((b) => {
-    b.onclick = () => {
-      document.querySelectorAll('.settings-navigation__item').forEach((x) => x.classList.toggle('active', x === b));
-      document.querySelectorAll('.settings-window-panel').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== b.dataset.panel));
-    };
+  // ---- WorkBuddy settings layout (design/27 F31 / 33 v5.8.2): grouped nav,
+  // search filter, ?panel= deep link, window chrome ----
+  const activate = (b) => {
+    document.querySelectorAll('.settings-navigation__item').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.settings-window-panel').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== b.dataset.panel));
+  };
+  document.querySelectorAll('.settings-navigation__item').forEach((b) => { b.onclick = () => activate(b); });
+  const panelParam = new URLSearchParams(location.search).get('panel');
+  if (panelParam) {
+    const b = document.querySelector(`.settings-navigation__item[data-panel="${panelParam}"]`);
+    if (b) activate(b);
+  }
+  $('#settings-search').addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    document.querySelectorAll('.settings-navigation__item').forEach((b) => {
+      b.style.display = !v || b.textContent.includes(v) ? '' : 'none';
+    });
   });
   const closeBtn = $('#btn-close-settings');
   if (closeBtn) closeBtn.onclick = () => window.close();

@@ -28,7 +28,9 @@ function baseOpts(title, size) {
 
 function createMain(deps) {
   if (windows.has('main')) return windows.get('main');
-  const win = new BrowserWindow({ ...baseOpts('MyAgent', [1200, 800]), autoHideMenuBar: true });
+  // F38: frameless like wb v5.8.2 — the in-DOM band owns menu labels and
+  // min/max/close (rpc.window win-* actions)
+  const win = new BrowserWindow({ ...baseOpts('MyAgent', [1200, 800]), autoHideMenuBar: true, frame: false });
   win.loadFile(path.join(RENDERER, 'index.html'));
   win.on('closed', () => windows.delete('main'));
   win.on('close', (e) => {
@@ -54,11 +56,12 @@ function createMain(deps) {
   return win;
 }
 
-function createSettings() {
+function createSettings(panel) {
   if (windows.has('settings')) { windows.get('settings').focus(); return windows.get('settings'); }
-  // 900×680 = WorkBuddy settings window size (window-apps.js, design/27 F31)
-  const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [900, 680]), autoHideMenuBar: true });
-  win.loadFile(path.join(RENDERER, 'settings.html'));
+  // 900×680 = WorkBuddy settings window size (window-apps.js, design/27 F31);
+  // frameless like wb v5.8.2 — the in-DOM chrome owns the close button
+  const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [900, 680]), autoHideMenuBar: true, frame: false });
+  win.loadFile(path.join(RENDERER, 'settings.html'), { search: panel ? '?panel=' + encodeURIComponent(panel) : '' });
   win.on('closed', () => windows.delete('settings'));
   windows.set('settings', win);
   return win;

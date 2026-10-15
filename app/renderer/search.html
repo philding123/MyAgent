@@ -4,13 +4,17 @@
 <link rel="stylesheet" href="./style.css"></head>
 <body data-theme="light" class="global-search-root">
 <div class="gs-drag"></div>
-<div id="search-box">
-  <input id="q" placeholder="搜索会话与工作区文件…">
+<div id="search-box"><span class="gs-ico">⌕</span><input id="q" placeholder="搜索会话与文件…"></div>
+<div id="gs-tabs">
+  <button class="gs-tab active" data-tab="all">全部</button>
+  <button class="gs-tab" data-tab="message">任务</button>
+  <button class="gs-tab" data-tab="file">文件</button>
 </div>
 <div id="results-wrap">
-  <div id="gs-spinner" class="gs-spinner"></div>
+  <div id="gs-empty" class="gs-empty"><span class="gs-empty-ico">⌕</span><span>输入关键字进行检索</span></div>
   <ul id="results"></ul>
 </div>
+<div id="gs-footer"><span>↑↓ 上下切换</span><span>↵ 打开</span><span>ESC 关闭窗口</span></div>
 <script src="./dist/search.js"></script>
 </body>
 </html>

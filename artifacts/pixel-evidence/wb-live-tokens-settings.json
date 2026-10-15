@@ -1,0 +1,55 @@
+{
+  "window": {
+    "x": 0,
+    "y": 0,
+    "w": 900,
+    "h": 680,
+    "bg": "rgb(255, 255, 255)",
+    "color": "rgb(59, 59, 59)",
+    "fs": "13px",
+    "fw": "400",
+    "radius": "0px",
+    "border": "0px rgb(59, 59, 59)"
+  },
+  "searchBox": {
+    "x": 42.7,
+    "y": 40.7,
+    "w": 124.7,
+    "h": 30.7,
+    "bg": "rgba(0, 0, 0, 0)",
+    "color": "rgb(0, 0, 0)",
+    "fs": "14px",
+    "fw": "400",
+    "radius": "0px",
+    "border": "0px rgb(0, 0, 0)"
+  },
+  "navItemActive": {
+    "x": 12,
+    "y": 81,
+    "w": 190,
+    "h": 198,
+    "bg": "rgba(0, 0, 0, 0)",
+    "color": "rgb(0, 0, 0)",
+    "fs": "13px",
+    "fw": "400",
+    "radius": "0px",
+    "border": "0px rgb(0, 0, 0)"
+  },
+  "card": {
+    "x": 248,
+    "y": 87,
+    "w": 466,
+    "h": 22,
+    "bg": "rgba(0, 0, 0, 0)",
+    "color": "rgb(0, 0, 0)",
+    "fs": "13px",
+    "fw": "400",
+    "radius": "0px",
+    "border": "0px rgb(0, 0, 0)"
+  },
+  "sectionHeader": null,
+  "rowLabel": null,
+  "body": {
+    "bg": "rgb(255, 255, 255)"
+  }
+}

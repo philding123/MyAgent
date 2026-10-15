@@ -91,7 +91,7 @@ async function bootstrap() {
 
   ipcMain.handle('rpc', (_e, req) => daemon.request(req.method, req.params));
   ipcMain.handle('rpc.window', async (_e, req) => {
-    if (req.action === 'openSettings') windows.createSettings();
+    if (req.action === 'openSettings') windows.createSettings(req.panel);
     if (req.action === 'openSearch') windows.createSearch();
     if (req.action === 'openPreview' && req.path) windows.createPreview(String(req.path));
     if (req.action === 'pickFile') {
@@ -116,6 +116,19 @@ async function bootstrap() {
     if (req.action === 'updateState') return updater.status();
     if (req.action === 'pickDirectory') {
       return dialog.showOpenDialog({ properties: ['openDirectory'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
+    }
+    // F38 band window controls + menu popups (frameless main window)
+    if (req.action === 'win-minimize') { const w = windows.get('main'); if (w) w.minimize(); return null; }
+    if (req.action === 'win-maximize') {
+      const w = windows.get('main');
+      if (w) { w.isMaximized() ? w.unmaximize() : w.maximize(); }
+      return null;
+    }
+    if (req.action === 'win-close') { const w = windows.get('main'); if (w) w.close(); return null; }
+    if (req.action === 'menu-popup') {
+      const w = windows.get('main');
+      if (w) global.__myagentMenu.popSection(req.section, w);
+      return null;
     }
     return null;
   });
@@ -152,8 +165,10 @@ async function bootstrap() {
     win.webContents.on('did-finish-load', () => { splash.closeSplash(); deliverPendingUrls(); });
   } });
 
-  // F35: application menu (design/31-menu.md); actions ride rpc:event
-  buildMenu({ sendToMain: (msg) => windows.broadcast('rpc:event', msg) });
+  // F35: application menu (design/31-menu.md, wb band order); the in-DOM band
+  // labels pop these native sections via rpc.window menu-popup
+  const menuApi = buildMenu({ sendToMain: (msg) => windows.broadcast('rpc:event', msg) });
+  global.__myagentMenu = menuApi;
 
   // cold-start deeplink from argv (Windows)
   const url = process.argv.find((a) => String(a).startsWith('myagent://'));
@@ -217,31 +232,30 @@ async function runSmoke() {
     const bridge = await mainWin.webContents.executeJavaScript('window.myagent ? window.myagent.ping() : "no-bridge"', true);
     step('preload-bridge', bridge === 'pong', String(bridge));
 
-    // T29 pixel UI (F29-F33, design/27-pixel-ui.md): tokens, layout, payment exclusion
+    // T29 pixel UI (F29-F33 / design/33 v5.8.2 real UI): tokens, layout, payment exclusion
     const ui = await mainWin.webContents.executeJavaScript(`(() => {
       const cs = getComputedStyle(document.body);
       return {
         brand: cs.getPropertyValue('--brand').trim(),
         side: document.getElementById('sidebar').offsetWidth,
-        titlebar: document.getElementById('titlebar').offsetHeight,
-        statusbar: document.getElementById('statusbar').offsetHeight,
+        band: document.getElementById('band').offsetHeight,
       };
     })()`, true);
     step('ui-token', ui.brand === '#00c29a', JSON.stringify(ui));
-    // shell = wb skeleton: 220 sidebar between a 38px titlebar and a 22px statusbar
-    step('ui-shell', ui.side === 220 && ui.titlebar === 38 && ui.statusbar === 22, JSON.stringify(ui));
-    // task view: open the smoke session via the renderer hook, then header 48
+    // shell = wb v5.8.2: 30px band above a 360px sidebar
+    step('ui-shell', ui.side === 360 && ui.band === 30, JSON.stringify(ui));
+    // task view: open the smoke session via the renderer hook, then header 64
     await mainWin.webContents.executeJavaScript(
       'window.__myagentTest.openSession(' + JSON.stringify(s1.result.id) + ')', true);
     const ui2 = await mainWin.webContents.executeJavaScript(`(() => ({
       top: document.getElementById('topbar').offsetHeight,
       heroOk: !!document.querySelector('#messages .home-hero') === !document.querySelector('#messages .msg'),
     }))()`, true);
-    step('ui-main', ui2.top === 48 && ui2.heroOk, JSON.stringify(ui2));
+    step('ui-main', ui2.top === 64 && ui2.heroOk, JSON.stringify(ui2));
     const stWin = windows.get('settings');
     const stNav = await stWin.webContents.executeJavaScript(
       'document.querySelector(".settings-modal__nav").offsetWidth', true).catch(() => null);
-    step('ui-settings', stNav === 200, String(stNav));
+    step('ui-settings', stNav === 224, String(stNav));
     const shWin = windows.get('search');
     const shInfo = await shWin.webContents.executeJavaScript(
       '[window.innerWidth, window.innerHeight, document.getElementById("q").offsetHeight]', true).catch(() => null);

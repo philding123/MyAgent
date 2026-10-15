@@ -27,6 +27,7 @@ ui-search/ui-preview/ui-token-dark/ui-paywall-zero）进 verify；支付 UI 排�
 design/27 §「支付/订阅 UI 排除清单」。全量功能对照（wb 13 域 × MyAgent 覆盖 +
 偏差 D1–D9 + 修复计划）见 `artifacts/wb-feature-inventory.md`。
 Phase 6（P6 补面）：F34–F36 已实现并验收（T30–T32，2026-10-15）；F37（会话独立窗）P2 观察。
+Phase 7（P7 真实 UI 对齐）：F38 已完成（实机 CDP 基线，2026-10-15）——本机 WorkBuddy 已自动升级 V5.8.2，design/27 的 v5.7.7 骨架基线由实机 CDP 基线取代（骨架口径数字保留于 pixel-comparison.md 作历史）。
 
 ## 二、功能点总表（F01–F18）
 
@@ -68,6 +69,7 @@ Phase 6（P6 补面）：F34–F36 已实现并验收（T30–T32，2026-10-15�
 | F34 | MCP 服务面（会话/技能/搜索暴露为 MCP server） | `main/app-server-mcp-apps-host*.js`（mcpApps/mcpManager/mcpAppsDiag） | P6 | 30-mcp.md | ✅ T30 |
 | F35 | 原生菜单最小面（应用菜单 + 会话快捷键，menu-builder 语义） | `main/menu-builder.js`、`menu-i18n.js` | P6 | 31-menu.md | ✅ T31 |
 | F36 | 启动画面 splash（即显窗→主窗就绪交接） | `main/splash` + bootstrap 启动标记 | P6 | 32-splash.md | ✅ T32 |
+| F38 | v5.8.2 真实 UI 对齐（窗带 30/侧栏 360/顶栏 64/hero/composer 卡/设置白卡/搜索 Tab，实机 CDP 基线） | 实机 V5.8.2 CDP 实测（wb-live-tokens-*.json、wb-live-*.png） | P7 | 33-v582-real-ui.md | ✅ 61.49/57.26/93.35 |
 | F37 | 会话独立窗（P2 观察：个人并行会话需求出现再实施） | window-apps `conversation` + bootstrap `?windowKind=conversation` | P7 | — | 观察 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |

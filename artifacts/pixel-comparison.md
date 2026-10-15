@@ -1,5 +1,15 @@
 # MyAgent ↔ WorkBuddy 像素级对比报告（F29–F33 证据落盘）
 
+> **2026-10-15 真实 UI 轮（当前口径）**：实机 WorkBuddy 已自动升级 **V5.8.2** 且
+> CDP 直连成功，像素基线由 v5.7.7 骨架屏升级为**真实渲染 UI**（此前骨架口径的
+> 数字保留于下文作历史）。实机 CDP 采集：`scripts/pixel-shoot-wb-live.mjs` /
+> `pixel-probe-wb-live.mjs`，证据 `wb-live-*.png` + `wb-live-tokens-*.json`。
+> 真实 UI 对比（降采样对齐后 pixelmatch）：**main(home) 61.49% / settings
+> 57.26% / search 93.35%**——结构（窗带 30/侧栏 360/顶栏 64/hero/composer 卡/
+> 建议 chips/免责声明）已对位；剩余差异为侧栏真实业务内容与品牌文案（功能域
+> 边界，见 design/33）。T29 断言同步为 v5.8.2 规格值（band 30/side 360/top 64/
+> nav 224）。
+
 - 生成时间：2026-10-14（本轮会话）
 - 基线：WorkBuddy v5.7.7 `D:\tools\workbuddy\install\resources\app.asar`
   （SHA-256 `035254bc76310ea46317433e4840602094543ef323d2d5c5aff7c131729de918`，

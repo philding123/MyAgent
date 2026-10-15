@@ -1,6 +1,6 @@
 # MyAgent 验收报告
 
-- 生成时间: 2026-10-15T11:36:45.652Z
+- 生成时间: 2026-10-15T13:28:01.462Z
 - 单元测试: PASS (50 cases)
 - 集成测试: PASS (49 cases)
 - E2E 冒烟: PASS
@@ -22,7 +22,7 @@
 | T13 | F13 记忆 | PASS | ✓ T13 preference reaches the LLM system message and deletion removes it<br>✓ T13 fact kind also injects |
 | T14 | F14 终端 | PASS | ✓ T14 terminal echo roundtrip |
 | T15 | F15 全局搜索 | PASS | ✓ T15 message + file hits with locators |
-| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"47f72193-7e85-47bb-9588-5305dcefa305"}])<br>✓ e2e:tray |
+| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"a8cb4a88-2481-4705-ae5a-2a76898f4b9a"}])<br>✓ e2e:tray |
 | T17 | F17 渲染管线 | PASS | ✓ e2e:render-sanitize ({"pwned":false,"html":"<p>&lt;img src=x onerror=window.__pwned=1&gt;</p>\n"}) |
 | T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (sqlite)<br>✓ e2e:preload-bridge (pong) |
 | T19 | F19 mermaid 渲染 | PASS | ✓ e2e:mermaid-render ({"svg":true,"errors":0}) |
@@ -35,9 +35,9 @@
 | T26 | F26 端云同步 | PASS | ✓ T26a SyncTargetDirectory put/get/list roundtrip<br>✓ T26 two daemons sync through a shared directory target<br>✓ T26 rev conflict preserves both sides (store-level)<br>✓ e2e:sync-status |
 | T27 | F27 云沙箱 | PASS | ✓ T27 fs/exec roundtrip on the cloud backend<br>✓ T27 401 triggers exactly one shared reconnect then succeeds<br>✓ T27 concurrent auth failures share one reconnect attempt<br>✓ T27 reconnect throttle: second auth error within 10s fails closed<br>✓ T27 tool layer routes through the cloud backend<br>✓ e2e:phase4-fields |
 | T28 | F28 A2A 协作 | PASS | ✓ T28 agentCard has A2A-required fields<br>✓ T28 message/send roundtrip + delegate client + card shape<br>✓ T28 delegate reports unreachable agent as a value error<br>✓ e2e:a2a-card (MyAgent) |
-| T29 | F29-F33 像素级 UI（WorkBuddy 复刻，排除支付） | PASS | ✓ e2e:ui-token ({"brand":"#00c29a","side":220,"titlebar":38,"statusbar":22})<br>✓ e2e:ui-shell ({"brand":"#00c29a","side":220,"titlebar":38,"statusbar":22})<br>✓ e2e:ui-main ({"top":48,"heroOk":true})<br>✓ e2e:ui-settings (200)<br>✓ e2e:ui-search ([800,640,40])<br>✓ e2e:ui-preview ([980,720,32,"rgb(242, 242, 242)"])<br>✓ e2e:ui-token-dark ({"attr":"dark","brand":"#4ecba0","content":"#1a1a1a","side":"#1f1f1f","gray2":"#292929"})<br>✓ e2e:ui-paywall-zero |
-| T30 | F34 MCP 服务面 | PASS | ✓ T30 initialize handshake returns protocol version + server info<br>✓ T30 notifications return null (no response frame)<br>✓ T30 tools/list exposes the four minimal tools<br>✓ T30 tools/call sessions_list returns the seeded session<br>✓ T30 tools/call search_query finds the seeded message<br>✓ T30 tools/call with unknown tool fails -32602<br>✓ T30 resources/read round-trips the seeded session<br>✓ T30 unknown method fails -32601; invalid request fails -32600<br>✓ e2e:mcp-status ({"start":{"running":true,"pid":33936},"run":{"running":true,"pid":33936}}) |
-| T31 | F35 原生菜单最小面 | PASS | ✓ e2e:menu ({"accelerator":"CmdOrCtrl+N","before":48,"after":49}) |
+| T29 | F29-F33 像素级 UI（WorkBuddy 复刻，排除支付） | PASS | ✓ e2e:ui-token ({"brand":"#00c29a","side":360,"band":30})<br>✓ e2e:ui-shell ({"brand":"#00c29a","side":360,"band":30})<br>✓ e2e:ui-main ({"top":64,"heroOk":true})<br>✓ e2e:ui-settings (224)<br>✓ e2e:ui-search ([800,640,42])<br>✓ e2e:ui-preview ([980,720,32,"rgb(242, 242, 242)"])<br>✓ e2e:ui-token-dark ({"attr":"dark","brand":"#4ecba0","content":"#1a1a1a","side":"#1f1f1f","gray2":"#292929"})<br>✓ e2e:ui-paywall-zero |
+| T30 | F34 MCP 服务面 | PASS | ✓ T30 initialize handshake returns protocol version + server info<br>✓ T30 notifications return null (no response frame)<br>✓ T30 tools/list exposes the four minimal tools<br>✓ T30 tools/call sessions_list returns the seeded session<br>✓ T30 tools/call search_query finds the seeded message<br>✓ T30 tools/call with unknown tool fails -32602<br>✓ T30 resources/read round-trips the seeded session<br>✓ T30 unknown method fails -32601; invalid request fails -32600<br>✓ e2e:mcp-status ({"start":{"running":true,"pid":33812},"run":{"running":true,"pid":33812}}) |
+| T31 | F35 原生菜单最小面 | PASS | ✓ e2e:menu ({"accelerator":"CmdOrCtrl+N","before":56,"after":57}) |
 | T32 | F36 启动画面 splash | PASS | ✓ e2e:splash-handoff ({"created":true,"closed":true}) |
 
 ## 降级记录

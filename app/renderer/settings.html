@@ -6,119 +6,149 @@
 <div class="settings-window-chrome"><button id="btn-close-settings" class="settings-window-close" title="关闭">×</button></div>
 <div class="settings-modal">
   <nav class="settings-modal__nav">
-    <button class="settings-navigation__item active" data-panel="model">模型</button>
-    <button class="settings-navigation__item" data-panel="appearance">外观</button>
-    <button class="settings-navigation__item" data-panel="engine">引擎</button>
-    <button class="settings-navigation__item" data-panel="update">更新</button>
-    <button class="settings-navigation__item" data-panel="market">技能市场</button>
-    <button class="settings-navigation__item" data-panel="sync">同步</button>
-    <button class="settings-navigation__item" data-panel="sandbox">云沙箱</button>
-    <button class="settings-navigation__item" data-panel="a2a">A2A</button>
-    <button class="settings-navigation__item" data-panel="skills">技能</button>
-    <button class="settings-navigation__item" data-panel="memory">记忆</button>
-    <button class="settings-navigation__item" data-panel="im">IM 通道</button>
-    <button class="settings-navigation__item" data-panel="selfcheck">自检</button>
-    <button class="settings-navigation__item" data-panel="data">数据管理</button>
+    <div class="settings-search"><input id="settings-search" placeholder="搜索设置项" /></div>
+    <div class="settings-group-label">设置</div>
+    <button class="settings-navigation__item" data-panel="appearance"><span class="nav-ico">🎨</span>外观</button>
+    <button class="settings-navigation__item" data-panel="model"><span class="nav-ico">⚙</span>模型</button>
+    <button class="settings-navigation__item" data-panel="engine"><span class="nav-ico">⚙</span>引擎</button>
+    <button class="settings-navigation__item" data-panel="update"><span class="nav-ico">⬆</span>更新</button>
+    <div class="settings-group-label">功能</div>
+    <button class="settings-navigation__item" data-panel="market"><span class="nav-ico">🏬</span>技能市场</button>
+    <button class="settings-navigation__item" data-panel="skills"><span class="nav-ico">✦</span>技能</button>
+    <button class="settings-navigation__item" data-panel="memory"><span class="nav-ico">◈</span>记忆</button>
+    <button class="settings-navigation__item" data-panel="im"><span class="nav-ico">💬</span>IM 通道</button>
+    <button class="settings-navigation__item" data-panel="a2a"><span class="nav-ico">🔗</span>A2A</button>
+    <div class="settings-group-label">数据与安全</div>
+    <button class="settings-navigation__item" data-panel="sync"><span class="nav-ico">↻</span>同步</button>
+    <button class="settings-navigation__item" data-panel="sandbox"><span class="nav-ico">☁</span>云沙箱</button>
+    <button class="settings-navigation__item" data-panel="selfcheck"><span class="nav-ico">✓</span>自检</button>
+    <button class="settings-navigation__item" data-panel="data"><span class="nav-ico">🗄</span>数据管理</button>
   </nav>
   <div class="settings-modal__content">
-    <section class="settings-window-panel" data-panel="model">
-      <h2>模型</h2>
-      <label>Base URL <input id="llm-base" placeholder="http://127.0.0.1:11434/v1"></label>
-      <label>API Key <input id="llm-key" type="password" placeholder="stored encrypted"></label>
-      <label>Model <input id="llm-model" placeholder="local-model"></label>
-      <div class="row"><button id="btn-test-llm" class="primary">测试连接</button><span id="llm-test-result" class="msg-line"></span></div>
-    </section>
     <section class="settings-window-panel hidden" data-panel="appearance">
       <h2>外观</h2>
-      <label>主题
-        <select id="theme-select"><option value="light">浅色</option><option value="dark">深色</option></select>
-      </label>
+      <div class="settings-card">
+        <label>主题
+          <select id="theme-select"><option value="light">浅色</option><option value="dark">深色</option></select>
+        </label>
+      </div>
+    </section>
+    <section class="settings-window-panel hidden" data-panel="model">
+      <h2>模型</h2>
+      <div class="settings-card">
+        <label>Base URL <input id="llm-base" placeholder="http://127.0.0.1:11434/v1"></label>
+        <label>API Key <input id="llm-key" type="password" placeholder="stored encrypted"></label>
+        <label>Model <input id="llm-model" placeholder="local-model"></label>
+        <div class="row"><button id="btn-test-llm" class="primary">测试连接</button><span id="llm-test-result" class="msg-line"></span></div>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="engine">
       <h2>引擎</h2>
-      <label><input type="checkbox" id="prewarm-chk"> 预热进程池（更快首 token）</label>
+      <div class="settings-card">
+        <label><input type="checkbox" id="prewarm-chk"> 预热进程池（更快首 token）</label>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="update">
       <h2>更新</h2>
-      <label>Manifest URL <input id="update-url" placeholder="https://example.com/myagent/latest.json"></label>
-      <div class="row"><button id="btn-update-check" class="primary">检查更新</button><button id="btn-update-apply">应用已下载更新</button></div>
-      <span id="update-msg" class="msg-line"></span>
+      <div class="settings-card">
+        <label>Manifest URL <input id="update-url" placeholder="https://example.com/myagent/latest.json"></label>
+        <div class="row"><button id="btn-update-check" class="primary">检查更新</button><button id="btn-update-apply">应用已下载更新</button></div>
+        <span id="update-msg" class="msg-line"></span>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="market">
       <h2>技能市场</h2>
-      <label>Index URL <input id="market-url" placeholder="https://example.com/market/index.json (逗号分隔多个)"></label>
-      <label><input type="checkbox" id="market-insecure"> 允许 http:// 源（回环/测试）</label>
-      <div class="row"><input id="market-keywords" placeholder="code review"><button id="btn-market-search">搜索</button><button id="btn-market-install">安装首个结果</button></div>
-      <span id="market-msg" class="msg-line"></span>
+      <div class="settings-card">
+        <label>Index URL <input id="market-url" placeholder="https://example.com/market/index.json (逗号分隔多个)"></label>
+        <label><input type="checkbox" id="market-insecure"> 允许 http:// 源（回环/测试）</label>
+        <div class="row"><input id="market-keywords" placeholder="code review"><button id="btn-market-search">搜索</button><button id="btn-market-install">安装首个结果</button></div>
+        <span id="market-msg" class="msg-line"></span>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="sync">
       <h2>同步</h2>
-      <label>目标目录 <input id="sync-dir" placeholder="D:\sync\myagent (网盘目录即可)"></label>
-      <label><input type="checkbox" id="sync-auto"> 变更后自动推送</label>
-      <div class="row">
-        <button id="btn-sync-save" class="primary">保存目标</button>
-        <button id="btn-sync-push">立即推送</button>
-        <button id="btn-sync-pull">立即拉取</button>
+      <div class="settings-card">
+        <label>目标目录 <input id="sync-dir" placeholder="D:\sync\myagent (网盘目录即可)"></label>
+        <label><input type="checkbox" id="sync-auto"> 变更后自动推送</label>
+        <div class="row">
+          <button id="btn-sync-save" class="primary">保存目标</button>
+          <button id="btn-sync-push">立即推送</button>
+          <button id="btn-sync-pull">立即拉取</button>
+        </div>
+        <span id="sync-msg" class="msg-line"></span>
       </div>
-      <span id="sync-msg" class="msg-line"></span>
     </section>
     <section class="settings-window-panel hidden" data-panel="sandbox">
       <h2>云沙箱</h2>
-      <label>Backend
-        <select id="sandbox-backend"><option value="local">local (本机沙箱)</option><option value="cloud">cloud (e2b 兼容)</option></select>
-      </label>
-      <label>API URL <input id="sandbox-cloud-url" placeholder="https://api.e2b.app"></label>
-      <label>Sandbox ID <input id="sandbox-cloud-id" placeholder="sb-…"></label>
-      <label>API Key <input id="sandbox-cloud-key" type="password" placeholder="stored encrypted"></label>
+      <div class="settings-card">
+        <label>Backend
+          <select id="sandbox-backend"><option value="local">local (本机沙箱)</option><option value="cloud">cloud (e2b 兼容)</option></select>
+        </label>
+        <label>API URL <input id="sandbox-cloud-url" placeholder="https://api.e2b.app"></label>
+        <label>Sandbox ID <input id="sandbox-cloud-id" placeholder="sb-…"></label>
+        <label>API Key <input id="sandbox-cloud-key" type="password" placeholder="stored encrypted"></label>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="a2a">
       <h2>A2A 服务</h2>
-      <label><input type="checkbox" id="a2a-enabled"> 暴露回环 A2A 端点 (message/send)</label>
-      <span id="a2a-msg" class="msg-line"></span>
+      <div class="settings-card">
+        <label><input type="checkbox" id="a2a-enabled"> 暴露回环 A2A 端点 (message/send)</label>
+        <span id="a2a-msg" class="msg-line"></span>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="skills">
       <h2>技能</h2>
-      <ul id="skill-list"></ul>
-      <div class="row">
-        <button id="btn-import-skill">导入技能 (.zip / 目录)</button>
-        <span id="skill-msg" class="msg-line"></span>
+      <div class="settings-card">
+        <ul id="skill-list"></ul>
+        <div class="row">
+          <button id="btn-import-skill">导入技能 (.zip / 目录)</button>
+          <span id="skill-msg" class="msg-line"></span>
+        </div>
       </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="memory">
       <h2>记忆</h2>
-      <div class="row"><input id="mem-input" placeholder="remember: I prefer concise answers"><button id="btn-mem-add">添加</button></div>
-      <ul id="mem-list"></ul>
+      <div class="settings-card">
+        <div class="row"><input id="mem-input" placeholder="remember: I prefer concise answers"><button id="btn-mem-add">添加</button></div>
+        <ul id="mem-list"></ul>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="im">
       <h2>IM 通道</h2>
-      <ul id="im-list"></ul>
-      <div class="row">
-        <select id="im-channel">
-          <option value="telegram">telegram</option>
-          <option value="webhook">webhook</option>
-          <option value="slack">slack</option>
-          <option value="discord">discord</option>
-          <option value="dingtalk">dingtalk</option>
-          <option value="feishu">feishu</option>
-        </select>
-        <input id="im-token" type="password" placeholder="bot token（存入加密 vault）">
-        <button id="btn-im-save">保存 token</button>
-        <button id="btn-im-start">启动</button>
-        <button id="btn-im-stop">停止</button>
+      <div class="settings-card">
+        <ul id="im-list"></ul>
+        <div class="row">
+          <select id="im-channel">
+            <option value="telegram">telegram</option>
+            <option value="webhook">webhook</option>
+            <option value="slack">slack</option>
+            <option value="discord">discord</option>
+            <option value="dingtalk">dingtalk</option>
+            <option value="feishu">feishu</option>
+          </select>
+          <input id="im-token" type="password" placeholder="bot token（存入加密 vault）">
+          <button id="btn-im-save">保存 token</button>
+          <button id="btn-im-start">启动</button>
+          <button id="btn-im-stop">停止</button>
+        </div>
+        <span id="im-msg" class="msg-line"></span>
       </div>
-      <span id="im-msg" class="msg-line"></span>
     </section>
     <section class="settings-window-panel hidden" data-panel="selfcheck">
       <h2>自检</h2>
-      <pre id="selfcheck"></pre>
+      <div class="settings-card">
+        <pre id="selfcheck"></pre>
+      </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="data">
       <h2>数据管理</h2>
-      <div class="row">
-        <button id="btn-export">导出会话 JSON</button>
-        <button id="btn-clear" class="danger">清空全部数据</button>
+      <div class="settings-card">
+        <div class="row">
+          <button id="btn-export">导出会话 JSON</button>
+          <button id="btn-clear" class="danger">清空全部数据</button>
+        </div>
+        <span id="data-msg" class="msg-line"></span>
       </div>
-      <span id="data-msg" class="msg-line"></span>
     </section>
   </div>
 </div>
