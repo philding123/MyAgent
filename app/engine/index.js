@@ -30,6 +30,16 @@ const state = {
 
 const emit = (ev) => process.stdout.write(JsonlCodec.encode(ev));
 
+/** Failed tool results carry an output tail so the UI card shows WHY it
+ * failed; the LLM still gets the full data via the tool history message. */
+function toolDetail(result) {
+  if (result.ok || !result.data) return undefined;
+  const parts = [];
+  if (result.data.stderr) parts.push('[stderr] ' + String(result.data.stderr).trim().slice(-600));
+  if (result.data.stdout) parts.push('[stdout] ' + String(result.data.stdout).trim().slice(-400));
+  return parts.length ? parts.join('\n') : undefined;
+}
+
 /** F25: call a daemon-backed capability (market) from an engine tool. */
 function callDaemonTool(tool, args) {
   const id = 'dt_' + Math.random().toString(36).slice(2, 10);
@@ -140,7 +150,7 @@ async function runTurn(userText) {
       const tool = state.tools.tools[name];
       const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
       state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, summary: result.summary, data: result.data }) });
-      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary });
+      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result) });
     }
   }
   emit({ type: 'done', reason: 'max-steps' });

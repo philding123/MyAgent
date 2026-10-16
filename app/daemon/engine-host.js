@@ -16,6 +16,7 @@ class EngineHandle {
     this.pool = pool;
     this.codec = new JsonlCodec();
     this.listeners = new Set();
+    this.pipeFn = null;
     this.ready = false;
     this.readyWaiters = [];
     child.stdout.on('data', (d) => {
@@ -48,6 +49,14 @@ class EngineHandle {
   }
   send(msg) { if (this.alive) this.child.stdin.write(JsonlCodec.encode(msg)); }
   onEvent(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+  /** Exactly one fan-out pipe per handle: engine.start / scheduler / bridge
+   * all re-pipe the same live handle, so a re-pipe must replace the previous
+   * listener, never stack another (duplicate event delivery, T04c). */
+  pipe(fn) {
+    if (this.pipeFn) this.listeners.delete(this.pipeFn);
+    this.pipeFn = fn;
+    this.listeners.add(fn);
+  }
   waitReady(timeoutMs) {
     if (this.ready) return Promise.resolve();
     return new Promise((resolve, reject) => {
@@ -156,14 +165,16 @@ class EngineHost {
     this.pool = [];
   }
 
-  /** Wire engine events to the daemon emitter; returns unsubscribe. */
+  /** Wire engine events to the daemon emitter (replace-on-pipe); returns
+   * unsubscribe for the current pipe. */
   pipeEvents(sessionId) {
     const h = this.engines.get(sessionId);
     if (!h) return () => {};
-    return h.onEvent((ev) => {
+    h.pipe((ev) => {
       if (ev.type === 'confirm_request') this.confirmWaiters.set(ev.id, sessionId);
       this.opts.emit('engine:' + sessionId, ev);
     });
+    return () => { if (h.pipeFn) { h.listeners.delete(h.pipeFn); h.pipeFn = null; } };
   }
 
   status() {

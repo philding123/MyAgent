@@ -87,10 +87,7 @@ function appendMessage(role, opts = {}) {
     el.appendChild(body);
     if (role === 'assistant' && !opts.deferMermaid) hydrateMermaid(body);
   } else if (role === 'tool') {
-    el.innerHTML = '<div class="tool-chip"><span class="tool-name">' + escapeHtml(opts.tool || '') +
-      '</span><span class="tool-summary">' + escapeHtml(opts.summary || '') + '</span>' +
-      (opts.ok === false ? '<span class="tool-fail">failed</span>' : '') + '</div>' +
-      (opts.detail ? '<pre class="tool-detail">' + escapeHtml(opts.detail) + '</pre>' : '');
+    el.innerHTML = toolCardHtml(opts);
   } else if (role === 'event') {
     el.innerHTML = '<div class="sys-event">' + escapeHtml(opts.content || '') + '</div>';
   }
@@ -101,6 +98,23 @@ function appendMessage(role, opts = {}) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function toolCardHtml(o) {
+  return '<div class="tool-chip"><span class="tool-name">' + escapeHtml(o.tool || '') +
+    '</span><span class="tool-summary">' + escapeHtml(o.summary || '') + '</span>' +
+    (o.ok === false ? '<span class="tool-fail">failed</span>' : '') + '</div>' +
+    (o.detail ? '<pre class="tool-detail">' + escapeHtml(o.detail) + '</pre>' : '');
+}
+
+// wb ACP accumulator semantics (reverse: wb merges tool_call_update into the
+// card found by toolCallId): one card per tool call, the result updates it in
+// place instead of appending a second card.
+const toolCards = new Map(); // engine tool_call id -> { el, name }
+
+function updateToolCard(el, o) {
+  el.innerHTML = toolCardHtml(o);
+  el.scrollIntoView({ block: 'end' });
 }
 
 // F44 artifact cards: files the agent writes render as wb-style cards
@@ -176,11 +190,18 @@ function handleEngineEvent(ev) {
     streamingEl.querySelector('.md').innerHTML = renderMarkdown(streamingEl._raw);
     streamingEl.scrollIntoView({ block: 'end' });
   } else if (ev.type === 'tool_call') {
-    appendMessage('tool', { tool: ev.name, summary: JSON.stringify(ev.args).slice(0, 140), ok: true });
+    const el = appendMessage('tool', { tool: ev.name, summary: JSON.stringify(ev.args).slice(0, 140), ok: true });
+    toolCards.set(ev.id, { el, name: ev.name });
     // F44: written files surface as artifact cards (wb 产物卡片)
     if (ev.name === 'write_file' && ev.args && ev.args.path) appendArtifact(ev.args.path);
   } else if (ev.type === 'tool_result') {
-    appendMessage('tool', { tool: ev.id, summary: ev.summary, ok: ev.ok, detail: ev.reason && ev.reason !== 'denied' ? ev.reason : '' });
+    const card = toolCards.get(ev.id);
+    const detail = ev.detail || (ev.reason && ev.reason !== 'denied' ? ev.reason : '');
+    if (card && card.el.isConnected) {
+      updateToolCard(card.el, { tool: card.name, summary: ev.summary, ok: ev.ok, detail });
+    } else {
+      appendMessage('tool', { tool: card ? card.name : ev.id, summary: ev.summary, ok: ev.ok, detail });
+    }
   } else if (ev.type === 'confirm_request') {
     showConfirm(ev);
   } else if (ev.type === 'done') {
@@ -328,6 +349,7 @@ async function openSession(id) {
   $('#session-title').textContent = s.title;
   updateModeButtons();
   $('#messages').innerHTML = '';
+  toolCards.clear();
   if (!(s.messages || []).length) showHomeHero();
   for (const m of s.messages || []) {
     if (m.role === 'user' || m.role === 'assistant') appendMessage(m.role, { content: m.content });
@@ -346,6 +368,7 @@ function newTask() {
   $('#crumb-sep').classList.add('hidden');
   $('#session-title').textContent = '新任务';
   $('#messages').innerHTML = '';
+  toolCards.clear();
   showHomeHero();
   refreshSessions();
   $('#input').focus();

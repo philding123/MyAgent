@@ -57,3 +57,44 @@ test('T04b tool call loop writes the file', { timeout: 30000 }, async (t) => {
   assert.strictEqual(req.messages[0].role, 'system');
   assert.match(req.messages[0].content, /Craft mode/);
 });
+
+test('T04c repeated engine.start re-pipes once — no duplicate events', { timeout: 60000 }, async (t) => {
+  const { mock, d, sessionId } = await setup(t, 'craft');
+  // the renderer calls engine.start before every turn (engineRunning resets on
+  // done); re-piping must replace the listener, never stack it (3x card bug)
+  for (let i = 1; i <= 3; i++) {
+    mock.push([{ content: 'reply-' + i }]);
+    await d.request('engine.start', { sessionId });
+    await d.request('engine.userMessage', { sessionId, text: 'q' + i });
+    // waitEvent's history scan stops at the first done (previous turns'), so
+    // pin this turn: collect reply-i tokens, resolve on the done after one
+    const tokens = [];
+    let seen = false;
+    await d.waitEvent((m) => {
+      if (m.topic !== 'engine:' + sessionId) return false;
+      if (m.payload.type === 'token' && m.payload.text === 'reply-' + i) { tokens.push(m.payload); seen = true; return false; }
+      return seen && m.payload.type === 'done';
+    }, 20000);
+    assert.strictEqual(tokens.length, 1, 'turn ' + i + ' token delivered exactly once');
+  }
+});
+
+test('T04d failed run_command carries stderr detail for the UI', { timeout: 30000 }, async (t) => {
+  const { mock, d, sessionId } = await setup(t, 'craft');
+  // no quotes/specials: they get eaten by execFile + cmd /s /c double-quoting
+  const cmd = process.platform === 'win32' ? 'dir NOSUCHFILE_xyz.TXT' : 'ls NOSUCHFILE_xyz';
+  mock.push([
+    { tool_calls: [{ id: 'c2', type: 'function', function: { name: 'run_command', arguments: JSON.stringify({ command: cmd }) } }] },
+    { content: 'recovered' },
+  ]);
+  await d.request('engine.start', { sessionId });
+  await d.request('engine.userMessage', { sessionId, text: 'try the failing command' });
+  await d.waitEvent((m) => m.topic === 'engine:' + sessionId && m.payload.type === 'done', 20000);
+  const tr = d.events.find((m) => m.topic === 'engine:' + sessionId && m.payload.type === 'tool_result' && m.payload.ok === false);
+  assert.ok(tr, 'saw failing tool_result');
+  assert.match(tr.payload.summary, /exit 1/);
+  assert.ok(tr.payload.detail && tr.payload.detail.includes('[stderr]'), 'stderr tail surfaced as detail');
+  // the LLM still receives the full data payload via the tool history message
+  const toolMsg = mock.requests[1].messages.find((m) => m.role === 'tool' && m.tool_call_id === 'c2');
+  assert.ok(toolMsg && toolMsg.content.includes('"stderr"'), 'LLM tool message keeps stderr data');
+});

@@ -24,3 +24,17 @@
 
 **验证**：集成测试 fork 真实 daemon，跑方法表全量往返 + 断言 kill -9 daemon 后 main 重启它；
 E2E 冒烟在真实 Electron 内做一轮 RPC 往返。T02/T03。
+
+**修复记录（2026-10-16，引擎事件三重投递）**：真实使用中发现每轮对话后 UI 工具卡成倍
+增加（第三轮起每条事件渲染 3 次）。根因：`daemon/index.js` 的 `pipeEngine()` 在每次
+`engine.start`（渲染器每轮都重发）/ 定时任务 / 桥接轮次时调 `EngineHost.pipeEvents()`，
+而后者往 `EngineHandle.listeners`（Set）**追加新闭包**，注释宣称幂等实际不幂等——事件
+被转发 N 份。对照 wb：渲染器 ACP 累积器把 `tool_call`/`tool_call_update` 按 toolCallId
+**合并进同一张卡**（contexts chunk 的 mergeToolStatus：findIndex→原地 merge），所以 wb
+不显示重复卡；wb cli 也在工具文本进 UI 前剥离 ANSI（AnsiUtils.replaceAnsiColor）。
+修复（对齐 wb 语义）：① `EngineHandle.pipe()` 替换式管道——重挂管道只换监听器不叠加
+（T05 单测 + T04c 三轮重复 start 集成回归）；② 渲染器同一 callId 的 tool_result 原地
+更新到 tool_call 卡上、标题显示工具名而非裸 call ID；③ 失败的 tool_result 事件携带
+stderr/stdout 尾部 `detail`（LLM 侧数据不变，T04d）；④ browser 工具错误摘要剥离
+playwright 的 `\x1b[2m` ANSI 码（T06）。清单偏差新增 D10：assistant/tool 消息未落库
+（重开会话只剩 user 消息），修复计划见 wb-feature-inventory §5。

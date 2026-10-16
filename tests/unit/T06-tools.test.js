@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const { Sandbox, defaultRules } = require('../../app/daemon/sandbox');
 const { makeTools } = require('../../app/engine/tools/index');
+const { browserToolDefinition } = require('../../app/engine/tools/browser');
 
 function setup() {
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'myagent-t06-'));
@@ -84,4 +85,16 @@ test('T06 tool definitions are OpenAI function-shaped', () => {
     assert.strictEqual(d.function.parameters.type, 'object');
   }
   assert.ok(t.definitions.length >= 6);
+});
+
+test('T06 browser tool error summary strips ANSI escapes', async () => {
+  // playwright errors embed \x1b[2m dim codes (Call log section) that render
+  // as garbage in chat cards; wb strips ANSI before surfaces see tool text
+  const def = browserToolDefinition({ run: async () => {
+    throw new Error('page.goto: net::ERR_FAIL at https://x\nCall log:\n\u001b[2m  - navigating to "https://x", waiting until "domcontentloaded"\u001b[22m');
+  } });
+  const r = await def.run({ action: 'navigate', url: 'https://x' });
+  assert.strictEqual(r.ok, false);
+  assert.ok(!r.summary.includes('\x1b'), 'no ESC bytes in summary');
+  assert.match(r.summary, /Call log:/);
 });

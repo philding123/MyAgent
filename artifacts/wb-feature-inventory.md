@@ -208,6 +208,7 @@ galileo/qimei/Turing）、腾讯文档与 COS（G 域 sdk，F20 开源替代）�
 | D7 | IM 覆盖面：MyAgent 6 通道 vs wb 15+ 模块（其中 8 个闭源协议已排除，公开协议平台对齐） | 长尾平台不可用（多数已裁决排除） | §1 F 域 |
 | D8 | 预览依赖审计遗留（xlsx GHSA×2 无上游修复、echarts XSS 经 pptx-preview） | 仅本地自选文件输入，风险受沙箱门控缓解 | 90-deferred §排除项末行 |
 | D9 | 待深挖模块（acp/celljs/claw/poi 等）未归类 | 清单完备性 | §1 M 域 |
+| D10 | **已发现（2026-10-16）**：assistant/tool 消息不入 store（仅 user 消息经 `engine.userMessage` 落库）——重开会话只回放用户消息，工具卡与回复丢失 | 会话历史不完整 | `app/daemon/index.js`（无 assistant 落库路径）vs wb `conversations:snapshot` 全量回放 |
 
 ## §5 修复偏差计划
 
@@ -226,6 +227,9 @@ P1（下一轮候选，个人使用价值高且工程可行）：
    冷启动截图对比 + e2e:splash 交接时序。
 5. **D9 → 待深挖模块清单归档**：对 acp/celljs/claw/poi 逐个 30 分钟定性，更新本
    清单 M 域（纯文档任务）。
+6. **D10 → 引擎事件落库（2026-10-16 新增）**：daemon 侧监听 engine 的 token/done/
+   tool_result 聚合为 assistant/tool 消息写入 store（对齐 wb conversations 全量回放
+   语义）。验收：openSession 重开一轮带工具调用的会话，卡片与回复完整。
 
 P2（延后/观察）：
 6. **D2 → 立项 F37 会话独立窗（P2 观察）**：工程量大（会话视图组件化 + 多窗状态

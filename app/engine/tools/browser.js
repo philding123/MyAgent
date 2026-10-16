@@ -13,6 +13,11 @@ const ACTION_KINDS = {
 const MAX_SNAPSHOT = 80;
 const NAV_TIMEOUT_MS = 30000;
 
+// wb's cli strips ANSI before tool text reaches any surface (AnsiUtils in
+// codebuddy-lite-wb); playwright errors embed \x1b[2m dim codes that render
+// as garbage glyphs in chat cards.
+const stripAnsi = (s) => String(s).replace(/\x1B\[[0-9;]*[A-Za-z]/g, '');
+
 function makeBrowserSession(opts = {}) {
   // opts.playwright: injected playwright-core (tests); resolved lazily otherwise.
   let pw = opts.playwright || null;
@@ -153,7 +158,7 @@ function browserToolDefinition(session) {
       try {
         return await session.run(args);
       } catch (e) {
-        return { ok: false, summary: 'browser ' + args.action + ' failed: ' + String(e && e.message || e) };
+        return { ok: false, summary: 'browser ' + args.action + ' failed: ' + stripAnsi(String(e && e.message || e)) };
       }
     },
   };

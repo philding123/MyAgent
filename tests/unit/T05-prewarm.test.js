@@ -2,7 +2,7 @@
 // T05: prewarm pool semantics (probe model of EngineHost pool logic).
 const test = require('node:test');
 const assert = require('node:assert');
-const { PrewarmPoolProbe } = require('../../app/daemon/engine-host');
+const { PrewarmPoolProbe, EngineHandle } = require('../../app/daemon/engine-host');
 
 test('T05 pool maintains one idle when enabled', () => {
   const p = new PrewarmPoolProbe();
@@ -34,4 +34,23 @@ test('T05 disable drains pool', () => {
   p.setPrewarm(true);
   p.setPrewarm(false);
   assert.strictEqual(p.idle, 0);
+});
+
+test('T05 re-pipe replaces the previous pipe listener', () => {
+  // regression for the 3x card bug: engine.start re-piped a live handle and
+  // stacked listeners, multiplying every engine event by the turn count
+  const handlers = {};
+  const fakeChild = {
+    stdout: { on: (ev, fn) => { handlers.stdout = fn; } },
+    stderr: { on: () => {} },
+    on: () => {},
+    stdin: { write: () => {} },
+    kill: () => {},
+  };
+  const h = new EngineHandle(fakeChild, 's1', { opts: {}, onEngineExit() {} });
+  const seen = [];
+  h.pipe((ev) => seen.push('a:' + ev.type));
+  h.pipe((ev) => seen.push('b:' + ev.type));
+  for (const fn of [...h.listeners]) fn({ type: 'token', text: 'x' });
+  assert.deepStrictEqual(seen, ['b:token'], 'only the latest pipe fires');
 });

@@ -127,7 +127,9 @@ function createDaemon({ send }) {
   });
 
   function pipeEngine(sessionId) {
-    // idempotent-ish: engine-host handles re-piping cheaply via current handle
+    // replace-on-pipe (engine-host): every start/scheduler/bridge turn re-pipes
+    // the same live handle — swapping the listener is required, stacking it
+    // multiplied every engine event by the turn count (renderer showed 3x cards)
     engineHost.pipeEvents(sessionId);
   }
 
