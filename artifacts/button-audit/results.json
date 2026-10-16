@@ -1,0 +1,191 @@
+[
+  {
+    "id": "band-toggle",
+    "name": "折叠/展开侧栏",
+    "pass": true,
+    "note": "360→0→360",
+    "shots": []
+  },
+  {
+    "id": "band-search",
+    "name": "窗带搜索钮 → 全局搜索窗",
+    "pass": true,
+    "note": "搜索窗出现",
+    "shots": []
+  },
+  {
+    "id": "menu-edit",
+    "name": "菜单标签 编辑(E) → 原生菜单弹出",
+    "pass": true,
+    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
+    "shots": []
+  },
+  {
+    "id": "menu-window",
+    "name": "菜单标签 窗口(W) → 原生菜单弹出",
+    "pass": true,
+    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
+    "shots": []
+  },
+  {
+    "id": "menu-help",
+    "name": "菜单标签 帮助(H) → 原生菜单弹出",
+    "pass": true,
+    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
+    "shots": []
+  },
+  {
+    "id": "menu-about",
+    "name": "菜单标签 关于(A) → 原生菜单弹出",
+    "pass": true,
+    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
+    "shots": []
+  },
+  {
+    "id": "win-max",
+    "name": "最大化/还原",
+    "pass": true,
+    "note": "innerWidth 1200→2560→1200",
+    "shots": []
+  },
+  {
+    "id": "win-min-close",
+    "name": "最小化/关闭按钮存在",
+    "pass": true,
+    "note": "{\"min\":true,\"max\":true,\"close\":true}",
+    "shots": []
+  },
+  {
+    "id": "nav-presets",
+    "name": "助理（预设） → 设置窗对应面板",
+    "pass": true,
+    "note": "active panel=presets",
+    "shots": []
+  },
+  {
+    "id": "nav-market",
+    "name": "技能市场 → 设置窗对应面板",
+    "pass": true,
+    "note": "active panel=market",
+    "shots": []
+  },
+  {
+    "id": "nav-tasks",
+    "name": "定时任务 → 设置窗对应面板",
+    "pass": true,
+    "note": "active panel=tasks",
+    "shots": []
+  },
+  {
+    "id": "nav-library",
+    "name": "资料库 → 设置窗对应面板",
+    "pass": true,
+    "note": "active panel=library",
+    "shots": []
+  },
+  {
+    "id": "nav-skills",
+    "name": "技能 → 设置窗对应面板",
+    "pass": true,
+    "note": "active panel=skills",
+    "shots": []
+  },
+  {
+    "id": "nav-memory",
+    "name": "记忆 → 设置窗对应面板",
+    "pass": true,
+    "note": "active panel=memory",
+    "shots": []
+  },
+  {
+    "id": "nav-search",
+    "name": "侧栏全局搜索 → 搜索窗",
+    "pass": true,
+    "note": "搜索窗出现",
+    "shots": []
+  },
+  {
+    "id": "session-open",
+    "name": "点击会话行 → 打开会话（面包屑+标题）",
+    "pass": true,
+    "note": "{\"title\":\"审计-会话乙\",\"space\":\"phil\",\"home\":false}",
+    "shots": []
+  },
+  {
+    "id": "mode-ask",
+    "name": "模式切换 → ask",
+    "pass": true,
+    "note": "chip=\"只读问答 ▾\"",
+    "shots": []
+  },
+  {
+    "id": "mode-plan",
+    "name": "模式切换 → plan",
+    "pass": true,
+    "note": "chip=\"计划模式 ▾\"",
+    "shots": []
+  },
+  {
+    "id": "mode-craft",
+    "name": "模式切换 → craft",
+    "pass": true,
+    "note": "chip=\"允许完全访问 ▾\"",
+    "shots": []
+  },
+  {
+    "id": "btn-terminal",
+    "name": "终端按钮 → 终端面板",
+    "pass": true,
+    "note": "打开=true 可关闭=true",
+    "shots": []
+  },
+  {
+    "id": "btn-preview",
+    "name": "预览按钮存在（点击会打开系统文件对话框，无法自动化）",
+    "pass": true,
+    "note": "{\"btn\":true,\"title\":\"预览文件 (docx/pdf/xlsx/pptx…)\"}",
+    "shots": []
+  },
+  {
+    "id": "btn-search-top",
+    "name": "顶栏搜索钮 → 搜索窗",
+    "pass": true,
+    "note": "搜索窗出现",
+    "shots": []
+  },
+  {
+    "id": "composer-context",
+    "name": "@ 上下文按钮存在（点击打开系统文件对话框，无法自动化）",
+    "pass": true,
+    "note": "{\"btn\":true}",
+    "shots": []
+  },
+  {
+    "id": "composer-slash",
+    "name": "/ 技能按钮 → 内联技能菜单",
+    "pass": true,
+    "note": "{\"items\":3,\"value\":\"/ \"}",
+    "shots": []
+  },
+  {
+    "id": "sub-mode",
+    "name": "模式 chip → 三选项菜单",
+    "pass": true,
+    "note": "菜单项=3",
+    "shots": []
+  },
+  {
+    "id": "composer-model",
+    "name": "模型 chip → 设置模型面板",
+    "pass": true,
+    "note": "active panel=model",
+    "shots": []
+  },
+  {
+    "id": "btn-send",
+    "name": "发送 → 草稿物化为会话 + mock 回复",
+    "pass": true,
+    "note": "回复=\"mock default reply\" 会话 2→3",
+    "shots": []
+  }
+]

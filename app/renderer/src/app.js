@@ -321,6 +321,10 @@ async function openSession(id) {
   const s = await rpc('sessions.get', { id });
   current = s; mode = s.mode || 'craft';
   setHomeMode(false);
+  const spaceName = s.space || basename(s.cwd || '');
+  $('#crumb-space').textContent = spaceName;
+  $('#crumb-space').classList.toggle('hidden', !spaceName);
+  $('#crumb-sep').classList.toggle('hidden', !spaceName);
   $('#session-title').textContent = s.title;
   updateModeButtons();
   $('#messages').innerHTML = '';
@@ -338,6 +342,8 @@ async function openSession(id) {
 function newTask() {
   current = null;
   setHomeMode(true);
+  $('#crumb-space').classList.add('hidden');
+  $('#crumb-sep').classList.add('hidden');
   $('#session-title').textContent = '新任务';
   $('#messages').innerHTML = '';
   showHomeHero();
@@ -439,19 +445,33 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#win-max').onclick = () => window.myagent.windowAction('win-maximize');
   $('#win-close').onclick = () => window.myagent.windowAction('win-close');
   $('#btn-plus').onclick = () => $('#input').focus();
+  $('#composer-model').onclick = () => window.myagent.windowAction('openSettings', { panel: 'model' });
   // F43: @ file context + / skill invocation (design/34)
   $('#btn-context').onclick = async () => {
     const file = await window.myagent.windowAction('pickFile');
     if (file) { const i = $('#input'); i.value = i.value.replace(/\s*$/, '') + ` @"${file}" `; i.focus(); }
   };
   $('#btn-slash').onclick = async () => {
+    // Electron 渲染层没有 prompt()：插入 / 并弹出技能内联菜单
+    const input = $('#input');
+    input.value = '/ ' + input.value;
+    input.focus();
     try {
       const skills = await rpc('skills.list');
-      const names = skills.map((s) => s.name);
+      let m = document.getElementById('skill-menu');
+      if (m) m.remove();
+      const names = skills.map((x) => x.name).slice(0, 8);
       if (!names.length) return;
-      const pick = prompt('调用技能（输入序号）：\n' + names.map((n, i) => (i + 1) + '. ' + n).join('\n'));
-      const idx = parseInt(pick, 10) - 1;
-      if (names[idx]) { const i = $('#input'); i.value = '/' + names[idx] + ' ' + i.value; i.focus(); }
+      m = document.createElement('div');
+      m.id = 'skill-menu';
+      for (const n of names) {
+        const b = document.createElement('button');
+        b.className = 'mode-menu-item';
+        b.textContent = '/' + n;
+        b.onclick = () => { input.value = '/' + n + ' '; m.remove(); input.focus(); };
+        m.appendChild(b);
+      }
+      $('#composer-sub').appendChild(m);
     } catch (_) {}
   };
   $('#band-toggle').onclick = () => document.body.classList.toggle('side-collapsed');

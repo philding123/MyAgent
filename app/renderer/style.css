@@ -195,8 +195,11 @@ body[data-theme="dark"] #sidebar .version { color: rgba(255, 255, 255, 0.5); }
   height: 64px; flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-4);
   padding: 0 24px; background: var(--bg-content);
 }
+#crumb { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+#crumb-space { color: var(--text-2); font-weight: 500; }
+#crumb-sep { color: var(--text-3); }
 #session-title {
-  flex: 1; font-size: 16px; font-weight: 600; color: var(--text-1);
+  font-size: 16px; font-weight: 600; color: var(--text-1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #mode-switch {
