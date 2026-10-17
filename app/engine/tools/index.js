@@ -6,10 +6,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { makeWebTools } = require('./web');
+const { makePresentTool } = require('./present');
 
 const MAX_READ_LINES = 2000;
 
-function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, library }) {
+function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, library, webFetchImpl, getPresentDestDir }) {
   const tools = {
     read_file: {
       kind: 'read',
@@ -174,6 +176,14 @@ function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, libra
   // F22 browser tool: registered only when playwright-core + a system browser
   // exist; absent tool = capability off (selfcheck reports it).
   if (browser) tools.browser = browser;
+
+  // F46 web retrieval (task-parity P0-2): search + fetch without a browser
+  // launch (wb collects server-side; see web.js header for the benchmark).
+  Object.assign(tools, makeWebTools({ fetchImpl: webFetchImpl }));
+
+  // F47 present_file (task-parity P0-3): user-visible delivery, wb
+  // present_files semantics (engine forwards dest as tool_result.artifact).
+  tools.present_file = makePresentTool({ sandbox, getDestDir: getPresentDestDir });
 
   // F25 market tool: capabilities live in the daemon; bridge request/response.
   if (daemonBridge) {

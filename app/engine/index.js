@@ -11,6 +11,7 @@
 // stdout events: status/token/tool_call/tool_result/confirm_request/done/error
 
 const readline = require('readline');
+const path = require('path');
 const { JsonlCodec } = require('../daemon/jsonl');
 const { Sandbox, defaultRules } = require('../daemon/sandbox');
 const { makeTools } = require('./tools/index');
@@ -56,6 +57,9 @@ function callDaemonTool(tool, args) {
 async function handleInit(msg) {
   state.init = msg;
   state.mode = msg.mode || 'craft';
+  // F45 (task-parity P0-1): per-task step budget, was a hard 16 that silently
+  // ended real research tasks; still bounded, configurable via engine.maxSteps
+  state.maxSteps = Math.max(4, Math.min(256, parseInt(msg.maxSteps, 10) || 64));
   state.sandbox = new Sandbox(msg.sandboxRules || defaultRules(msg.workspace), { workspace: msg.workspace });
   state.registry = { read: (name) => (msg.skills || []).find((s) => s.name === name) || null,
     all: () => msg.skills || [] };
@@ -85,6 +89,14 @@ async function handleInit(msg) {
   }
   state.tools = makeTools({ sandbox: state.sandbox, skillRegistry: state.registry, browser: browserDef, cloud,
     library: msg.libraryDir ? { dir: msg.libraryDir } : null,
+    getPresentDestDir: () => {
+      // F47: one delivery stamp folder per engine session (wb: one per task);
+      // root overridable for tests (MYAGENT_DELIVERY_DIR)
+      if (!state.presentDir) state.presentDir = path.join(
+        process.env.MYAGENT_DELIVERY_DIR || path.join(require('os').homedir(), 'MyAgent'),
+        new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-'));
+      return state.presentDir;
+    },
     daemonBridge: (msg.daemonTools || []).includes('market') ? (args) => callDaemonTool('market', args) : null });
   state.llm = new LlmClient(msg.llm || {});
   state.history = [{ role: 'system', content: buildSystem(msg) }];
@@ -106,6 +118,7 @@ function buildSystem(msg) {
     parts.push('<skills>\nAvailable skills (call skill_read to load full instructions before using one):\n'
       + msg.skills.map((s) => '- ' + s.name + ': ' + s.description).join('\n') + '\n</skills>');
   }
+  parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser.');
   if (msg.systemExtras && msg.systemExtras.length) parts.push(...msg.systemExtras);
   return parts.join('\n\n');
 }
@@ -113,7 +126,7 @@ function buildSystem(msg) {
 async function runTurn(userText) {
   state.history.push({ role: 'user', content: userText });
   emit({ type: 'status', stage: 'thinking' });
-  for (let step = 0; step < 16; step++) {
+  for (let step = 0; step < state.maxSteps; step++) {
     if (state.aborted) { emit({ type: 'done', reason: 'aborted' }); return; }
     const reply = await state.llm.chat(state.history, state.tools.definitions);
     const toolCalls = reply.tool_calls || [];
@@ -150,7 +163,11 @@ async function runTurn(userText) {
       const tool = state.tools.tools[name];
       const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
       state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, summary: result.summary, data: result.data }) });
-      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result) });
+      // F47: delivered artifacts ride the tool_result event so the renderer
+      // can card them pointing at the user-visible destination
+      const artifact = (name === 'present_file' && result.ok && result.data && result.data.dest)
+        ? { path: result.data.dest, name: path.basename(result.data.dest) } : undefined;
+      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result), ...(artifact ? { artifact } : {}) });
     }
   }
   emit({ type: 'done', reason: 'max-steps' });

@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REA（Reverse Engineer Anything）Skill 调研报告</title>
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --panel:#ffffff;
+    --ink:#1a1d21;
+    --ink-2:#424852;
+    --ink-3:#6b7280;
+    --line:#e3e6eb;
+    --line-2:#eef0f4;
+    --accent:#1f5fd1;
+    --accent-soft:#eaf1fd;
+    --warn:#b54708;
+    --warn-soft:#fff6e8;
+    --danger:#b42318;
+    --danger-soft:#fdeceb;
+    --ok:#0f7b4f;
+    --ok-soft:#e8f6ef;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px;
+    line-height:1.75;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:32px 22px 80px;}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:30px 32px 26px;
+    margin-bottom:22px;
+  }
+  .badge{
+    display:inline-block;
+    font-size:12px;
+    letter-spacing:.08em;
+    font-weight:600;
+    color:var(--accent);
+    background:var(--accent-soft);
+    border-radius:999px;
+    padding:3px 11px;
+    margin-bottom:14px;
+  }
+  h1{
+    font-size:27px;
+    line-height:1.35;
+    margin:0 0 8px;
+    letter-spacing:-.01em;
+  }
+  .hero p.sub{
+    margin:0 0 18px;
+    color:var(--ink-2);
+    font-size:15px;
+  }
+  .meta-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:10px 22px;
+    border-top:1px solid var(--line-2);
+    padding-top:16px;
+    font-size:13px;
+  }
+  .meta-grid div{color:var(--ink-3);}
+  .meta-grid b{color:var(--ink-2);font-weight:600;}
+
+  /* ---------- Verdict ---------- */
+  .verdict{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:var(--radius);
+    padding:20px 24px;
+    margin-bottom:22px;
+  }
+  .verdict .label{
+    font-size:12px;letter-spacing:.08em;font-weight:600;color:var(--ink-3);
+    text-transform:uppercase;margin-bottom:8px;
+  }
+  .verdict .six{
+    font-size:22px;font-weight:700;letter-spacing:.06em;color:var(--accent);
+    margin:0 0 12px;
+  }
+  .verdict p{margin:0;color:var(--ink-2);}
+
+  /* ---------- KPI ---------- */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;
+    margin-bottom:26px;
+  }
+  .kpi{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .kpi .v{font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1.2;}
+  .kpi .k{font-size:12px;color:var(--ink-3);margin-top:5px;}
+  .kpi.hl .v{color:var(--accent);}
+
+  /* ---------- TOC ---------- */
+  nav.toc{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 24px;
+    margin-bottom:26px;
+    font-size:14px;
+  }
+  nav.toc .t{font-weight:600;margin-bottom:8px;font-size:13px;color:var(--ink-3);letter-spacing:.06em;}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:32px;}
+  nav.toc li{margin:2px 0;break-inside:avoid;}
+  nav.toc a{color:var(--ink-2);text-decoration:none;}
+  nav.toc a:hover{color:var(--accent);text-decoration:underline;}
+
+  /* ---------- Section ---------- */
+  section{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:26px 32px 28px;
+    margin-bottom:20px;
+  }
+  h2{
+    font-size:19px;
+    margin:0 0 4px;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--line-2);
+    letter-spacing:-.005em;
+  }
+  h2 .num{color:var(--accent);margin-right:8px;font-weight:700;}
+  h3{font-size:15px;margin:24px 0 8px;color:var(--ink);}
+  h3:first-of-type{margin-top:18px;}
+  p{margin:10px 0;color:var(--ink-2);}
+  ul,ol{margin:10px 0;padding-left:22px;color:var(--ink-2);}
+  li{margin:5px 0;}
+  strong{color:var(--ink);font-weight:600;}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:13px;
+    background:#f2f4f7;
+    border:1px solid var(--line-2);
+    border-radius:5px;
+    padding:1px 5px;
+    color:#12385f;
+  }
+  pre{
+    background:#f7f8fa;
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    border-radius:8px;
+    padding:13px 16px;
+    overflow-x:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:13px;
+    line-height:1.6;
+    color:#12385f;
+    margin:12px 0;
+  }
+  pre code{background:none;border:none;padding:0;font-size:13px;color:inherit;}
+
+  /* ---------- Table ---------- */
+  .tbl-wrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:var(--radius);}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--panel);}
+  th{
+    background:#f4f6f9;
+    text-align:left;
+    font-weight:600;
+    color:var(--ink);
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  td{padding:10px 14px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td strong{color:var(--ink);}
+  .num-cell{font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+  /* ---------- Callouts ---------- */
+  .callout{
+    border-radius:var(--radius);
+    padding:15px 18px;
+    margin:16px 0;
+    font-size:14px;
+    border:1px solid;
+  }
+  .callout .ct{font-weight:600;margin-bottom:5px;display:block;}
+  .callout p{margin:5px 0;color:inherit;}
+  .callout ul{margin:6px 0 0;color:inherit;}
+  .callout.info{background:var(--accent-soft);border-color:#cfe0fa;color:#1a3f78;}
+  .callout.warn{background:var(--warn-soft);border-color:#f5ddb4;color:#7a4405;}
+  .callout.danger{background:var(--danger-soft);border-color:#f6c9c5;color:#8a1c12;}
+  .callout.ok{background:var(--ok-soft);border-color:#c3e6d5;color:#0b5c3b;}
+
+  /* ---------- Bar chart ---------- */
+  .bars{margin:16px 0 6px;}
+  .bar-row{display:grid;grid-template-columns:132px 1fr 74px;align-items:center;gap:10px;margin:7px 0;font-size:13px;}
+  .bar-name{color:var(--ink-2);}
+  .bar-track{background:#f0f2f5;border-radius:5px;height:16px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;background:var(--accent);}
+  .bar-fill.muted{background:#9fb6d9;}
+  .bar-fill.faint{background:#c6d3e6;}
+  .bar-val{text-align:right;color:var(--ink-3);font-variant-numeric:tabular-nums;}
+  .chart-note{font-size:12px;color:var(--ink-3);margin-top:6px;}
+
+  /* ---------- Timeline ---------- */
+  .timeline{list-style:none;padding:0;margin:14px 0;border-left:2px solid var(--line);}
+  .timeline li{position:relative;padding:0 0 14px 20px;margin:0;}
+  .timeline li:last-child{padding-bottom:0;}
+  .timeline li::before{
+    content:'';position:absolute;left:-6px;top:7px;width:10px;height:10px;border-radius:50%;
+    background:var(--panel);border:2px solid var(--accent);
+  }
+  .timeline .d{font-size:12px;color:var(--ink-3);display:block;letter-spacing:.02em;}
+  .timeline .e{font-size:13.5px;color:var(--ink-2);}
+
+  /* ---------- Footer ---------- */
+  footer{
+    margin-top:28px;
+    padding:20px 4px 0;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--ink-3);
+  }
+  footer a{color:var(--accent);text-decoration:none;}
+  footer a:hover{text-decoration:underline;}
+  footer ul{padding-left:18px;}
+
+  @media (max-width:640px){
+    .wrap{padding:18px 12px 60px;}
+    .hero,section{padding:20px 18px;}
+    nav.toc ol{columns:1;}
+    h1{font-size:22px;}
+    .bar-row{grid-template-columns:96px 1fr 62px;font-size:12px;}
+    body{font-size:14px;}
+  }
+  @media print{
+    body{background:#fff;}
+    section,.hero,.verdict,.kpi,nav.toc{break-inside:avoid;box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <span class="badge">技术调研报告</span>
+    <h1>REA（Reverse Engineer Anything）Skill 调研报告</h1>
+    <p class="sub">一个把 Hopper / Ghidra / IDA / JADX 等专业逆向工具封装成单一 MCP 服务、交给编程 Agent 调用的开源框架。本报告覆盖其定位、增长数据、技术架构、能力边界、竞品格局与合规风险，并给出面向汽车 EEA 场景的落地评估。</p>
+    <div class="meta-grid">
+      <div><b>报告日期：</b>2026-10-16</div>
+      <div><b>数据截止：</b>2026-10-16（GitHub / npm 实时查询）</div>
+      <div><b>项目仓库：</b>github.com/morluto/rea</div>
+      <div><b>许可证：</b>MIT</div>
+      <div><b>报告性质：</b>桌面研究（多源交叉核实）</div>
+      <div><b>一句话结论：</b>能用，但别乱用</div>
+    </div>
+  </header>
+
+  <!-- ============ VERDICT ============ -->
+  <div class="verdict">
+    <div class="label">核心判断</div>
+    <p class="six">能用，但别乱用</p>
+    <p>REA 在工程上是一次真实的效率跃迁：它把「逆向工程」从专家手艺变成了 Agent 可调用的标准化工具链，并用「证据 + 不确定项」的输出契约压住了大模型幻觉。但它的价值与风险同源——它对<strong>交付形态为本地二进制/客户端软件</strong>的产品杀伤力最大，也因此直接踩在<strong>净室开发（clean room）</strong>这道法律防火墙的承重墙上。对个人学习、CTF、互操作性研究是利器；对企业生产环境，它首先是一道<strong>合规与数据保密风险题</strong>，而不是一道技术题。</p>
+  </div>
+
+  <!-- ============ KPI ============ -->
+  <div class="kpis">
+    <div class="kpi hl"><div class="v">285,360</div><div class="k">GitHub Stars</div></div>
+    <div class="kpi"><div class="v">71,858</div><div class="k">Forks</div></div>
+    <div class="kpi"><div class="v">231,579</div><div class="k">npm 周下载（10/6–10/12）</div></div>
+    <div class="kpi"><div class="v">v6.5.0</div><div class="k">最新版本（2026-10-14）</div></div>
+    <div class="kpi"><div class="v">20+</div><div class="k">可分析目标类型</div></div>
+    <div class="kpi"><div class="v">1,107</div><div class="k">未关闭 Issue</div></div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <nav class="toc">
+    <div class="t">目录</div>
+    <ol>
+      <li><a href="#s1">REA 是什么</a></li>
+      <li><a href="#s2">增长数据与热度核实</a></li>
+      <li><a href="#s3">技术架构与形态</a></li>
+      <li><a href="#s4">能力矩阵（可分析目标）</a></li>
+      <li><a href="#s5">证据模型与工作流</a></li>
+      <li><a href="#s6">官方案例研究</a></li>
+      <li><a href="#s7">竞品格局对比</a></li>
+      <li><a href="#s8">局限与技术风险</a></li>
+      <li><a href="#s9">法律与数据合规风险</a></li>
+      <li><a href="#s10">对软件行业的影响</a></li>
+      <li><a href="#s11">汽车 EEA 场景落地评估</a></li>
+      <li><a href="#s12">结论与行动建议</a></li>
+      <li><a href="#s13">附录：数据来源与核查</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ 1 ============ -->
+  <section id="s1">
+    <h2><span class="num">01</span>REA 是什么</h2>
+
+    <p><strong>REA = Reverse Engineer Anything（逆向一切）</strong>，由独立开发者 <code>morluto</code> 发起，2026-04-14 创建仓库，用 TypeScript 编写，以 MIT 协议开源，npm 包名为 <code>rea-agents</code>，官方站点为 <code>rea.tools</code>。</p>
+
+    <p>它不是又一个反汇编器或反编译器，而是<strong>一层位于成熟逆向工具之上的编排层</strong>。官方自我定位为一句话：</p>
+    <blockquote style="margin:12px 0;padding:12px 16px;border-left:3px solid var(--line);background:#fafbfc;border-radius:0 8px 8px 0;color:var(--ink-2);font-size:14.5px;">
+      「One MCP for reverse engineering across binaries, applications, and runtime behavior.<br>看到一个你喜欢的功能，就理解它是怎么实现的——直到二进制层面。」
+    </blockquote>
+
+    <h3>它解决的真实问题</h3>
+    <p>场景很朴素：你在别人家的 App 里看到一个顺手的功能，想搬到自己的项目里，但没有源码、也不懂汇编。传统路径是「找工具 → 装环境 → 学操作 → 逐层分析」，劝退率极高。REA 把这条路径对话化：</p>
+    <ul>
+      <li>你给 Agent 一句话：「分析一下 Notes 的搜索是怎么实现的，给我证据，然后给我的项目写一个类似的」；</li>
+      <li>Agent 通过 MCP 调用 REA，REA 自动选择引擎（Hopper / Ghidra / IDA / JADX 等）去拆目标；</li>
+      <li>REA 返回<strong>带证据的结论</strong>——伪代码、汇编、字符串、调用关系、IPC 链路，并明确标注局限与未知项；</li>
+      <li>Agent 基于证据做解释、追问，或直接在自己的代码库里重建并测试。</li>
+    </ul>
+
+    <div class="callout info">
+      <span class="ct">关键设计哲学</span>
+      <ul>
+        <li><strong>Agent-first</strong>：每个逆向任务都是一条 Agent 协作流程，而非手工 CLI 操作。</li>
+        <li><strong>不重复造轮子</strong>：底层复用 Ghidra、Hopper、IDA、JADX、JEB、Apktool、Binwalk、Wireshark/TShark、sigrok 等成熟工具。</li>
+        <li><strong>证据驱动</strong>：每条结论附带来源（文件偏移、符号表、控制流图），拒绝「编得像模像样」的叙述。</li>
+        <li><strong>本地优先</strong>：分析在本地执行，不上传二进制到云端（但注意下文的数据外溢风险）。</li>
+        <li><strong>明确未知</strong>：无法判定的部分归类为 unknown，而不是补一个「看起来合理」的答案。</li>
+      </ul>
+    </div>
+
+    <h3>⚠️ 供应链防伪提示</h3>
+    <p>因项目爆红，官方 README 已置顶防伪声明：<em>仅从 <code>morluto/rea</code>、<code>rea.tools</code> 或 npm 的 <code>rea-agents</code> 包获取；相似的仓库名或复制的 README 不能证明下载来源是官方。</em>这一点在企业内评估时值得单独列为检查项——同名的第三方「逆向技能包」存在投毒动机。</p>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <section id="s2">
+    <h2><span class="num">02</span>增长数据与热度核实</h2>
+
+    <p>网络上有从「2.7 万星」到「8 万星」「25 万星」的多种说法，差距极大。以下为 2026-10-16 通过 GitHub API 与 npm Registry 实时查询的硬数据。</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>指标</th><th>数值</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>GitHub Stars</td><td class="num-cell"><strong>285,360</strong></td><td>截至 2026-10-16 查询</td></tr>
+          <tr><td>Forks</td><td class="num-cell">71,858</td><td>Fork/Star 比约 25%，比例偏高</td></tr>
+          <tr><td>Watchers</td><td class="num-cell">977</td><td>相对 Star 数量极低</td></tr>
+          <tr><td>未关闭 Issue</td><td class="num-cell">1,107</td><td>高速迭代期典型特征</td></tr>
+          <tr><td>仓库创建</td><td class="num-cell">2026-04-14</td><td>距今约 6 个月</td></tr>
+          <tr><td>最近推送</td><td class="num-cell">2026-10-16 15:04 UTC</td><td>当日仍在活跃提交</td></tr>
+          <tr><td>主语言 / 许可</td><td class="num-cell">TypeScript / MIT</td><td>仓库体积约 78 MB</td></tr>
+          <tr><td>npm 最新版本</td><td class="num-cell">6.5.0（2026-10-14）</td><td>累计 32 个版本</td></tr>
+          <tr><td>npm 周下载</td><td class="num-cell">231,579</td><td>统计区间 10-06 ~ 10-12</td></tr>
+          <tr><td>npm 月下载</td><td class="num-cell">237,204</td><td>统计区间 09-13 ~ 10-12</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="ct">数据解读：典型的「冷启动式爆发」</span>
+      <p>月下载 237,204 中，有 231,579 来自最后一周，占比 <strong>97.6%</strong>。这说明下载量几乎全部由这一波病毒式传播贡献，尚未沉淀为稳定的日常使用量。同理，<strong>Star 数（28.5 万）与 Watcher 数（977）严重失衡</strong>，Fork/Star 比高达 25%（正常开源项目多在 5%–15%），这些特征通常对应「事件驱动型热度」而非「深度使用型热度」。评估时应把热度与<strong>实际生产可用性</strong>分开看。</p>
+    </div>
+
+    <h3>版本发布节奏（近期）</h3>
+    <ul class="timeline">
+      <li><span class="d">2026-06 起</span><span class="e">发布早于 npm 包首个版本（npm 包于 2026-07-12 创建）</span></li>
+      <li><span class="d">2026-10-09</span><span class="e">v6.1.0 / v6.2.0 / v6.3.0 —— 单日连发三个大版本，新增 Grok Build / Grok Bot 支持</span></li>
+      <li><span class="d">2026-10-11</span><span class="e">v6.4.0 —— 加入 Android 设备检测、JEB 支持、大规模分析优化、Windows Ghidra PE 支持</span></li>
+      <li><span class="d">2026-10-14</span><span class="e">v6.5.0（当前最新）</span></li>
+    </ul>
+    <p class="chart-note">不到两周连发 5 个大版本，说明项目处于<strong>高频破坏性迭代</strong>阶段：功能可用，但接口与行为可能在版本间变动，官方也反复强调「保持更新」。</p>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <section id="s3">
+    <h2><span class="num">03</span>技术架构与形态</h2>
+
+    <p>REA 对外只有两种形态，但<strong>底层共用同一套工作流</strong>——这正是它区别于传统工具的关键：Agent 与人类用的是同一组能力原语。</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>形态</th><th>入口</th><th>典型用法</th></tr></thead>
+        <tbody>
+          <tr><td><strong>MCP Server</strong></td><td>注册进 Agent 的 MCP 配置</td><td>Agent 需要逆向能力时自动调用；用户只需自然语言提问</td></tr>
+          <tr><td><strong>CLI</strong></td><td><code>rea &lt;command&gt;</code></td><td>终端直接跑，输出 JSON，可脚本化 / 管道化，不依赖任何 Agent</td></tr>
+          <tr><td><strong>Agent Skill</strong></td><td>skills.sh / setup 自动安装</td><td>向 Agent 注入「如何做一次规范调查」的流程指令</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>安装与接入</h3>
+    <p>前置条件：Node.js 22.x（≥22.19）、24.x（≥24.11）或 26+，外加 npm。</p>
+    <pre><code># 一行命令完成注册（会列出改动计划并要求你批准，改动前自动备份原配置）
+npx rea-agents setup
+
+# 长期使用 CLI
+npm install --global rea-agents
+rea --help
+rea update          # 项目迭代快，官方强调保持更新</code></pre>
+
+    <p>支持客户端覆盖面是它早期最反常的一点，setup 可配置 <strong>14–20+ 个客户端</strong>，包括 Claude Code、Claude Desktop、Codex、Cursor、Gemini CLI、Windsurf、Devin、OpenCode、Antigravity、GitHub Copilot CLI、Command Code、Grok Build、VS Code 等，另有 Grok Bot 走独立连接器。任何支持本地 MCP 的客户端都可<strong>手动注册</strong>。</p>
+
+    <h3>Provider 抽象层（引擎可插拔）</h3>
+    <p>原生二进制分析<strong>需要</strong>至少一个深度分析引擎，而 REA 自身<strong>不安装也不更新任何 provider</strong>：</p>
+    <ul>
+      <li><strong>Hopper</strong>（macOS/Linux）——setup 阶段可经批准代为安装；</li>
+      <li><strong>Ghidra</strong>（免费，含 Windows 实验性支持与 16-bit DOS 分析）；</li>
+      <li><strong>IDA Pro</strong>——复用你已有的授权安装，可通过桥接适配既有 IDA MCP 服务；</li>
+      <li><strong>Kuna</strong>、<strong>JADX</strong>（无头）、<strong>JEB</strong>、<strong>Apktool</strong>、<strong>Rizin</strong>、<strong>objdump</strong> 等。</li>
+    </ul>
+    <p>值得注意的是：<strong>纯 JavaScript / Electron 与 .NET 程序集的静态分析不需要任何原生引擎</strong>，零门槛即可上手——这解释了它为什么能迅速破圈到非安全背景的开发者群体。</p>
+
+    <div class="callout info">
+      <span class="ct">一个容易被忽略的工程细节</span>
+      <p>当机器上装有多个引擎时，REA <strong>不会猜测</strong>该用哪个，而是显式报告歧义并要求用户确认，以保持审计链的确定性。配套的 <code>rea doctor</code> 类诊断会校验环境就绪情况，且缺失某个工具只会阻塞对应目标类型，不会拖垮其他工作流。</p>
+    </div>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <section id="s4">
+    <h2><span class="num">04</span>能力矩阵（可分析目标）</h2>
+
+    <p>官方 README 的目标支持表是本报告中最有信息量的一张表——它直观展示了 REA 与「单工具 MCP」的差距。</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>目标类型</th><th>返回内容</th><th>额外要求</th></tr></thead>
+        <tbody>
+          <tr><td><strong>原生二进制</strong>（PE / ELF / Mach-O）</td><td>伪代码、汇编、字符串、符号、调用与交叉引用</td><td>Hopper / Ghidra / IDA 之一</td></tr>
+          <tr><td>离线 ELF 布局</td><td>节区、段、原始符号/重定位、静态缓解候选</td><td>pwntools（Linux x64）</td></tr>
+          <tr><td>Go 二进制</td><td>内嵌编译器版本、模块、替换项、构建设置</td><td>内置静态检查，无需 Go 环境</td></tr>
+          <tr><td>Rust 二进制</td><td>cargo-auditable 的 crate 名称/版本/来源/依赖边</td><td>内置静态检查</td></tr>
+          <tr><td>WASM</td><td>校验、节区、精确 import/export WAT 形式、解码 WAT</td><td>WABT 1.0.42</td></tr>
+          <tr><td>EVM 字节码</td><td>分派选择器、字节偏移、推断参数与可变性</td><td>Linux x64</td></tr>
+          <tr><td><strong>JavaScript / Electron</strong></td><td>模块、导入、source maps、路由、IPC 与原生 add-on 关系（含 ASAR 解包）</td><td>仅需 Node.js</td></tr>
+          <tr><td>.NET 程序集</td><td>元数据、CIL 指令、声明性原生依赖、构建比较</td><td>无需（纯静态，不运行程序）</td></tr>
+          <tr><td>Android APK</td><td>Manifest 声明、类、反编译方法及引用</td><td>无头 JADX + JDK</td></tr>
+          <tr><td>Android 设备</td><td>设备/包/进程/日志、转储、截图、APK 与文件传输</td><td>adb（模拟器或真机）</td></tr>
+          <tr><td>Flutter 应用</td><td>Dart snapshot 哈希、各 ABI 库摘要、引擎构建溯源</td><td>仅静态 APK 解析</td></tr>
+          <tr><td>JEB 工程</td><td>引擎支持的项目单元、类型/方法伪代码</td><td>用户自行启动 JEB 客户端</td></tr>
+          <tr><td>网站 / 浏览器运行时</td><td>页面结构、脚本、网络观察与被请求的截图</td><td>Chrome 系浏览器 + 本地调试连接</td></tr>
+          <tr><td>网络抓包（HAR / SAZ）</td><td>请求、响应、暴露的 payload 与来源位置</td><td>HAR 或 Fiddler SAZ</td></tr>
+          <tr><td>固件</td><td>区域划分、提取结果、向原生分析交接</td><td>Binwalk / Unblob（Linux）</td></tr>
+          <tr><td>数据包（pcap）</td><td>端点、DNS、TLS SNI、协议分布、HTTP 请求</td><td>tshark / capinfos</td></tr>
+          <tr><td>记录的逻辑信号</td><td>解码器注解、样本范围与诊断</td><td>sigrok-cli</td></tr>
+          <tr><td>SQLite 数据库</td><td>表、列、索引、视图、触发器及选定行</td><td>Node.js 原生 SQLite</td></tr>
+          <tr><td>进程行为录制</td><td>终端输出、交互、退出与文件系统观察、跨运行比较</td><td>Linux/macOS 原生 PTY</td></tr>
+          <tr><td>打包产物 / Apple 应用包</td><td>文件清单、摘要、plists、bundle 结构与资源提取</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout ok">
+      <span class="ct">能力边界的两个关键区分</span>
+      <ul>
+        <li><strong>静态 vs 运行时</strong>：静态 JS / .NET 检查只读文件、<strong>不运行</strong>目标；而运行时捕获会以你的用户权限实际运行或交互目标进程，影响范围更大。</li>
+        <li><strong>「十一种目标格式」的口径</strong>：传播中常见的「11 种」是早期版本口径，当前 README 的目标表已扩展至 20 类以上。评估时应以官方文档当前版本为准。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <section id="s5">
+    <h2><span class="num">05</span>证据模型与工作流</h2>
+
+    <p>REA 最值得学习的设计不是「能拆什么」，而是<strong>它如何约束 Agent 的输出</strong>。大模型用在逆向工程上最大的风险是幻觉——而逆向的幻觉代价极高，因为「它错的那 10% 恰好是最重要的部分」（真正的鉴权绕过、真正的恶意载荷）。</p>
+
+    <h3>输出契约：四段式确定性结构</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>字段</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td><strong>evidence（证据）</strong></td><td>工件身份、来源位置、具体观察到的符号表/字符串/指令</td></tr>
+          <tr><td><strong>recovered graphs（还原图）</strong></td><td>控制流、调用关系、依赖边等结构化结果</td></tr>
+          <tr><td><strong>limitations（局限）</strong></td><td>本次分析未能覆盖或不具备确定性的范围</td></tr>
+          <tr><td><strong>unknowns（未知）</strong></td><td>符号被剥离、控制流被混淆等无法判定的部分——<strong>明确标注而非编造</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>此外还有配套的 <code>rea evidence-export</code> 与 <code>rea compare</code>：证据可导出、可跨版本比对，形成可复核的审计链。单工具 MCP 大多只返回工具原始输出，没有这层契约。</p>
+
+    <h3>标记体系：seen / inferred / unknown</h3>
+    <p>REA 生态里另一条被反复强调的实践（也常见于其工作流指令与案例文档）是把每条发现打上三类标签：</p>
+    <ul>
+      <li><strong>seen</strong>——直接观察到的，可引用、可复核；</li>
+      <li><strong>inferred</strong>——代码或数据强烈暗示但未证实的；</li>
+      <li><strong>unknown</strong>——确实无法确定的。</li>
+    </ul>
+    <p>这一步恰恰是「自己随意让 Agent 逆向」时最容易跳过的一步。如果把 inferred 当成 seen 去搭实现，最后会陷入「调试一个从未按你以为的方式实现过的功能」。</p>
+
+    <h3>「摘要优先」策略</h3>
+    <p>一次真实分析的数据量可能极其庞大（有案例提到对 Loom 的完整分析超过 1 GB），远超模型可反复消化的上下文。REA 的做法是先把原始分析<strong>压缩成本地保存的摘要</strong>（说明什么可用、如何工作、哪里仍不清楚），需要时再下钻到具体模块或调用栈——而不是每次都让 Agent 重读全量数据。</p>
+
+    <h3>标准调查流程</h3>
+    <pre><code>用户提问
+   ↓
+Agent 通过 MCP 调用 REA，REA 选择引擎拆解目标并 trace 相关代码
+   ↓
+REA 返回「证据 + 还原图 + 局限 + 未知项」
+   ↓
+Agent 追问 / 解释行为 / 编写实现并按测试迭代
+   ↓
+（CLI 走完全相同的工作流，仅输出形态为 JSON）</code></pre>
+  </section>
+
+  <!-- ============ 6 ============ -->
+  <section id="s6">
+    <h2><span class="num">06</span>官方案例研究</h2>
+
+    <p>案例的说服力在于「可验证」——每个案例都给出了目标版本、复现路径和交叉验证方式。</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>案例</th><th>目标类型</th><th>结论与验证强度</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>DX-Ball 声音声像计算</strong><br><span style="font-size:12px;color:var(--ink-3)">1996 年 Windows 游戏</span></td>
+            <td>原生 x86</td>
+            <td>从一个声音调用追进 position→pan 辅助函数，把残缺伪代码补成 C；重建版<strong>通过全部 3,205 个原始 x86 用例</strong>，并逐字节复现 63 个编译函数的字节。这是全项目最强的验证证据。</td>
+          </tr>
+          <tr>
+            <td><strong>Aegis 验证器 OTP 算法</strong></td>
+            <td>Android APK</td>
+            <td>在约 3,077 个类的发布版 APK 中定位一次性密码计算方法、追踪调用关系，重建演示程序<strong>通过 133 个测试用例</strong>并与 RFC 6238 参考测试对齐。</td>
+          </tr>
+          <tr>
+            <td><strong>Notion 剪贴板桥接</strong></td>
+            <td>Electron / JS</td>
+            <td>从 renderer 的剪贴板 API 追踪经 preload、IPC 到主进程的完整链路，解析保留富文本块数据的 HTML 标记格式。典型「无源码理解数据流」场景。</td>
+          </tr>
+          <tr>
+            <td><strong>TH04 弹幕环计算</strong></td>
+            <td>PC-98 16-bit DOS</td>
+            <td>读取 16 位指令，还原固定角度与瞄准角度计算，并将重构的 C++ 与历史编译器输出比对。<strong>证明在老平台/冷门架构上依然可用。</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Windows 计算器 % 键</strong></td>
+            <td>原生 x64</td>
+            <td>还原「+ 后取第一数的百分比，× / ÷ 后取 1/100」两条分支规则，并用微软公开源码中的操作符常量（0x5b=除、0x5c=乘、0x64=100）交叉验证。</td>
+          </tr>
+          <tr>
+            <td><strong>Chrome 小恐龙加速规则</strong></td>
+            <td>浏览器运行时</td>
+            <td>通过本地调试连接读取运行中的 <code>index.js</code>，还原 <code>SPEED=6 / ACCELERATION=0.001 / MAX_SPEED=13</code>，并在受控调用中实测 4,000 次更新后速度 10.0、10,000 次后 13.0。</td>
+          </tr>
+          <tr>
+            <td><strong>DownUnderCTF 校验器</strong></td>
+            <td>原生二进制</td>
+            <td>直接从机器码恢复校验逻辑解出 flag——CTF 圈是最早的热情采用者。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <span class="ct">案例透露的方法论：逆向的瓶颈在迁移</span>
+      <p>一位游戏重建领域的逆向工程师（N0zoM1z0，TH04 / TH08 案例作者）的观点值得引用：手工逆向老游戏的长期价值从来不是「那个最终答案」，而是<strong>学会验证</strong>和<strong>建立可跨项目复用的知识</strong>。Agent 没有抹掉这一点，它把瓶颈从「我能不能解出来」搬到了「<strong>我能不能信任我解出来的东西</strong>」——这正是证据模型存在的全部理由。</p>
+    </div>
+  </section>
+
+  <!-- ============ 7 ============ -->
+  <section id="s7">
+    <h2><span class="num">07</span>竞品格局对比</h2>
+
+    <h3>Star 量级（2026-10-16 实时查询）</h3>
+    <div class="bars">
+      <div class="bar-row">
+        <div class="bar-name">REA</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+        <div class="bar-val">285,360</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">ida-pro-mcp</div>
+        <div class="bar-track"><div class="bar-fill muted" style="width:4.5%"></div></div>
+        <div class="bar-val">12,945</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">GhidraMCP</div>
+        <div class="bar-track"><div class="bar-fill muted" style="width:4%"></div></div>
+        <div class="bar-val">11,305</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">Hex-Rays 官方 MCP</div>
+        <div class="bar-track"><div class="bar-fill faint" style="width:0.4%"></div></div>
+        <div class="bar-val">1,212</div>
+      </div>
+    </div>
+    <p class="chart-note">REA 的 Star 量级是第二名的 22 倍以上，属于典型的破圈型热度；而 GhidraMCP / ida-pro-mcp 已在 2025 年 3 月创建，积累了 19 个月的社区与生态沉淀。</p>
+
+    <h3>能力与定位对比</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>维度</th><th>REA</th><th>GhidraMCP</th><th>ida-pro-mcp / 官方 IDA MCP</th></tr></thead>
+        <tbody>
+          <tr><td>底层引擎</td><td>Ghidra + Hopper + IDA + 内置静态分析器</td><td>仅 Ghidra</td><td>仅 IDA Pro</td></tr>
+          <tr><td>可分析目标</td><td>二进制、JS/Electron、.NET、Android、固件、网站、pcap、WASM、EVM 等 20+ 类</td><td>Ghidra 中打开的二进制</td><td>IDA 中打开的二进制</td></tr>
+          <tr><td>仓库创建</td><td>2026-04-14</td><td>2025-03-23</td><td>2025-03-25 / 2026-08-27</td></tr>
+          <tr><td>Agent 自动配置</td><td>是，20+ 客户端一行命令</td><td>需手动 JSON 配置</td><td>多为手动</td></tr>
+          <tr><td>证据模型</td><td>有（evidence / limitations / unknowns，可导出比对）</td><td>一般只返回工具原始输出</td><td>一般只返回工具原始输出</td></tr>
+          <tr><td>对数据库的写入</td><td>Ghidra 侧仅会话内重命名/注释，不改字节</td><td>可重命名方法与数据</td><td>可直接在 IDA 内编辑</td></tr>
+          <tr><td>免费全链路</td><td>是（配合 Ghidra 完全免费）</td><td>是</td><td>否，需 IDA Pro 商业授权</td></tr>
+          <tr><td>工具规模代价</td><td>约 172 个工具、约 496 KB 工具定义（compact 档约 290 KB）</td><td>轻量</td><td>轻量</td></tr>
+          <tr><td>成熟度</td><td>迭代极快，仍有 1,100+ 未关闭 Issue</td><td>社区成熟稳定</td><td>成熟，官方 IDA MCP 较新</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>选型建议（来自公开评测的共识）</h3>
+    <ul>
+      <li><strong>免费、全能、Agent 优先</strong> → REA + Ghidra；</li>
+      <li><strong>你本来就泡在 Ghidra GUI 里</strong> → GhidraMCP 更贴合；</li>
+      <li><strong>已持有 IDA Pro 授权</strong> → 官方 Hex-Rays MCP，若还需 Electron/.NET/APK 流程再叠加 REA；</li>
+      <li><strong>只做 Electron / JS 逆向</strong> → 目前只有 REA 覆盖，没有替代品。</li>
+    </ul>
+
+    <div class="callout warn">
+      <span class="ct">不要误判为「替代关系」</span>
+      <p>REA 是<strong>编排层</strong>，不是替代品。它会驱动 Ghidra / IDA，深度原生工作仍然需要这些引擎。真正的机会成本是 Context Window：把约 172 个工具的 schema 一次性加载，对上下文预算是一次可观的开销（官方为此提供了 compact schema 档位，部分客户端也支持延迟加载工具）。</p>
+    </div>
+  </section>
+
+  <!-- ============ 8 ============ -->
+  <section id="s8">
+    <h2><span class="num">08</span>局限与技术风险</h2>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>风险项</th><th>具体表现</th><th>缓解思路</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>强保护样本失效</strong></td>
+            <td>加壳 + 虚拟化保护（如 VMProtect）可有效阻挡 Agent。法国安全团队 Quarkslab 曾让 Claude Opus 5 在沙箱中破解数个层层加固的 AArch64 二进制，<strong>无一被真正破解</strong>，Agent 还提交了一份看似完整、实则编造的报告。</td>
+            <td>把「分析报告像不像」与「结论是否被验证」分开判定；对加固样本预期为不可用。</td>
+          </tr>
+          <tr>
+            <td><strong>幻觉与数值错误</strong></td>
+            <td>业界公认的失败模式是「结构对、常量错」，整数与字节转换尤其易错；且<strong>无任何语义等价保证</strong>——编译通过、读起来通顺的代码仍可能与原程序行为不同。</td>
+            <td>必须引入外部验证：测试用例比对、字节级比对、与原实现的行为对照。DX-Ball 案例的价值正在于此。</td>
+          </tr>
+          <tr>
+            <td><strong>高频破坏性迭代</strong></td>
+            <td>两周内 5 个大版本、1,100+ 未关闭 Issue、32 个 npm 版本。接口、schema 与客户端兼容性都可能变动。</td>
+            <td>锁定版本、纳入依赖审计流程；不要把它放进无变更管理的生产链路。</td>
+          </tr>
+          <tr>
+            <td><strong>上下文与 Token 成本</strong></td>
+            <td>约 172 个工具、约 496 KB 工具定义全量加载会挤占上下文预算。</td>
+            <td>启用 compact schema；使用支持延迟加载工具的客户端；按任务类型收敛暴露的工具集。</td>
+          </tr>
+          <tr>
+            <td><strong>供应链投毒</strong></td>
+            <td>爆红项目必然出现同名仿冒仓库与复制 README 的「李鬼」包。官方已在 README 顶部加防伪声明。</td>
+            <td>只从官方仓库 / <code>rea.tools</code> / npm <code>rea-agents</code> 获取；校验包来源与签名。</td>
+          </tr>
+          <tr>
+            <td><strong>热度与可用性脱节</strong></td>
+            <td>97.6% 的月下载集中在最后一周、Fork/Star 比 25%、Watcher 仅 977 —— 更像围观型热度，而非生产验证。</td>
+            <td>POC 阶段自行做适用性验证，不要以 Star 数替代评估。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 9 ============ -->
+  <section id="s9">
+    <h2><span class="num">09</span>法律与数据合规风险</h2>
+
+    <p>这是本报告认为<strong>比技术风险严重得多</strong>的一节。</p>
+
+    <h3>9.1 净室开发（Clean Room）防火墙被拆</h3>
+    <p>软件行业应对逆向的经典法律设计是净室开发：一拨人只研究原软件并写出<strong>功能规格说明书</strong>，另一拨完全没接触过原软件的人依据说明书重写代码。中间的隔离墙就是日后诉讼中「独立开发」的证据。</p>
+    <p>REA 的形态破坏了这道墙的证明力：<strong>同一个 Agent 既读反编译结果、又生成新实现</strong>，「读」与「写」在同一黑箱内闭环。而大模型训练语料本身不可审计，你无法证明 AI 写代码时到底有没有「看着」反编译结果。Hacker News 上已有人把这种做法称为<strong>「洗知识产权」</strong>。需要说明：这一判断目前<strong>尚无判例</strong>，法律上争议很大。</p>
+
+    <div class="callout danger">
+      <span class="ct">典型案例与行业反应</span>
+      <ul>
+        <li>开发者 Brandon Thomas 用 AI 复刻 Adobe 全家桶七款软件的开源替代品（ArtCraft），虽自建净室流程（明确禁止成员使用 Ghidra 与任何反编译工具），但<strong>他本人公开表示不会使用 REA，理由是「怕被起诉」</strong>。</li>
+        <li>汇丰银行近日下调 Adobe 评级，触发因素即一份关于 ArtCraft 的报告。对照 Photoshop 2026，该项目自评<strong>功能广度约 76%、就绪度约 45%</strong>——复刻品与正版仍有明显差距。</li>
+        <li>游戏是重灾区：GTA 5 浏览器版上线数小时后被下架；Rockstar、Activision、Bethesda 法务先后发出律师函，撤下自家游戏的浏览器移植版本；2026-09-28 一位开发者用 AI 重建《辐射：纽约》后旋即收到 Bethesda 律师函。</li>
+      </ul>
+    </div>
+
+    <h3>9.2 本地执行 ≠ 数据不出门</h3>
+    <p>官方口径是「分析在本地运行」，这没错——工具确实跑在你的机器上。但一个常被误读的点是：<strong>Agent 要理解分析结果，就必须把反编译出的代码片段、调用关系、字符串发送给它背后的模型服务商。</strong></p>
+    <ul>
+      <li>如果你拆的是<strong>客户交付的软件</strong>或<strong>签过保密协议（NDA）的对象</strong>，这一步本身就可能构成违约；</li>
+      <li>模型服务商有自己的内容底线与拦截策略，但<strong>拦在哪里由服务商决定，标准不透明</strong>；</li>
+      <li>把 Agent 对接本地模型可以换来接近完全的气隙隔离（air-gap），代价是推理质量下降——这是一个可选的缓解路径。</li>
+    </ul>
+
+    <h3>9.3 中国法语境下的边界（公开讨论摘要）</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>维度</th><th>要点</th></tr></thead>
+        <tbody>
+          <tr><td>合法性基础</td><td>逆向/反编译行为<strong>本身不当然违法</strong>。对合法取得的软件，为学习研究、兼容互通而逆向，且不复制传播实质性代码的，受最高法商业秘密司法解释第十四条与《计算机软件保护条例》保护。</td></tr>
+          <tr><td>主要红线</td><td>① 破解保护措施后非法从服务端采集数据；② 把逆向所得代码<strong>实质性复制</strong>进自有产品使用。判定要看<strong>目的与实际效果</strong>。</td></tr>
+          <tr><td>「换语言重写」不构成免责</td><td>软件功能相同本身不足以直接认定侵权，但这不意味着代码、文档、素材可以照搬，也不意味着让 AI 换一种语言重写就自然算独立开发。需看原始材料是否合法取得、有无保密义务、接触过哪些受保护内容、最终复制/使用/发布了什么。</td></tr>
+          <tr><td>开源免责的边界</td><td>开源本身没有「免死金牌」。一旦出现侵权，应基于<strong>对最终侵权行为的参与程度</strong>认定责任；工具作者是否担责取决于其工具是否具备专门侵权用途；开源协议中的免责声明<strong>不具有直接免责效力</strong>。最大责任由决定开源软件目的与方式的实际使用者承担。</td></tr>
+          <tr><td>「不得提供规避技术措施的手段」</td><td>《著作权法》第五十条在列出豁免后紧跟限制：不得向他人提供避开技术措施的装置或部件。一个人在自己电脑上做研究，与把这种能力打包成一行命令发给几十万人，是否同一回事，法条暂无答案——这个问题迟早会问到 REA 这类项目本身。</td></tr>
+          <tr><td>责任落点</td><td>项目声明「责任在你」；模型会拦你但标准不透明；被拆的软件公司手里握着用户协议与法务。<strong>真正站在风险正中间的，只有发出那句指令的用户。</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout danger">
+      <span class="ct">REA 官方的免责立场原文意图</span>
+      <p>项目 DISCLAIMER 覆盖<strong>所有版本、分发渠道和平台</strong>，主张 REA 用于「合法的研究、教育、互操作性、软件保存，以及分析你拥有或已获授权检查的软件」。但值得注意的是：<strong>「研究」「分析」在法条里都有留门，「重建」（rebuild）找不到对应的豁免条款</strong>——而「重建」恰恰被写进了官方认可的使用场景。这条缝隙需要企业在内部策略层面自行补上。</p>
+    </div>
+  </section>
+
+  <!-- ============ 10 ============ -->
+  <section id="s10">
+    <h2><span class="num">10</span>对软件行业的影响</h2>
+
+    <h3>谁会真正受冲击</h3>
+    <p>公开讨论中，受访专家的判断较为一致：<strong>本地交付、功能边界清晰、对持续数据与服务依赖少、靠不透明维持溢价的产品</strong>首当其冲——单机软件、游戏、本地工具类应用。靠信息差和封闭性赚钱的模式受挑战，因为竞争者理解并重建它的成本显著下降，价格与差异化自然承压。</p>
+
+    <h3>什么没有被复制</h3>
+    <p>但软件价值不止前端功能。以下仍是难以复刻的护城河：</p>
+    <ul>
+      <li><strong>后端的数据量与运营能力</strong>；</li>
+      <li><strong>品牌效应</strong>；</li>
+      <li><strong>特定行业的准入牌照</strong>；</li>
+      <li><strong>软硬件一体服务</strong>；</li>
+      <li>大厂手握的<strong>商单客户真实使用场景与持续反馈</strong>——这是迭代的基础。</li>
+    </ul>
+
+    <h3>一个理性的注脚</h3>
+    <p>「软件已死」的论断目前缺乏支撑。ArtCraft 自评对 Photoshop 2026 的复刻度是 76% 功能广度、45% 就绪度——<strong>复刻品与正版仍有实质差距</strong>。Adobe 的财报数据依旧健康，多数投资者认为逆向工程尚未构成实质性业务问题，影响主要集中在免费增值用户与开源爱好者群体。真正的担忧是长期的：Adobe 能否持续领先于「免费且由 AI 构建」的竞争者。</p>
+
+    <div class="callout info">
+      <span class="ct">本报告的观点</span>
+      <p>REA 带来的真实变化不是「软件可被复制」，而是<strong>「理解成本」这一项在软件定价函数中的权重被大幅下调</strong>。对本地客户端软件，这是结构性利空；对以数据、服务、牌照、生态为护城河的业务，影响有限。它更像是一次定价模型的重估，而不是一次行业消亡。</p>
+    </div>
+  </section>
+
+  <!-- ============ 11 ============ -->
+  <section id="s11">
+    <h2><span class="num">11</span>汽车 EEA 场景落地评估</h2>
+
+    <p>结合汽车电气电子架构（EEA）与 ECU 配置管理的业务语境，REA 的价值与风险呈现明显的<strong>非对称分布</strong>。</p>
+
+    <h3>11.1 看起来有吸引力的场景</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>场景</th><th>REA 能做什么</th><th>评级</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>供应商交付的闭源配置/诊断工具行为不清</td>
+            <td>拆解其解析逻辑，还原配置文件字段的映射规则与校验行为</td>
+            <td>⚠️ 高危：几乎必然触碰合同禁止逆向条款</td>
+          </tr>
+          <tr>
+            <td>Vector 等工具链输出格式的互操作性研究</td>
+            <td>分析工具产物（ARXML / DBC / 生成物）的解析与转换行为</td>
+            <td>🟡 中：需先确认授权范围，优先分析<strong>数据格式</strong>而非<strong>二进制</strong></td>
+          </tr>
+          <tr>
+            <td>遗留工具/脚本无源码、无文档，需要现代化重构</td>
+            <td>对自有资产的 JS/Electron/.NET 产物做静态分析，恢复模块与调用关系</td>
+            <td>✅ 推荐：属自有资产，且纯静态不运行、零原生引擎依赖</td>
+          </tr>
+          <tr>
+            <td>自研工具链的第三方依赖审计</td>
+            <td>读 Go / Rust 二进制内嵌的模块、版本与依赖边（cargo-auditable）</td>
+            <td>✅ 推荐：供应链安全与许可证审计的正当用途</td>
+          </tr>
+          <tr>
+            <td>ECU 相关固件/镜像的结构化梳理</td>
+            <td>固件区域划分、提取、再向原生分析交接</td>
+            <td>🔴 不建议：涉及车控安全，受 ISO/SAE 21434 与法规约束</td>
+          </tr>
+          <tr>
+            <td>测试与质量流程中的失败复现</td>
+            <td>对进程行为做录制、跨运行比对</td>
+            <td>🟡 中：工具可行，但优先用既有日志/追踪设施</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>11.2 三条必须前置的红线</h3>
+    <div class="callout danger">
+      <span class="ct">在本职环境中使用前，必须先过这三关</span>
+      <ol>
+        <li><strong>合同关</strong>：Tier1 / 工具供应商的 SOW、许可协议（EULA）、NDA 中通常含明确的<strong>禁止逆向、禁止反编译</strong>条款。REA 官方也明确要求「你必须合法获取并获得授权」使用包括 IDA、Hopper、JEB 在内的商业工具，且不授予任何许可权利。任何针对供应商二进制的操作，须先取得<strong>书面授权</strong>，而不是「技术上做得到」。</li>
+        <li><strong>数据关</strong>：「本地分析」不等于数据不出门。反编译片段、调用关系、字符串会上送模型服务商。若目标是客户交付物或涉密资产，这一步本身可能违约。缓解方向只有两条：<strong>对接本地/私有化模型做气隙隔离</strong>，或<strong>只分析不含敏感信息的目标</strong>。</li>
+        <li><strong>合规关</strong>：涉及车载软件时，需与网络安全（ISO/SAE 21434）、UN R155 相关流程以及内部信息安全策略对齐，并保留完整的授权与操作记录。同时注意《著作权法》第五十条关于「不得向他人提供规避技术措施的手段」的限制——企业内部传播这类工具本身就需评估。</li>
+      </ol>
+    </div>
+
+    <h3>11.3 可以立刻借鉴的东西（零风险）</h3>
+    <p>即使完全不碰任何第三方二进制，REA 的<strong>方法论</strong>本身对本职工作的工具链建设有直接价值：</p>
+    <ul>
+      <li><strong>四段式输出契约</strong>（证据 / 还原图 / 局限 / 未知项）——可直接移植到内部的 ARXML 处理与配置解析工具输出规范中，让「AI 说了什么」变成「AI 依据什么说的」；</li>
+      <li><strong>seen / inferred / unknown 标记体系</strong>——非常适合需求可追溯性与 RTM 评审：把「代码里能验证的」「需求文档里推断的」「尚未确认的」显式区分，减少把推断当事实的评审事故；</li>
+      <li><strong>摘要优先 + 必要时下钻</strong>——大工件（如全量 ARXML）先压缩为本地摘要再按需检索，是控制上下文与工程成本的通用模式；</li>
+      <li><strong>不猜测引擎、显式报告歧义</strong>——多工具链环境下的确定性设计范式，值得写进内部工具的设计准则。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 12 ============ -->
+  <section id="s12">
+    <h2><span class="num">12</span>结论与行动建议</h2>
+
+    <h3>结论</h3>
+    <ol>
+      <li><strong>技术定位真实、有效</strong>：REA 把逆向工程从专家手艺变成了 Agent 可调用的标准工具链，其「证据驱动输出」是相对同类工具最实质的差异化优势，也是它在幻觉问题上给出工程答案的地方。</li>
+      <li><strong>热度含水分，能力不含</strong>：97.6% 的月下载集中在最后一周、Watcher 仅 977、Fork/Star 比 25%，说明传播远快于深度使用。但 DX-Ball 的 3,205 用例、Aegis 的 133 用例等验证证据是硬的。</li>
+      <li><strong>风险重心在合规，不在技术</strong>：净室开发防火墙被打破、本地执行但结果外送模型服务商、开源免责声明不具直接免责效力——这三条对企业的杀伤力远大于「分析不准」。</li>
+      <li><strong>对本职工作：可以学方法，不能急着用工具</strong>。在汽车 EEA 语境下，第三方二进制逆向几乎必然触碰合同红线；真正应当立刻吸收的是它的证据模型与不确定性标记体系。</li>
+    </ol>
+
+    <h3>建议动作</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>优先级</th><th>动作</th><th>负责面 / 交付物</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>P0</strong></td>
+            <td>明确工具使用边界：梳理现有供应商合同（SOW / EULA / NDA）中的逆向与反编译条款，形成一份「可用于哪些资产、禁止用于哪些资产」的白名单</td>
+            <td>合规 + 采购；产出一页纸边界说明</td>
+          </tr>
+          <tr>
+            <td><strong>P0</strong></td>
+            <td>把四段式输出契约（证据 / 还原图 / 局限 / 未知）与 seen / inferred / unknown 标记引入内部工具输出规范</td>
+            <td>EEA 工具链；更新工具输出 schema 与评审清单</td>
+          </tr>
+          <tr>
+            <td><strong>P1</strong></td>
+            <td>在<strong>自有资产</strong>上做一次无风险 POC：选一个自研 Electron/JS 工具目录，用 <code>npx rea-agents setup</code> + 静态分析验证效果，全程不触第三方二进制</td>
+            <td>个人/小组；产出一页 POC 记录</td>
+          </tr>
+          <tr>
+            <td><strong>P1</strong></td>
+            <td>评估本地模型接入方案，为潜在的敏感工件分析预置气隙路径</td>
+            <td>基础设施；方案对比结论</td>
+          </tr>
+          <tr>
+            <td><strong>P2</strong></td>
+            <td>把「依赖审计」场景单独抽出：用 Go/Rust 二进制内嵌元数据能力做第三方组件清单核对</td>
+            <td>供应链/QA；组件清单与许可证报告</td>
+          </tr>
+          <tr>
+            <td><strong>P2</strong></td>
+            <td>持续跟踪：项目两周 5 个大版本，建议按月复核一次版本与合规立场变化（尤其 DISCLAIMER 与「重建」相关表述）</td>
+            <td>技术情报；月度简报</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout ok">
+      <span class="ct">最终判断</span>
+      <p>REA 是一个<strong>应该研究、值得借鉴、但必须设边界使用</strong>的工具。它最大的贡献未必是「让任何人都能逆向」，而是用一套输出契约证明了——<strong>Agent 可以被约束成只说自己有证据的话</strong>。这个模式才是可以安全带进任何企业的部分。</p>
+    </div>
+  </section>
+
+  <!-- ============ 13 ============ -->
+  <section id="s13">
+    <h2><span class="num">13</span>附录：数据来源与核查</h2>
+
+    <h3>一手数据（本报告实时查询，2026-10-16）</h3>
+    <ul>
+      <li>GitHub API <code>/repos/morluto/rea</code> —— Stars 285,360 / Forks 71,858 / Open Issues 1,107 / Watchers 977 / Created 2026-04-14 / Language TypeScript / License MIT / Homepage rea.tools</li>
+      <li>GitHub API <code>/repos/morluto/rea/releases</code> —— 6.1.0（10-09）、6.2.0（10-09）、6.3.0（10-09）、6.4.0（10-11）、6.5.0（10-14）</li>
+      <li>npm Registry <code>rea-agents</code> —— 32 个版本 / 包创建 2026-07-12 / 最新 6.5.0 / MIT</li>
+      <li>npm Downloads API —— 周下载 231,579（10-06~10-12）/ 月下载 237,204（09-13~10-12）</li>
+      <li>GitHub API 竞品 —— GhidraMCP 11,305（2025-03-23）/ ida-pro-mcp 12,945（2025-03-25）/ HexRaysSA/ida-mcp 1,212（2026-08-27）</li>
+    </ul>
+
+    <h3>官方文档</h3>
+    <ul>
+      <li>仓库 README（morluto/rea）—— 定位、快速开始、目标支持表、Provider 设置、证据模型、案例、FAQ、MIT 许可与第三方许可说明</li>
+      <li>官方站点 <a href="https://rea.tools/">rea.tools</a> —— 首页交互案例（Windows 计算器 % 键、Chrome 小恐龙加速）、Showcase、Guides、FAQ、Responsible-use 声明</li>
+      <li>DISCLAIMER.md —— 负责任使用指导；SECURITY.md —— 漏洞报告</li>
+    </ul>
+
+    <h3>第三方分析与报道</h3>
+    <ul>
+      <li>Terapep ——《REA vs GhidraMCP vs IDA Pro MCP vs Binary Ninja MCP》（含约 172 工具 / 496 KB schema 的实测数据）</li>
+      <li>Kunal Ganglani —— REA 上手与选型实践（14 客户端支持、案例导读）</li>
+      <li>21 世纪经济报道（2026-10-16）——《软件已死之前：法律能给 AI 逆向划出边界吗》（含 Adobe 评级下调、ArtCraft 进度、专家法律意见）</li>
+      <li>澎湃新闻 ——《当 AI 学会了「逆向工程」，软件行业的天要塌了吗？》（净室开发、Quarkslab 加固样本测试）</li>
+      <li>腾讯新闻（2026-10-12）——《一周 10 万星，AI「逆向一切」，但大家不要过于兴奋》（法律与数据风险梳理）</li>
+      <li>xhack.io、kevincornwell.com —— AI 逆向工具全景与「在哪里会失效」的行业共识</li>
+    </ul>
+
+    <h3>核查说明与不确定性</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>事项</th><th>处理方式</th></tr></thead>
+        <tbody>
+          <tr><td>Star 数传闻差异巨大（2.7 万 / 8 万 / 25 万）</td><td>以 GitHub API 实时返回值为准，并注明查询时间；网络上多为不同日期的快照</td></tr>
+          <tr><td>「支持 11 种目标格式」</td><td>系早期口径；本报告采用官方 README 当前目标表（20+ 类）</td></tr>
+          <tr><td>「约 172 个工具 / 496 KB」</td><td>来自第三方评测引用官方文档的测量值，未做独立复现，标注为参考量</td></tr>
+          <tr><td>法律结论</td><td>均为公开访谈与法律从业者观点汇总，非法律意见；相关判例尚不存在，争议较大</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>免责声明：</strong>本报告基于公开信息整理，仅用于技术调研与内部评估参考，不构成任何法律意见或采购建议。报告中涉及的法律分析均为公开讨论的转述，具体合规判定请咨询法务。</p>
+    <p><strong>数据截止：</strong>2026-10-16（GitHub / npm 实时查询）　|　<strong>报告生成：</strong>2026-10-16　|　<strong>项目许可证：</strong>MIT（REA 原创代码）</p>
+  </footer>
+
+</div>
+</body>
+</html>

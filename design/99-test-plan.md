@@ -34,6 +34,9 @@
 | T26 | F26 同步 | int+e2e | 目录双实例互通；rev 冲突 `.conflict.json` 零丢失；webdav mini 服务同断言；冒烟 `sync-status` |
 | T27 | F27 云沙箱 | int+e2e | mock e2b 服务：fs/exec 往返；401 单次重连成功；持续 401 fail-closed；重连 10s 去重；冒烟 `cloud-sandbox-field` |
 | T28 | F28 A2A | int+e2e | `message/send` 往返（mock LLM）；agent_delegate 闭环；card 字段；冒烟 `a2a-card` HTTP 200 |
+| T38 | F46 web 检索 | unit | bing SERP 解析（title/url/snippet+实体解码）；htmlToText 剥 script/style；注入 fetch 断言 cn.bing.com 请求形态与 HTTP/传输错误即值；本地 http 真取 + max_chars 截断 + 非 http 拒绝 |
+| T39 | F47 present_file | unit+int | 交付到戳目录/沙箱拒绝/缺失即值；真实 daemon 下 `tool_result.artifact` 指向 `MYAGENT_DELIVERY_DIR` 隔离交付目录 |
+| T40 | F45 步数预算 | int | `engine.maxSteps=2` → done(reason=max-steps) 且工具仍执行；同引擎「继续」续跑至 complete（history 保留） |
 
 **验收门槛**：全部 T 通过；`artifacts/acceptance-report.md` 逐项记录 PASS/DEGRADED（降级需注明原因）
 /FAIL。任何 FAIL → 归因二选一：(a) 方案设计问题 → 改实现；(b) WorkBuddy 理解问题 →

@@ -91,6 +91,8 @@ function createDaemon({ send }) {
         workspace: s.cwd || process.cwd(),
         sandboxRules: defaultRules(s.cwd || process.cwd()),
         libraryDir,
+        // F45: per-task step budget (task-parity P0-1), default 64
+        maxSteps: parseInt(settings['engine.maxSteps'], 10) || 64,
         llm: {
           baseUrl: settings['llm.baseUrl'] || 'http://127.0.0.1:11434/v1',
           apiKey: vault.get('llm.apiKey') || settings['llm.apiKey'] || '',

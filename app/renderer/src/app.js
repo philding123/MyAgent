@@ -202,6 +202,8 @@ function handleEngineEvent(ev) {
     } else {
       appendMessage('tool', { tool: card ? card.name : ev.id, summary: ev.summary, ok: ev.ok, detail });
     }
+    // F47: present_file delivers into the user-visible folder — card points there
+    if (ev.artifact && ev.artifact.path) appendArtifact(ev.artifact.path);
   } else if (ev.type === 'confirm_request') {
     showConfirm(ev);
   } else if (ev.type === 'done') {
@@ -211,6 +213,9 @@ function handleEngineEvent(ev) {
     engineRunning = false;
     setSendEnabled(true);
     if (ev.reason === 'error') appendMessage('event', { content: 'engine error — see logs' });
+    // F45: max-steps must be visible with a continue affordance (task-parity
+    // P0-1 — the benchmark task died here silently)
+    if (ev.reason === 'max-steps') appendContinueNotice();
   } else if (ev.type === 'error') {
     finishStreaming();
     appendMessage('event', { content: 'error: ' + ev.message });
@@ -221,6 +226,21 @@ function handleEngineEvent(ev) {
 }
 
 function finishStreaming() { streamingEl = null; }
+
+// F45: engine hit its per-turn step budget — surface it and let the user
+// continue the same engine (history intact) with one click
+function appendContinueNotice() {
+  const el = appendMessage('event', { content: '已达到单轮步数上限，任务可能未完成。' });
+  const b = document.createElement('button');
+  b.className = 'primary';
+  b.textContent = '继续';
+  b.onclick = async () => {
+    b.disabled = true;
+    $('#input').value = '继续';
+    await send();
+  };
+  el.appendChild(b);
+}
 
 function showConfirm(ev) {
   const bar = $('#confirm-bar');

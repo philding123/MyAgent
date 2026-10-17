@@ -78,3 +78,45 @@ include 进系统提示；五个模式 ask/plan/expert/quick/craft，对应插�
 
 **验证**：集成测试分别在 ask/plan 模式诱导写文件/危险命令，断言被策略层拒绝且产生
 `tool_result{ok:false, reason:'policy'}`；T07。
+
+## F45 任务步数预算与续跑
+
+**来源**：任务级对比（artifacts/task-parity/report.md，2026-10-16）。旧实现 `for step<16`
+硬上限：真实调研任务 17 次工具调用后 `done(reason=max-steps)` 被渲染层静默吞掉——
+无结束语、无失败说明、无续跑入口，任务零产物失败。wb 侧子任务驱动直至完成，无此问题。
+
+**复现设计**：
+- 预算可配：init `maxSteps`（daemon 从 `engine.maxSteps` 设置读入，默认 64，钳制 4–256）。
+- 终态可见：渲染层对 `done{reason:'max-steps'}` 渲染显式提示 + 「继续」按钮；
+  继续 = 复用同引擎（history 完整）发起新一轮，预算重新计满。
+
+**验证**：T40（engine.maxSteps=2 → done(max-steps)，同引擎「继续」跑到 complete）。
+
+## F46 web_search / web_fetch 联网检索
+
+**来源**：同一对比。wb 服务端收集 28 源不受本机网络影响；MyAgent 只有客户端 browser
+（playwright），17 次调用 4 次被本机网络打死（GitHub 系超时/重置）。
+
+**复现设计**（engine/tools/web.js，kind 均 read）：
+- `web_search{query,count?}`：cn.bing.com SERP 解析（b_algo 分块容错提取 title/url/snippet）。
+- `web_fetch{url,max_chars?}`：直取 URL，UA/超时 30s/2MB 上限，HTML→文本（剥 script/style
+  + 实体解码），非文本 content-type 拒绝。
+- 错误即值（不抛）；默认直连不走第三方中转（无遥测外发红线），代理走进程 env。
+- 有意偏离记录：wb 是服务端抓取，本实现是本机直连——对被墙源仍可能失败，根治需代理
+  或远端抓取服务（后续候选）。
+
+**验证**：T38（SERP 解析/htmlToText/注入 fetch 断言请求形态/本地 http 真取+截断/错误即值）。
+
+## F47 present_file 交付
+
+**来源**：wb `present_files` 工具（artifact-index sourceTool 证据）：产物复制到用户可见
+目录 `C:\Users\phil\WorkBuddy\<时间戳>\` 并登记索引，驱动会话文件卡 + 内置预览。MyAgent
+旧路径 write_file 只写工作区，没有「交付」概念。
+
+**复现设计**（engine/tools/present.js，kind write——plan 模式需确认、ask 拒绝）：
+- `present_file{path}`：源路径过沙箱 read 检查 → 复制到 `~/MyAgent/<engine 会话时间戳>\`
+  （每引擎会话一个戳目录，对齐 wb 每任务一个；根可用 `MYAGENT_DELIVERY_DIR` 覆盖，测试隔离用）。
+- 引擎在 `tool_result` 事件附加 `artifact:{path,name}`，渲染层据此出产物卡片（点击预览
+  指向交付目录，工作区清理后仍可开）。
+
+**验证**：T39 单元（交付/沙箱拒绝/缺失即值）+ T39b 集成（事件 artifact 指向隔离交付目录）。
