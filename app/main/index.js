@@ -252,6 +252,33 @@ async function runSmoke() {
       heroOk: !!document.querySelector('#messages .home-hero') === !document.querySelector('#messages .msg'),
     }))()`, true);
     step('ui-main', ui2.top === 64 && ui2.heroOk, JSON.stringify(ui2));
+    // T44 (F44/F45/F48/F49 renderer surfaces): inject engine events through the
+    // test hook and assert the wb-parity cards — artifact card, plan card,
+    // progress line, tool_result merged in place with fail badge + detail,
+    // usage event after done
+    const surf = await mainWin.webContents.executeJavaScript(`(async () => {
+      const T = window.__myagentTest;
+      if (!T || !T.injectEngineEvent) return { err: 'no injectEngineEvent hook' };
+      T.injectEngineEvent({ type: 'tool_call', id: 'smoke1', name: 'write_file',
+        args: { path: 'X:/a.txt' }, step: 2, maxSteps: 64 });
+      await new Promise((r) => setTimeout(r, 50));
+      const prog = document.getElementById('progress-line');
+      const art = !!document.querySelector('.artifact-card');
+      const progOk = !!prog && !prog.classList.contains('hidden') && /第 2\\/64 步/.test(prog.textContent);
+      T.injectEngineEvent({ type: 'todo', todos: [{ text: '调研 REA', done: true }, { text: '写报告', done: false }] });
+      const rows = document.querySelectorAll('.todo-card .todo-row').length;
+      const doneRow = !!document.querySelector('.todo-row.done');
+      T.injectEngineEvent({ type: 'tool_result', id: 'smoke1', ok: false, summary: 'web_fetch failed: unreachable', detail: 'boom' });
+      const chip = [...document.querySelectorAll('.tool-chip')].find((c) => c.textContent.includes('write_file'));
+      const merged = !!chip && chip.textContent.includes('unreachable')
+        && !!chip.closest('.msg').querySelector('.tool-fail');
+      T.injectEngineEvent({ type: 'done', reason: 'complete', usageTokens: 123 });
+      const progHidden = prog.classList.contains('hidden');
+      const usage = [...document.querySelectorAll('.sys-event')].some((e) => e.textContent.includes('~123 tokens'));
+      return { art, progOk, rows, doneRow, merged, progHidden, usage };
+    })()`, true);
+    step('ui-tool-surfaces', !surf.err && surf.art && surf.progOk && surf.rows === 2 && surf.doneRow
+      && surf.merged && surf.progHidden && surf.usage, JSON.stringify(surf));
     const stWin = windows.get('settings');
     const stNav = await stWin.webContents.executeJavaScript(
       'document.querySelector(".settings-modal__nav").offsetWidth', true).catch(() => null);

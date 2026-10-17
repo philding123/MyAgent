@@ -73,7 +73,11 @@ window.__renderTest = (sample) => {
   return { pwned: !!window.__pwned || !!div.querySelector('script'), html: div.innerHTML.slice(0, 200) };
 };
 // smoke hook (T29-b): let the harness drive the task view deterministically
-window.__myagentTest = { openSession: (id) => openSession(id), refresh: () => refreshSessions() };
+window.__myagentTest = {
+  openSession: (id) => openSession(id),
+  refresh: () => refreshSessions(),
+  injectEngineEvent: (ev) => handleEngineEvent(ev),
+};
 
 function appendMessage(role, opts = {}) {
   const hero = $('#messages .home-hero');
@@ -255,8 +259,12 @@ function handleEngineEvent(ev) {
     } else {
       appendMessage('tool', { tool: card ? card.name : ev.id, summary: ev.summary, ok: ev.ok, detail });
     }
-    // F47: present_file delivers into the user-visible folder — card points there
-    if (ev.artifact && ev.artifact.path) appendArtifact(ev.artifact.path);
+    // F47: present_file delivers into the user-visible folder — card points
+    // there, and wb present_files semantics include auto-opening the preview
+    if (ev.artifact && ev.artifact.path) {
+      appendArtifact(ev.artifact.path);
+      window.myagent.windowAction('openPreview', { path: ev.artifact.path }).catch(() => {});
+    }
   } else if (ev.type === 'confirm_request') {
     showConfirm(ev);
   } else if (ev.type === 'done') {

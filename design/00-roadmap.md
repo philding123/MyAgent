@@ -76,7 +76,7 @@ Phase 8（P8 功能补齐）：F39–F44 已实现并验收（T33–T37 + 渲染
 | F41 | 预设/助理（命名系统提示预设，会话绑定，persona 通道） | v5.8.2 侧栏「助理 BETA」 | P8 | 34-space-tasks-library-preset.md | ✅ T35 |
 | F42 | 资料库（个人文档库 + 引擎 library_list/library_read 工具） | v5.8.2 侧栏「资料库」 | P8 | 34-space-tasks-library-preset.md | ✅ T36 |
 | F43 | @ 上下文 / 技能调用（composer @"路径" 与 /技能，daemon 注入文件内容） | v5.8.2 composer 占位「@ 添加上下文，/调用技能与指令」 | P8 | 34-space-tasks-library-preset.md | ✅ T37 |
-| F44 | 产物卡片（write_file 产物卡片化，点击预览） | wb-live-main.png 对话产物卡片网格 | P8 | 34-space-tasks-library-preset.md | ✅ 渲染层 |
+| F44 | 产物卡片（write_file/present_file 产物卡片化，点击预览，交付自动开预览） | wb-live-main.png 对话产物卡片网格 | P8 | 34-space-tasks-library-preset.md | ✅ T44 |
 | F45 | 任务步数预算与续跑（engine.maxSteps 默认 64；max-steps 终态可见 + 继续按钮） | task-parity：MyAgent 16 步静默终止零产物 vs wb 子任务驱动到完成（artifacts/task-parity/report.md） | P9 | 10-agent-core.md | ✅ T40 |
 | F46 | web_search / web_fetch 联网检索（bing SERP 解析 + 直取文本，免浏览器） | task-parity：wb 服务端收集 28 源 vs MyAgent 客户端 browser 4/17 失败 | P9 | 10-agent-core.md | ✅ T38 |
 | F47 | present_file 交付（~/MyAgent/<时间戳>/ 用户可见目录 + 产物卡） | wb present_files（artifact-index sourceTool 证据）→ WorkBuddy\<时间戳>\ | P9 | 10-agent-core.md | ✅ T39 |
