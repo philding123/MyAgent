@@ -17,6 +17,19 @@ function makeSkillDir(root, name, description) {
   return dir;
 }
 
+test('T12c builtin evidence-check skill is scanned and readable (skill-parity method)', { timeout: 30000 }, async (t) => {
+  const home = makeTempHome('t45');
+  const d = forkDaemon(home);
+  t.after(() => d.child.kill());
+  const list = await d.request('skills.list');
+  const ec = list.result.find((s) => s.name === 'evidence-check');
+  assert.ok(ec, 'evidence-check in builtin scan');
+  assert.strictEqual(ec.source, 'builtin');
+  const read = await d.request('skills.read', { name: 'evidence-check' });
+  assert.match(read.result.body, /Evidence 记录/);
+  assert.match(read.result.body, /大白话/);
+});
+
 test('T12a install from directory, list, uninstall', { timeout: 30000 }, async (t) => {
   const home = makeTempHome('t12');
   const d = forkDaemon(home);

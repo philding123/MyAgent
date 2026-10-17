@@ -17,7 +17,7 @@
 | T09 | F09 确认门控 | int | `run_command "rm -rf x"` → confirm_request → 拒绝 → 工具结果 denied；批准路径执行成功；plan 模式写操作必确认 |
 | T10 | F10 凭证 | unit+int | settings 存 key 后 DB 无明文；引擎沙箱读 keystore 路径被 deny |
 | T11 | F11 技能 | unit+int | frontmatter 解析（含 disable/缺字段）；skills.list 含样例；引擎 system 含技能清单且 skill_read 可读正文 |
-| T12 | F12 市场 | int | zip 导入→list 出现→卸载；重复导入报错 |
+| T12 | F12 市场 | int | zip 导入→list 出现→卸载；重复导入报错；T12c 内置 evidence-check 技能可扫描可读（skill-parity 方法学落库） |
 | T13 | F13 记忆 | int | 写 preference → 下次引擎请求 system 含该文本；删除后消失 |
 | T14 | F14 终端 | int | create→写 `echo __T14__`→收到含标记 data；kind 记录 pty/pipe |
 | T15 | F15 搜索 | int | 预置会话+工作区文件 → query 返回两类命中与定位 |
