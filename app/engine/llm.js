@@ -26,6 +26,7 @@ class LlmClient {
       throw new Error('LLM HTTP ' + res.status + ': ' + text.slice(0, 300));
     }
     const json = await res.json();
+    this.lastUsage = json.usage || null; // F49: provider token metering when present
     const msg = json.choices && json.choices[0] && json.choices[0].message;
     if (!msg) throw new Error('LLM response missing choices[0].message');
     return msg;

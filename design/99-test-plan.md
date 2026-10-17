@@ -37,6 +37,9 @@
 | T38 | F46 web 检索 | unit | bing SERP 解析（title/url/snippet+实体解码）；htmlToText 剥 script/style；注入 fetch 断言 cn.bing.com 请求形态与 HTTP/传输错误即值；本地 http 真取 + max_chars 截断 + 非 http 拒绝 |
 | T39 | F47 present_file | unit+int | 交付到戳目录/沙箱拒绝/缺失即值；真实 daemon 下 `tool_result.artifact` 指向 `MYAGENT_DELIVERY_DIR` 隔离交付目录 |
 | T40 | F45 步数预算 | int | `engine.maxSteps=2` → done(reason=max-steps) 且工具仍执行；同引擎「继续」续跑至 complete（history 保留） |
+| T41 | F48/F49 计划与度量 | int | todo 事件全量替换、tool_call 携带 step/maxSteps、done 携带累计 usageTokens（mock usage 透传） |
+| T42 | F50 上下文压缩 | unit+int | 组完整性（tool 不孤儿）/预算/标记；真实 daemon 下 tool-heavy 任务后续请求有界且带 `[context compacted]` |
+| T43 | F51 消息落库 | int | 会话轮后 sessions.get 回放 user→tool(带 tool_name/tool_json)→assistant 全序 |
 
 **验收门槛**：全部 T 通过；`artifacts/acceptance-report.md` 逐项记录 PASS/DEGRADED（降级需注明原因）
 /FAIL。任何 FAIL → 归因二选一：(a) 方案设计问题 → 改实现；(b) WorkBuddy 理解问题 →

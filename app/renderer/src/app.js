@@ -112,6 +112,53 @@ function toolCardHtml(o) {
 // place instead of appending a second card.
 const toolCards = new Map(); // engine tool_call id -> { el, name }
 
+// F48: the visible plan (wb subtask list) — one card, updated in place
+let todoEl = null;
+
+function appendTodoCard() {
+  const el = document.createElement('div');
+  el.className = 'msg todo-card';
+  el.innerHTML = '<div class="todo-title">任务计划</div><div class="todo-rows"></div>';
+  $('#messages').appendChild(el);
+  el.scrollIntoView({ block: 'end' });
+  return el;
+}
+
+function renderTodos(el, todos) {
+  const rows = el.querySelector('.todo-rows');
+  rows.innerHTML = '';
+  for (const t of todos || []) {
+    const r = document.createElement('div');
+    r.className = 'todo-row' + (t.done ? ' done' : '');
+    r.innerHTML = '<span class="todo-mark">' + (t.done ? '✓' : '○') + '</span>' + escapeHtml(t.text);
+    rows.appendChild(r);
+  }
+  el.scrollIntoView({ block: 'end' });
+}
+
+// F49: run progress (wb 已处理时长/步数) in a slim line above the composer
+let progressStart = 0;
+let progressTimer = null;
+function fmtElapsed() { return Math.round((Date.now() - progressStart) / 1000) + 's'; }
+function showProgress(text) {
+  $('#progress-line').classList.remove('hidden');
+  $('#progress-line').textContent = text;
+}
+function startProgress() {
+  progressStart = Date.now();
+  showProgress('思考中 · 0s');
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => showProgress('思考中 · ' + fmtElapsed()), 1000);
+}
+function updateProgress(ev) {
+  showProgress('第 ' + (ev.step || '?') + (ev.maxSteps ? '/' + ev.maxSteps : '') + ' 步 · ' + ev.name + ' · ' + fmtElapsed());
+}
+function hideProgress() {
+  clearInterval(progressTimer);
+  progressTimer = null;
+  $('#progress-line').classList.add('hidden');
+}
+
 function updateToolCard(el, o) {
   el.innerHTML = toolCardHtml(o);
   el.scrollIntoView({ block: 'end' });
@@ -184,12 +231,18 @@ function setDaemonStatus(ok) {
 function handleEngineEvent(ev) {
   if (ev.type === 'status' && ev.stage === 'thinking') {
     streamingEl = appendMessage('assistant', { content: '…' });
+    startProgress();
   } else if (ev.type === 'token') {
     if (!streamingEl || !streamingEl.isConnected) streamingEl = appendMessage('assistant', { content: '' });
     streamingEl._raw = (streamingEl._raw || '') + ev.text;
     streamingEl.querySelector('.md').innerHTML = renderMarkdown(streamingEl._raw);
     streamingEl.scrollIntoView({ block: 'end' });
+  } else if (ev.type === 'todo') {
+    // F48: plan card (wb subtask list)
+    if (!todoEl || !todoEl.isConnected) todoEl = appendTodoCard();
+    renderTodos(todoEl, ev.todos);
   } else if (ev.type === 'tool_call') {
+    updateProgress(ev);
     const el = appendMessage('tool', { tool: ev.name, summary: JSON.stringify(ev.args).slice(0, 140), ok: true });
     toolCards.set(ev.id, { el, name: ev.name });
     // F44: written files surface as artifact cards (wb 产物卡片)
@@ -212,16 +265,21 @@ function handleEngineEvent(ev) {
     finishStreaming();
     engineRunning = false;
     setSendEnabled(true);
+    hideProgress();
     if (ev.reason === 'error') appendMessage('event', { content: 'engine error — see logs' });
     // F45: max-steps must be visible with a continue affordance (task-parity
     // P0-1 — the benchmark task died here silently)
     if (ev.reason === 'max-steps') appendContinueNotice();
+    // F49: cumulative task token usage when the provider meters it
+    if (ev.usageTokens) appendMessage('event', { content: '本次任务累计 ~' + ev.usageTokens + ' tokens' });
   } else if (ev.type === 'error') {
     finishStreaming();
+    hideProgress();
     appendMessage('event', { content: 'error: ' + ev.message });
   } else if (ev.type === 'engine_exit') {
     engineRunning = false;
     setSendEnabled(true);
+    hideProgress();
   }
 }
 
@@ -370,10 +428,16 @@ async function openSession(id) {
   updateModeButtons();
   $('#messages').innerHTML = '';
   toolCards.clear();
+  todoEl = null;
+  hideProgress();
   if (!(s.messages || []).length) showHomeHero();
   for (const m of s.messages || []) {
     if (m.role === 'user' || m.role === 'assistant') appendMessage(m.role, { content: m.content });
-    else if (m.role === 'tool') appendMessage('tool', { tool: m.tool_name, summary: m.content, ok: true });
+    else if (m.role === 'tool') {
+      let ok = true;
+      try { ok = JSON.parse(m.tool_json || '{}').ok !== false; } catch (_) {}
+      appendMessage('tool', { tool: m.tool_name || 'tool', summary: m.content, ok });
+    }
   }
   refreshSessions();
 }
@@ -389,6 +453,8 @@ function newTask() {
   $('#session-title').textContent = '新任务';
   $('#messages').innerHTML = '';
   toolCards.clear();
+  todoEl = null;
+  hideProgress();
   showHomeHero();
   refreshSessions();
   $('#input').focus();

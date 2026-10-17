@@ -13,6 +13,7 @@
 const readline = require('readline');
 const path = require('path');
 const { JsonlCodec } = require('../daemon/jsonl');
+const { compactHistory } = require('./compact');
 const { Sandbox, defaultRules } = require('../daemon/sandbox');
 const { makeTools } = require('./tools/index');
 const { checkToolMode, systemPromptFragment } = require('./policy');
@@ -27,6 +28,8 @@ const state = {
   pendingConfirms: new Map(),
   pendingDaemonTools: new Map(),
   aborted: false,
+  turnTokens: 0,
+  todos: [],
 };
 
 const emit = (ev) => process.stdout.write(JsonlCodec.encode(ev));
@@ -60,6 +63,8 @@ async function handleInit(msg) {
   // F45 (task-parity P0-1): per-task step budget, was a hard 16 that silently
   // ended real research tasks; still bounded, configurable via engine.maxSteps
   state.maxSteps = Math.max(4, Math.min(256, parseInt(msg.maxSteps, 10) || 64));
+  // F50 (task-parity P1): history size budget, compaction keeps goal + recent
+  state.maxContextChars = Math.max(4000, Math.min(2000000, parseInt(msg.maxContextChars, 10) || 150000));
   state.sandbox = new Sandbox(msg.sandboxRules || defaultRules(msg.workspace), { workspace: msg.workspace });
   state.registry = { read: (name) => (msg.skills || []).find((s) => s.name === name) || null,
     all: () => msg.skills || [] };
@@ -98,6 +103,21 @@ async function handleInit(msg) {
       return state.presentDir;
     },
     daemonBridge: (msg.daemonTools || []).includes('market') ? (args) => callDaemonTool('market', args) : null });
+  // F48 (task-parity P1): visible plan — the todo tool mirrors wb's subtask
+  // list; events drive the renderer's plan card
+  state.tools.tools.todo = {
+    kind: 'read',
+    description: 'Maintain the visible task plan. Args: {items:[{text,done}]} — send the FULL list each time.',
+    schema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, done: { type: 'boolean' } } } } }, required: ['items'] },
+    run: async (args) => {
+      const items = (Array.isArray(args.items) ? args.items : []).slice(0, 20)
+        .map((x) => ({ text: String(x && x.text || '').slice(0, 200), done: !!(x && x.done) }));
+      state.todos = items;
+      emit({ type: 'todo', todos: items });
+      return { ok: true, summary: items.filter((x) => x.done).length + '/' + items.length + ' done', data: { todos: items } };
+    },
+  };
+  state.tools.definitions.push({ type: 'function', function: { name: 'todo', description: state.tools.tools.todo.description, parameters: state.tools.tools.todo.schema } });
   state.llm = new LlmClient(msg.llm || {});
   state.history = [{ role: 'system', content: buildSystem(msg) }];
   emit({ type: 'status', stage: 'ready', mode: state.mode });
@@ -119,6 +139,7 @@ function buildSystem(msg) {
       + msg.skills.map((s) => '- ' + s.name + ': ' + s.description).join('\n') + '\n</skills>');
   }
   parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser.');
+  parts.push('Planning discipline: for multi-step tasks, call the todo tool whenever the plan forms or progress changes — items [{text,done}], full list each time.');
   if (msg.systemExtras && msg.systemExtras.length) parts.push(...msg.systemExtras);
   return parts.join('\n\n');
 }
@@ -128,7 +149,9 @@ async function runTurn(userText) {
   emit({ type: 'status', stage: 'thinking' });
   for (let step = 0; step < state.maxSteps; step++) {
     if (state.aborted) { emit({ type: 'done', reason: 'aborted' }); return; }
+    compactHistory(state.history, state.maxContextChars);
     const reply = await state.llm.chat(state.history, state.tools.definitions);
+    if (state.llm.lastUsage && state.llm.lastUsage.total_tokens) state.turnTokens += state.llm.lastUsage.total_tokens;
     const toolCalls = reply.tool_calls || [];
     if (reply.content) {
       emit({ type: 'token', text: reply.content });
@@ -139,13 +162,17 @@ async function runTurn(userText) {
       emit({ type: 'done', reason: 'complete' });
       return;
     }
-    if (!toolCalls.length) { emit({ type: 'done', reason: 'complete' }); return; }
+    if (!toolCalls.length) {
+      emit({ type: 'done', reason: 'complete', ...(state.turnTokens ? { usageTokens: state.turnTokens } : {}) });
+      return;
+    }
 
     for (const call of toolCalls) {
       const name = call.function.name;
       let args = {};
       try { args = JSON.parse(call.function.arguments || '{}'); } catch (_) {}
-      emit({ type: 'tool_call', id: call.id, name, args });
+      // F49: steps ride tool_call events for the renderer's progress line
+      emit({ type: 'tool_call', id: call.id, name, args, step: step + 1, maxSteps: state.maxSteps });
       const verdict = await gateTool(name, args);
       if (verdict.blocked) {
         state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: false, summary: verdict.reason }) });
@@ -170,7 +197,7 @@ async function runTurn(userText) {
       emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result), ...(artifact ? { artifact } : {}) });
     }
   }
-  emit({ type: 'done', reason: 'max-steps' });
+  emit({ type: 'done', reason: 'max-steps', ...(state.turnTokens ? { usageTokens: state.turnTokens } : {}) });
 }
 
 async function gateTool(name, args) {

@@ -80,6 +80,10 @@ Phase 8（P8 功能补齐）：F39–F44 已实现并验收（T33–T37 + 渲染
 | F45 | 任务步数预算与续跑（engine.maxSteps 默认 64；max-steps 终态可见 + 继续按钮） | task-parity：MyAgent 16 步静默终止零产物 vs wb 子任务驱动到完成（artifacts/task-parity/report.md） | P9 | 10-agent-core.md | ✅ T40 |
 | F46 | web_search / web_fetch 联网检索（bing SERP 解析 + 直取文本，免浏览器） | task-parity：wb 服务端收集 28 源 vs MyAgent 客户端 browser 4/17 失败 | P9 | 10-agent-core.md | ✅ T38 |
 | F47 | present_file 交付（~/MyAgent/<时间戳>/ 用户可见目录 + 产物卡） | wb present_files（artifact-index sourceTool 证据）→ WorkBuddy\<时间戳>\ | P9 | 10-agent-core.md | ✅ T39 |
+| F48 | 任务计划卡（引擎 todo 工具 + 渲染层勾选清单） | task-parity P1：wb 子任务清单 vs MyAgent 扁平工具流 | P10 | 10-agent-core.md | ✅ T41 |
+| F49 | 进度与用量度量（步数/耗时进度行 + provider token 用量） | task-parity P1：wb 已处理时长/已消耗 ◇ vs 无指标 | P10 | 10-agent-core.md | ✅ T41 |
+| F50 | 上下文自动压缩（组裁剪保目标+近组，engine.maxContextChars） | task-parity P1：wb「只保留关键上下文」vs 全量直送 | P10 | 10-agent-core.md | ✅ T42 |
+| F51 | 会话消息落库（assistant/tool 入 store，重开全量回放，D10） | wb conversations 全量回放 vs 只剩 user 消息 | P10 | 10-agent-core.md | ✅ T43 |
 | F37 | 会话独立窗（P2 观察：个人并行会话需求出现再实施） | window-apps `conversation` + bootstrap `?windowKind=conversation` | P7 | — | 观察 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |

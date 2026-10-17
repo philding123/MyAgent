@@ -120,3 +120,48 @@ include 进系统提示；五个模式 ask/plan/expert/quick/craft，对应插�
   指向交付目录，工作区清理后仍可开）。
 
 **验证**：T39 单元（交付/沙箱拒绝/缺失即值）+ T39b 集成（事件 artifact 指向隔离交付目录）。
+
+## F48 任务计划卡（todo 工具）
+
+**来源**：task-parity P1——wb 会话里有「深度思考 + 子任务清单」的可见计划（收集/提取/
+查询分组，随进度勾选）；MyAgent 是扁平工具流，计划不可见。
+
+**复现设计**：引擎内置 `todo{items:[{text,done}]}` 工具（kind read，全量替换式），
+每次变更 emit `todo` 事件；渲染层单卡片原地更新（wb 同款勾选行，done 划线）；
+system 提示注入 planning discipline。上限 20 项。
+
+**验证**：T41（todo 事件两次、step 字段、usageTokens）。
+
+## F49 进度与用量度量
+
+**来源**：wb 常显「已处理 1m44s / 已消耗 ◇2.74 / 预计消耗区间」；MyAgent 无任何进度指标。
+
+**复现设计**：`tool_call` 事件携带 `step/maxSteps`；渲染层 composer 上方 #progress-line
+显示「第 N/M 步 · 工具 · 已用时」；`done` 事件携带 `usageTokens`（LlmClient 透传 provider
+usage，任务内累计），完成时以事件行显示。wb 的 ◇ 配额为云侧概念，本实现以 token 计。
+
+**验证**：T41。
+
+## F50 上下文自动压缩
+
+**来源**：wb 界面明示「只保留关键上下文，目标和约束最重要」；MyAgent 全量 history 直送，
+长任务后期请求膨胀。
+
+**复现设计**（engine/compact.js）：每次 LLM 调用前，history 超 `maxContextChars`
+（设置 `engine.maxContextChars`，默认 150k 字符）时整组压缩——按 assistant+其 tool 响应
+成组裁剪（兼容 OpenAI 系"tool 必须跟 tool_calls"校验），恒保 system + 开场 user 目标 +
+预算 60% 内的最近组，插入显式 `[context compacted: …]` 标记。
+
+**验证**：T42 单元（组完整性/预算/标记）+ T42b 集成（真实 daemon 请求有界且带标记）。
+
+## F51 会话消息落库（D10）
+
+**来源**：D10——assistant/tool 消息从不入 store，重开会话只回放用户消息；wb
+conversations 全量回放。
+
+**复现设计**：daemon 在 emit 封装层监听引擎事件流（不新增监听器、不碰管道）：token 按
+turn 累积（status:thinking 重置）、done/error/engine_exit 时落 assistant 消息；
+tool_result 依 tool_call 解析出的工具名落 role=tool 消息（tool_json 存 ok/detail）。
+渲染层 openSession 已有的回放逻辑直接受益（含失败态还原）。
+
+**验证**：T43（sessions.get 回放 user→tool(write_file)→assistant 全序）。

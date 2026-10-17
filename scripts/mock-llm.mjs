@@ -21,7 +21,11 @@ export function startMockLlm() {
           return;
         }
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ choices: [{ message: next || { content: 'empty' } }] }));
+        res.end(JSON.stringify({
+          choices: [{ message: next || { content: 'empty' } }],
+          // T41: optional per-response token metering passthrough
+          ...(next && next.__usage ? { usage: { total_tokens: next.__usage } } : {}),
+        }));
       });
       return;
     }

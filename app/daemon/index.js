@@ -51,7 +51,34 @@ function createDaemon({ send }) {
   const libraryDir = path.join(home, 'library');
   fs.mkdirSync(libraryDir, { recursive: true });
 
-  const emit = (topic, payload) => send({ kind: 'event', topic, payload });
+  const rawEmit = (topic, payload) => send({ kind: 'event', topic, payload });
+  // D10/F51: persist the conversation from the engine event stream — renderer
+  // reopen used to replay user messages only. Assistant text accumulates per
+  // turn (reset on status:thinking, flushed on done/error/exit); tool results
+  // store with their tool name (resolved from the tool_call event).
+  const turnBuf = new Map();
+  const callName = new Map();
+  function recordEngineEvent(topic, payload) {
+    if (!topic.startsWith('engine:')) return;
+    const sid = topic.slice('engine:'.length);
+    if (payload.type === 'status' && payload.stage === 'thinking') turnBuf.set(sid, '');
+    else if (payload.type === 'token') turnBuf.set(sid, (turnBuf.get(sid) || '') + payload.text);
+    else if (payload.type === 'tool_call') callName.set(sid + ':' + payload.id, payload.name);
+    else if (payload.type === 'tool_result') {
+      const name = callName.get(sid + ':' + payload.id) || 'tool';
+      callName.delete(sid + ':' + payload.id);
+      store.appendMessage({ session_id: sid, role: 'tool', content: payload.summary || '',
+        tool_name: name, tool_json: JSON.stringify({ ok: payload.ok, detail: payload.detail || null }) });
+    } else if (payload.type === 'done' || payload.type === 'error' || payload.type === 'engine_exit') {
+      const text = turnBuf.get(sid);
+      if (text && text.trim()) store.appendMessage({ session_id: sid, role: 'assistant', content: text });
+      turnBuf.delete(sid);
+    }
+  }
+  const emit = (topic, payload) => {
+    rawEmit(topic, payload);
+    try { recordEngineEvent(topic, payload); } catch (_) { /* persistence never blocks delivery */ }
+  };
 
   const terminalHost = new TerminalHost(emit);
   let prewarmOn = store.getSetting('engine.prewarm') === true;
@@ -93,6 +120,8 @@ function createDaemon({ send }) {
         libraryDir,
         // F45: per-task step budget (task-parity P0-1), default 64
         maxSteps: parseInt(settings['engine.maxSteps'], 10) || 64,
+        // F50: history size budget for compaction, default 150k chars
+        maxContextChars: parseInt(settings['engine.maxContextChars'], 10) || 150000,
         llm: {
           baseUrl: settings['llm.baseUrl'] || 'http://127.0.0.1:11434/v1',
           apiKey: vault.get('llm.apiKey') || settings['llm.apiKey'] || '',
