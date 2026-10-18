@@ -205,14 +205,23 @@ async function runWb() {
     await main.bringToFront().catch(() => {});
     await sleep(2500);
     // 技能 page evidence: what does wb have installed / an import path?
+    // wb's sidebar item is「专家·技能·连接器」— click the entry, then the
+    // 技能 sub-tab inside the page
     const clicked = await main.evaluate(() => {
       const el = [...document.querySelectorAll('div,span,button')]
         .filter((e) => e.childElementCount <= 1 && e.getBoundingClientRect().height > 0)
-        .find((e) => /^技能/.test(e.textContent.trim()));
+        .find((e) => /专家·技能·连接器|^技能/.test(e.textContent.trim()));
       if (el) { el.click(); return true; }
       return false;
     });
-    await sleep(2500);
+    await sleep(2000);
+    await main.evaluate(() => {
+      const tab = [...document.querySelectorAll('div,span,button')]
+        .filter((e) => e.childElementCount <= 1 && e.getBoundingClientRect().height > 0)
+        .find((e) => e.textContent.trim() === '技能');
+      if (tab) tab.click();
+    });
+    await sleep(2000);
     await main.screenshot({ path: path.join(OUT, 'wb-skills-page.png'), animations: 'disabled' }).catch(() => {});
     const skillsText = await main.evaluate(() => document.body.innerText.slice(0, 3000));
     timeline.push({ kind: 'skills-page', clicked, hasEvidenceCheck: /evidence-check/.test(skillsText),

@@ -352,6 +352,7 @@ function createDaemon({ send }) {
     'connectors.remove': async (p) => mcpConns.remove(p.id),
     'connectors.toggle': async (p) => mcpConns.toggle(p.id, p.enabled),
     'connectors.status': async () => mcpConns.status(),
+    'connectors.call': async (p) => ({ content: await mcpConns.call(p.server, p.name, p.arguments || {}) }),
     'skills.install': async (p) => installSkill(p.source, skillsUser, defaultZipExtractor()),
     'skills.uninstall': async (p) => uninstallSkill(p.name, skillsUser),
     'memory.add': async (p) => store.addMemory(p.kind || 'fact', p.content),
