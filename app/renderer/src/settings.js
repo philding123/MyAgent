@@ -303,6 +303,46 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btn-lib-remove').onclick = async () => { if (selectedLib) { await rpc('library.remove', { name: selectedLib }); selectedLib = null; loadLibrary(); } };
   $('#btn-lib-refresh').onclick = loadLibrary;
 
+  // ---- F52 connectors (wb「连接器」= MCP 客户端集成) ----
+  async function loadConnectors() {
+    const list = await rpc('connectors.list');
+    const ul = $('#conn-list');
+    ul.innerHTML = '';
+    for (const c of list) {
+      const li = document.createElement('li');
+      const stateTag = c.state === 'connected' ? '已连接' : (c.state === 'error' ? '错误: ' + (c.error || '') : c.state);
+      li.innerHTML = '<b></b> — <code></code> [' + stateTag + (c.tools.length ? '，' + c.tools.length + ' 工具' : '') + '] ';
+      li.querySelector('b').textContent = c.name + (c.enabled === false ? '（停用）' : '');
+      li.querySelector('code').textContent = c.command + ' ' + (c.args || []).join(' ');
+      const tog = document.createElement('button');
+      tog.textContent = c.enabled === false ? '启用' : '停用';
+      tog.onclick = async () => { await rpc('connectors.toggle', { id: c.id, enabled: c.enabled === false }); loadConnectors(); };
+      const del = document.createElement('button');
+      del.textContent = '移除';
+      del.onclick = async () => { await rpc('connectors.remove', { id: c.id }); loadConnectors(); };
+      li.append(tog, ' ', del);
+      ul.appendChild(li);
+    }
+    if (!list.length) ul.innerHTML = '<li>暂无连接器 — 添加一个 MCP 服务器（如 REA）即可把它的工具接进引擎</li>';
+  }
+  $('#btn-conn-add').onclick = async () => {
+    $('#conn-msg').textContent = 'connecting…';
+    try {
+      let args = [];
+      const raw = $('#conn-args').value.trim();
+      if (raw) {
+        args = JSON.parse(raw);
+        if (!Array.isArray(args)) throw new Error('参数必须是 JSON 数组');
+      }
+      await rpc('connectors.add', { name: $('#conn-name').value.trim(), command: $('#conn-command').value.trim(), args });
+      $('#conn-name').value = ''; $('#conn-command').value = ''; $('#conn-args').value = '';
+      $('#conn-msg').textContent = '已添加并连接';
+      loadConnectors();
+    } catch (e) { $('#conn-msg').textContent = 'fail: ' + e.message; }
+  };
+  $('#btn-conn-refresh').onclick = loadConnectors;
+  loadConnectors().catch(() => {});
+
   // ---- WorkBuddy settings layout (design/27 F31 / 33 v5.8.2): grouped nav,
   // search filter, ?panel= deep link, window chrome ----
   const activate = (b) => {

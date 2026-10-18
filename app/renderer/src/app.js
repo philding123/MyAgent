@@ -551,6 +551,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#nav-search').onclick = () => window.myagent.windowAction('openSearch');
   $('#nav-market').onclick = () => window.myagent.windowAction('openSettings', { panel: 'market' });
   $('#nav-skills').onclick = () => window.myagent.windowAction('openSettings', { panel: 'skills' });
+  $('#nav-connectors').onclick = () => window.myagent.windowAction('openSettings', { panel: 'connectors' });
   $('#nav-memory').onclick = () => window.myagent.windowAction('openSettings', { panel: 'memory' });
   $('#nav-assistant').onclick = () => window.myagent.windowAction('openSettings', { panel: 'presets' });
   $('#nav-tasks').onclick = () => window.myagent.windowAction('openSettings', { panel: 'tasks' });

@@ -41,6 +41,7 @@
 | T42 | F50 上下文压缩 | unit+int | 组完整性（tool 不孤儿）/预算/标记；真实 daemon 下 tool-heavy 任务后续请求有界且带 `[context compacted]` |
 | T43 | F51 消息落库 | int | 会话轮后 sessions.get 回放 user→tool(带 tool_name/tool_json)→assistant 全序 |
 | T44 | F44/F45/F47-F49 渲染反馈面 | e2e | 注入引擎事件断言：write_file 产物卡、todo 计划卡（勾选/划线）、进度行（第N/M步·工具·耗时）、tool_result 原地合并+failed 徽标+detail、done 后进度行隐藏+用量行；present_file 自动开预览（wb present_files 语义） |
+| T46 | F52 连接器 | int | mock MCP stdio server：add→connected→tools 经 RPC 列出、重名拒装、toggle 停启；连接器工具进引擎（exec 类）并经 daemon 桥完成 tools/call 往返（结果回喂 LLM） |
 
 **验收门槛**：全部 T 通过；`artifacts/acceptance-report.md` 逐项记录 PASS/DEGRADED（降级需注明原因）
 /FAIL。任何 FAIL → 归因二选一：(a) 方案设计问题 → 改实现；(b) WorkBuddy 理解问题 →

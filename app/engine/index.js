@@ -118,6 +118,20 @@ async function handleInit(msg) {
     },
   };
   state.tools.definitions.push({ type: 'function', function: { name: 'todo', description: state.tools.tools.todo.description, parameters: state.tools.tools.todo.schema } });
+  // F52 connectors (wb「连接器」): MCP client tools ride the daemon bridge.
+  // kind 'exec' is the fail-safe class — external arbitrary capability, so ask
+  // mode denies and plan mode confirms (per-tool overrides come later).
+  for (const ct of msg.connectorTools || []) {
+    const schema = ct.inputSchema && ct.inputSchema.type === 'object'
+      ? ct.inputSchema : { type: 'object', properties: {}, additionalProperties: true };
+    state.tools.tools[ct.name] = {
+      kind: 'exec',
+      description: ct.description,
+      schema,
+      run: async (args) => callDaemonTool('mcp', { server: ct.server, name: ct.tool, arguments: args }),
+    };
+    state.tools.definitions.push({ type: 'function', function: { name: ct.name, description: ct.description, parameters: schema } });
+  }
   state.llm = new LlmClient(msg.llm || {});
   state.history = [{ role: 'system', content: buildSystem(msg) }];
   emit({ type: 'status', stage: 'ready', mode: state.mode });

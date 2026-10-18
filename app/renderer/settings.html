@@ -18,6 +18,7 @@
     <button class="settings-navigation__item" data-panel="library"><span class="nav-ico">📚</span>资料库</button>
     <button class="settings-navigation__item" data-panel="market"><span class="nav-ico">🏬</span>技能市场</button>
     <button class="settings-navigation__item" data-panel="skills"><span class="nav-ico">✦</span>技能</button>
+    <button class="settings-navigation__item" data-panel="connectors"><span class="nav-ico">⛓</span>连接器</button>
     <button class="settings-navigation__item" data-panel="memory"><span class="nav-ico">◈</span>记忆</button>
     <button class="settings-navigation__item" data-panel="im"><span class="nav-ico">💬</span>IM 通道</button>
     <button class="settings-navigation__item" data-panel="a2a"><span class="nav-ico">🔗</span>A2A</button>
@@ -78,6 +79,19 @@
         <ul id="lib-list"></ul>
         <div class="row"><button id="btn-lib-add" class="primary">添加文件</button><button id="btn-lib-remove">移除选中</button><button id="btn-lib-refresh">刷新</button></div>
         <span id="lib-msg" class="msg-line">引擎可通过 library_list / library_read 工具访问</span>
+      </div>
+    </section>
+    <section class="settings-window-panel hidden" data-panel="connectors">
+      <h2>连接器（MCP）</h2>
+      <div class="settings-card">
+        <ul id="conn-list"></ul>
+        <div class="row">
+          <input id="conn-name" placeholder="名称（如 rea）">
+          <input id="conn-command" placeholder="启动命令（如 node）">
+          <input id="conn-args" placeholder='参数 JSON 数组（如 ["server.js"]）'>
+        </div>
+        <div class="row"><button id="btn-conn-add" class="primary">添加并连接</button><button id="btn-conn-refresh">刷新</button></div>
+        <span id="conn-msg" class="msg-line">连接器 = MCP 服务器：其工具以 mcp_连接器_工具名 注入引擎（ask 拒绝、plan 需确认）</span>
       </div>
     </section>
     <section class="settings-window-panel hidden" data-panel="update">

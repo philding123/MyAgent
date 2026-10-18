@@ -13,6 +13,7 @@ const { createPresetStore } = require('./presets');
 const { createScheduler } = require('./tasks');
 const { augmentContext } = require('./context');
 const { EngineHost } = require('./engine-host');
+const { McpConnectorManager } = require('./mcp-client');
 const { TerminalHost } = require('./terminal');
 const { globalSearch } = require('./search');
 const { CredentialVault } = require('./crypto');
@@ -83,6 +84,10 @@ function createDaemon({ send }) {
   const terminalHost = new TerminalHost(emit);
   let prewarmOn = store.getSetting('engine.prewarm') === true;
   let mcpChild = null; // F34: spawned MCP stdio server handle (design/30-mcp.md)
+  // F52 connectors (wb「专家·技能·连接器」): MCP client managers — one stdio
+  // MCP server per connector, tools flattened into the engine tool surface
+  const mcpConns = new McpConnectorManager({ store, log: (scope, line) => store.log('info', scope, line) });
+  mcpConns.ensureStarted();
   // F40 scheduled tasks (design/34): due schedules run as engine turns on
   // their session (or a dedicated ⏰ session)
   const scheduler = createScheduler({
@@ -122,6 +127,8 @@ function createDaemon({ send }) {
         maxSteps: parseInt(settings['engine.maxSteps'], 10) || 64,
         // F50: history size budget for compaction, default 150k chars
         maxContextChars: parseInt(settings['engine.maxContextChars'], 10) || 150000,
+        // F52: connector (MCP client) tools ride the daemon bridge
+        connectorTools: mcpConns.engineToolDefs(),
         llm: {
           baseUrl: settings['llm.baseUrl'] || 'http://127.0.0.1:11434/v1',
           apiKey: vault.get('llm.apiKey') || settings['llm.apiKey'] || '',
@@ -152,6 +159,16 @@ function createDaemon({ send }) {
             data: { results }, refused: failed.length ? failed : undefined };
         }
         return { ok: false, summary: 'unknown market action: ' + args.action };
+      }
+      if (tool === 'mcp') {
+        // F52: connector tool call routed to the named MCP server
+        try {
+          const out = await mcpConns.call(args.server, args.name, args.arguments || {});
+          return { ok: true, summary: 'mcp ' + args.server + '/' + args.name + ' → ' + String(out).slice(0, 120),
+            data: { content: String(out).slice(0, 20000) } };
+        } catch (e) {
+          return { ok: false, summary: 'mcp call failed: ' + (e.message || e) };
+        }
       }
       return { ok: false, summary: 'unknown daemon tool: ' + tool };
     },
@@ -260,6 +277,7 @@ function createDaemon({ send }) {
       sync: sync.status(),
       a2a: { enabled: store.getSetting('a2a.enabled') === true, url: a2aServer ? a2aServer.url : null },
       mcp: { running: !!(mcpChild && mcpChild.exitCode === null) },
+      connectors: mcpConns.status(),
       vault: { mode: vault.mode, dir: path.join(home, 'keystore') },
       dataDir,
     }),
@@ -328,6 +346,12 @@ function createDaemon({ send }) {
       return { running: false };
     },
     'mcp.status': async () => ({ running: !!(mcpChild && mcpChild.exitCode === null), pid: mcpChild ? mcpChild.pid : null }),
+    // ---- F52 connectors (MCP client) ----
+    'connectors.list': async () => mcpConns.catalog(),
+    'connectors.add': async (p) => mcpConns.add(p || {}),
+    'connectors.remove': async (p) => mcpConns.remove(p.id),
+    'connectors.toggle': async (p) => mcpConns.toggle(p.id, p.enabled),
+    'connectors.status': async () => mcpConns.status(),
     'skills.install': async (p) => installSkill(p.source, skillsUser, defaultZipExtractor()),
     'skills.uninstall': async (p) => uninstallSkill(p.name, skillsUser),
     'memory.add': async (p) => store.addMemory(p.kind || 'fact', p.content),

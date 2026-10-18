@@ -34,3 +34,21 @@
   → tools/list 含 4 工具 → tools/call `search_query` 命中 → resources/read
   回读会话 → 未知方法 -32601 → 通知返回 null。
 - e2e：`mcp-status`（smoke 经 `mcp.start` 后 running=true、`mcp.stop` 后 false）。
+
+## F52 连接器（MCP 客户端，2026-10-18）
+
+**WorkBuddy 观察**：侧栏「专家·技能·连接器」的连接器 = MCP 集成（证据：`~/.workbuddy/
+mcp-tool-list.json`，工具名 `workbuddy_cloudservice_db_*` 形态；`~/.workbuddy/connectors/`
+有 registry）。MyAgent 此前只有 MCP 服务端（F34），没有客户端——REA 这类 MCP 工具接不进来。
+
+**复现设计**（daemon/mcp-client.js）：
+- 每个连接器 = 一个 stdio MCP 服务器子进程（initialize 握手 → tools/list），存于
+  store 设置 `connectors`（id/name/command/args/env/enabled），RPC
+  `connectors.list/add/remove/toggle/status`，selfcheck 增 `connectors` 字段。
+- 工具注入：buildInit 带 `connectorTools`，引擎以 `mcp_<连接器>_<工具>` 注册
+  （工具名净化为 [a-z0-9_]），**kind='exec'**（fail-safe：ask 拒绝、plan 确认），
+  调用走既有 daemon_tool 桥（与 F25 market 同通道，窄 IPC 不变）。
+- 设置页「连接器」面板 + 侧栏导航项（对齐 wb 入口语义）。
+
+**验证**：T46（mock MCP stdio server：add→connected→tools 列出/重名拒/toggle；
+引擎全链路 tools/call 往返，结果回喂 LLM）。

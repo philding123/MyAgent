@@ -138,6 +138,7 @@ const e2eMap = {
   T42: [],
   T43: [],
   T44: ['ui-tool-surfaces'],
+  T46: [],
 };
 
 const featureNames = {
@@ -153,6 +154,7 @@ const featureNames = {
   T38: 'F46 web_search/web_fetch 检索', T39: 'F47 present_file 交付', T40: 'F45 任务步数预算与续跑',
   T41: 'F48/F49 计划卡与进度用量', T42: 'F50 上下文自动压缩', T43: 'F51 会话消息落库',
   T44: 'F44 产物卡片与运行反馈面（渲染层）',
+  T46: 'F52 连接器（MCP 客户端）',
 };
 
 let lines = [];

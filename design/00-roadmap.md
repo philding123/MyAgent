@@ -84,6 +84,7 @@ Phase 8（P8 功能补齐）：F39–F44 已实现并验收（T33–T37 + 渲染
 | F49 | 进度与用量度量（步数/耗时进度行 + provider token 用量） | task-parity P1：wb 已处理时长/已消耗 ◇ vs 无指标 | P10 | 10-agent-core.md | ✅ T41 |
 | F50 | 上下文自动压缩（组裁剪保目标+近组，engine.maxContextChars） | task-parity P1：wb「只保留关键上下文」vs 全量直送 | P10 | 10-agent-core.md | ✅ T42 |
 | F51 | 会话消息落库（assistant/tool 入 store，重开全量回放，D10） | wb conversations 全量回放 vs 只剩 user 消息 | P10 | 10-agent-core.md | ✅ T43 |
+| F52 | 连接器（MCP 客户端：stdio 服务器接入，工具 mcp_<连接器>_<工具> 注入引擎，设置页+侧栏） | wb 侧栏「专家·技能·连接器」= MCP 集成（mcp-tool-list.json 证据） | P10 | 30-mcp.md | ✅ T46 |
 | F37 | 会话独立窗（P2 观察：个人并行会话需求出现再实施） | window-apps `conversation` + bootstrap `?windowKind=conversation` | P7 | — | 观察 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |
