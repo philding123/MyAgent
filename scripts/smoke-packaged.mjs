@@ -29,7 +29,9 @@ const bin = findBinary();
 if (!bin || !fs.existsSync(bin)) { console.error('packaged binary not found under ' + DIR); process.exit(2); }
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'myagent-pkg-smoke-'));
 const out = path.join(home, 'smoke-result.json');
-const extra = process.platform === 'linux' && process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [];
+// no --no-sandbox here: the packaged launcher must supply it, exactly as when a
+// user starts the AppImage (build/after-pack.cjs)
+const extra = [];
 let cmd = bin; let cmdArgs = extra;
 // explicit 24-bit screen: xvfb-run's default is 640×480×8
 if (process.platform === 'linux' && !process.env.DISPLAY) { cmdArgs = ['-a', '-s', '-screen 0 1600x1000x24', bin, ...extra]; cmd = 'xvfb-run'; }

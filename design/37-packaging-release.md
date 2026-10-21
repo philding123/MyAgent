@@ -34,6 +34,11 @@
 - **图标**：`scripts/gen-app-icon.js` 用离屏 Electron 把内联 SVG 渲染为 `build/icon.png`（512）/
   `build/icon-1024.png`，electron-builder 由此派生 .ico/.icns。
 - 冒烟夹具：打包版没有 `tests/`（且 asar 只读），`smokeFixture()` 在临时目录生成等价夹具。
+- **Linux 启动器**（`build/after-pack.cjs`，afterPack）：Chromium 在任何应用 JS 之前检查沙箱助手，
+  `app.commandLine.appendSwitch('no-sandbox')` 来不及；在限制非特权 user namespace 的发行版（Ubuntu 24.04+）上
+  AppImage/解包版直接 `FATAL: The SUID sandbox helper binary was found, but is not configured correctly`
+  （首次流水线在 ubuntu-latest 实测）。可执行文件改为 `myagent` 启动脚本 → `exec myagent.bin --no-sandbox "$@"`，
+  与应用既定的 no-sandbox 取舍一致；AppImage 的 AppRun 与 deb 的 `/opt/MyAgent/myagent` 都经过它。
 
 ### 发布元数据（`scripts/release-manifest.mjs`）
 
@@ -57,8 +62,10 @@
 | unit T21c | `release-manifest.mjs` 产物喂给真实 `Updater`：check 判定新版本 → download → sha256 verify → ready；同版本不算更新；只收本版本安装包 |
 | 打包冒烟（本地 Linux，2026-10-21） | `dist-installer/linux-unpacked/myagent` 跑完整 E2E 冒烟 34/34，store=sqlite |
 | 打包按钮审计（本地 Linux） | `button-audit.mjs --exec dist-installer/linux-unpacked/myagent` 91/91（终端经解包的 node-pty、技能从解包目录安装、MCP 子进程从 asar fork） |
+| AppImage 实体 | 直接以 root、无任何参数运行 `MyAgent-0.1.0-x86_64.AppImage`（经 AppRun → 启动器）跑完整冒烟 34/34 |
 | 非 root 启动 | 普通用户、无 `--no-sandbox` 命令行参数启动打包版：主窗/设置窗/搜索窗与 SQLite 正常（应用自身追加 no-sandbox，见 main/index.js） |
-| CI | 三平台 runner 的构建与打包冒烟见 Actions 运行记录 |
+| CI 第 1 轮 | macOS：dmg 构建 + 打包冒烟通过；Windows：NSIS 构建通过，冒烟 33/34（ui-preview 因 runner 1024×768 屏幕被系统裁成 980×681 → 断言改为按工作区判定）；Ubuntu：沙箱助手 FATAL（→ 启动器）；CI verify windows 仅同一 ui-preview 项失败，91 项按钮审计通过 |
+| CI 第 2 轮 | Windows 构建+打包冒烟、CI verify windows 全绿；Ubuntu 仍为沙箱 FATAL（日志已能显示应用输出）→ 本节启动器修复 |
 
 ## 已知限制
 

@@ -79,7 +79,10 @@ let unitTests = [], intTests = [];
   } else {
     // Linux CI/containers: no display → wrap in xvfb-run; root needs
     // --no-sandbox (Chromium refuses to start otherwise)
-    const linuxArgs = process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0 ? ['--no-sandbox'] : [];
+    // Linux: the sandbox helper check runs before app JS (where the app adds
+    // --no-sandbox itself), so pass it on the command line — Ubuntu 24.04+
+    // aborts otherwise (non-root too)
+    const linuxArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
     const headless = process.platform === 'linux' && !process.env.DISPLAY;
     // explicit 24-bit screen: xvfb-run's default is 640×480×8
     const [cmd, args] = headless

@@ -43,7 +43,9 @@ fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '---\nname: audit-imported-ski
 
 // ---------- launch ----------
 const electronJs = path.join(ROOT, 'node_modules', 'electron', 'cli.js');
-const extra = process.platform === 'linux' && process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [];
+// Linux: dev Electron needs --no-sandbox on the command line (sandbox check runs
+// before app JS); a packaged build's launcher adds it itself (build/after-pack.cjs)
+const extra = process.platform === 'linux' && !opt('exec', null) ? ['--no-sandbox'] : [];
 const EXEC = opt('exec', null);
 let cmd = EXEC ? path.resolve(EXEC) : process.execPath;
 let cmdArgs = [...(EXEC ? [] : [electronJs, '.']), `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1', ...extra];

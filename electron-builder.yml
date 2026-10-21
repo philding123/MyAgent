@@ -13,6 +13,10 @@ directories:
 # test suite uses, so electron-builder must not rebuild native modules in place.
 npmRebuild: false
 
+# Linux: make the executable a --no-sandbox launcher (Chromium's sandbox check
+# runs before app JS; see build/after-pack.cjs)
+afterPack: build/after-pack.cjs
+
 files:
   - package.json
   - README.md
@@ -26,6 +30,7 @@ files:
   - vendor/better-sqlite3-electron/lib/**
   - vendor/better-sqlite3-electron/build/Release/better_sqlite3.node
   - "!**/*.{map,md.bak}"
+  - "!build/**"
   # node_modules/better-sqlite3 is only kept for its `bindings` dependency
   # (the vendored copy above is what Electron loads): drop the C sources
   - "!node_modules/better-sqlite3/{deps,src}/**"

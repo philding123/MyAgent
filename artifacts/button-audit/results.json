@@ -361,7 +361,7 @@
     "id": "sub-workspace",
     "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
     "pass": true,
-    "note": "cwd=/tmp/myagent-audit-fx-XdJbjL/audit_workspace"
+    "note": "cwd=/tmp/myagent-audit-fx-ZG4b3g/audit_workspace"
   },
   {
     "section": "主窗 · 首页与输入区",
@@ -424,7 +424,7 @@
     "id": "confirm-deny",
     "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
     "pass": true,
-    "note": "denied, not written; s=24af9d"
+    "note": "denied, not written; s=72cc87"
   },
   {
     "section": "主窗 · 运行中控件",
