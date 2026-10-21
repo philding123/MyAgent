@@ -290,17 +290,19 @@ await audit('btn-settings', '设置 → 设置窗', async () => {
 await audit('session-row', '点击会话行 → 打开该会话并加载其消息', async () => {
   await main.evaluate(() => window.__myagentTest.refresh());
   await main.click(`#session-list li[data-id="${seedA.id}"]`);
-  const st = await until(() => main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
+  // wait for THIS session (a snapshot taken before openSession resolves is racy)
+  const st = await until(async () => { const x = await main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
     msgs: [...document.querySelectorAll('#messages .msg.user')].map((m) => m.textContent).join('|'),
-    active: (document.querySelector('#session-list li.active') || {}).dataset })), 3000, 'session opened');
-  expect(st.title === '审计-会话甲' && st.msgs.includes('AUDIT_SEED_MESSAGE_ALPHA'), JSON.stringify(st));
-  return st.title;
+    space: document.getElementById('crumb-space').classList.contains('hidden') ? '' : document.getElementById('crumb-space').textContent })); return x.title === '审计-会话甲' ? x : null; }, 4000, 'session 甲 opened');
+  expect(st.msgs.includes('AUDIT_SEED_MESSAGE_ALPHA'), JSON.stringify(st));
+  expect(st.space === '', 'a task without a workspace shows a space crumb: ' + st.space);
+  return st.title + ' (no space crumb)';
 });
 await audit('space-row-session', '空间分组下的会话行 → 打开且面包屑显示空间', async () => {
   await main.click(`.session-list-nested li[data-id="${seedB.id}"]`);
-  const st = await until(() => main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
-    space: document.getElementById('crumb-space').textContent })), 3000, 'opened');
-  expect(st.title === '审计-会话乙' && st.space === '审计空间', JSON.stringify(st));
+  const st = await until(async () => { const x = await main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
+    space: document.getElementById('crumb-space').textContent })); return x.title === '审计-会话乙' ? x : null; }, 4000, 'session 乙 opened');
+  expect(st.space === '审计空间', JSON.stringify(st));
   return JSON.stringify(st);
 });
 

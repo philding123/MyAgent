@@ -513,7 +513,8 @@ async function openSession(id) {
   current = s; mode = s.mode || 'craft';
   closeHub();
   setHomeMode(false);
-  const spaceName = s.space || basename(s.cwd || '');
+  // home dir = no workspace (daemon default cwd): no space segment in the crumb
+  const spaceName = s.space || (s.cwd && s.cwd !== homeDir ? basename(s.cwd) : '');
   $('#crumb-space').textContent = spaceName;
   $('#crumb-space').classList.toggle('hidden', !spaceName);
   $('#crumb-sep').classList.toggle('hidden', !spaceName);
