@@ -392,8 +392,13 @@ async function runSmoke() {
     // F33 geometry: 980×720 window, 32px bar on the #f2f2f2 backdrop
     const pvInfo = await pvWin.webContents.executeJavaScript(
       '[window.innerWidth, window.innerHeight, document.getElementById("preview-bar").offsetHeight, getComputedStyle(document.body).backgroundColor]', true).catch(() => null);
-    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvInfo[1] === 720 && pvInfo[2] === 32
-      && /242,\s*242,\s*242/.test(pvInfo[3]), JSON.stringify(pvInfo));
+    // a work area shorter than 720 + frame (CI runners run 1024×768) makes the
+    // OS clamp the window: then the content must fill what the screen allows
+    const wa = require('electron').screen.getPrimaryDisplay().workAreaSize;
+    const fits = wa.height >= 720 + 48;
+    const pvH = !!pvInfo && (fits ? pvInfo[1] === 720 : pvInfo[1] >= wa.height - 120 && pvInfo[1] <= 720);
+    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvH && pvInfo[2] === 32
+      && /242,\s*242,\s*242/.test(pvInfo[3]), JSON.stringify(pvInfo) + (fits ? '' : ' clamped by work area ' + wa.width + '×' + wa.height));
     // F29 dark tokens end-to-end: setTheme over the real chain (persist +
     // rpc:event app:theme broadcast → renderer applies data-theme)
     await mainWin.webContents.executeJavaScript(

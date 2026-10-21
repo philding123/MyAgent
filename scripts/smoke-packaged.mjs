@@ -31,10 +31,13 @@ const home = fs.mkdtempSync(path.join(os.tmpdir(), 'myagent-pkg-smoke-'));
 const out = path.join(home, 'smoke-result.json');
 const extra = process.platform === 'linux' && process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [];
 let cmd = bin; let cmdArgs = extra;
-if (process.platform === 'linux' && !process.env.DISPLAY) { cmdArgs = ['-a', bin, ...extra]; cmd = 'xvfb-run'; }
+// explicit 24-bit screen: xvfb-run's default is 640×480×8
+if (process.platform === 'linux' && !process.env.DISPLAY) { cmdArgs = ['-a', '-s', '-screen 0 1600x1000x24', bin, ...extra]; cmd = 'xvfb-run'; }
+const logFile = path.join(home, 'app.log');
+const log = fs.openSync(logFile, 'a');
 console.log('[smoke-packaged] ' + bin);
 const child = spawn(cmd, cmdArgs, {
-  stdio: 'ignore', detached: process.platform !== 'win32',
+  stdio: ['ignore', log, log], detached: process.platform !== 'win32',
   env: { ...process.env, MYAGENT_SMOKE: '1', MYAGENT_SMOKE_OUT: out, MYAGENT_HOME: path.join(home, 'data') },
 });
 let parsed = null;
@@ -45,7 +48,8 @@ for (let i = 0; i < 240 && !parsed; i++) {
 // the Electron tree can outlive the result file (Windows) — reap it
 if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F']);
 else { try { process.kill(-child.pid, 'SIGKILL'); } catch (_) {} }
-if (!parsed) { console.error('[smoke-packaged] no result within 240s'); process.exit(1); }
+const tail = () => fs.readFileSync(logFile, 'utf8').split('\n').slice(-60).join('\n');
+if (!parsed) { console.error('[smoke-packaged] no result within 240s — app output tail:\n' + tail()); process.exit(1); }
 for (const s of parsed.steps) if (!s.ok) console.log('FAIL ' + s.name + ' ' + String(s.detail).slice(0, 200));
 const store = (parsed.steps.find((s) => s.name === 'selfcheck') || {}).detail;
 console.log(`[smoke-packaged] ${parsed.steps.filter((s) => s.ok).length}/${parsed.steps.length} steps ok, store=${store}`);
