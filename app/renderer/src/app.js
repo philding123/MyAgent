@@ -192,7 +192,9 @@ let sessions = [];
 let current = null; // session row
 let mode = 'craft';
 let streamingEl = null;
-let engineRunning = false;
+const runningSessions = new Set(); // session ids whose engine turn is in flight
+let draftMode = 'craft';  // draft home: mode / workspace picked before the first send
+let draftCwd = null;
 let homeDir = null; // from app.version — sessions whose cwd is home are loose tasks
 
 // ---------- RPC helpers ----------
@@ -206,7 +208,15 @@ window.myagent.onEvent((msg) => {
   const { topic, payload } = msg;
   if (topic === 'daemon:status') setDaemonStatus(false);
   if (topic === 'daemon:ready') { setDaemonStatus(true); refreshSessions(payload.sessions); }
-  if (current && topic === 'engine:' + current.id) handleEngineEvent(payload);
+  if (topic.startsWith('engine:')) {
+    // track every session's engine so switching tasks never inherits another
+    // session's "running" flag (the send path keys engine.start off it)
+    const sid = topic.slice('engine:'.length);
+    if (payload.type === 'done' || payload.type === 'engine_exit' || payload.type === 'error') runningSessions.delete(sid);
+    if (current && sid === current.id) handleEngineEvent(payload);
+  }
+  if (topic === 'sessions:changed') scheduleSessionRefresh();
+  if (topic === 'settings:changed' && payload.key === 'llm.model') $('#composer-model').textContent = payload.value || 'local-model';
   if (topic.startsWith('terminal:')) handleTerminalEvent(topic, payload);
   if (topic === 'app:pendingUrls') handlePendingUrls(payload);
   if (topic === 'app:theme') document.body.dataset.theme = payload.theme;
@@ -226,6 +236,17 @@ function handlePendingUrls(list) {
     if (u.action === 'session' && u.id) openSession(u.id);
     if (u.action === 'settings') window.myagent.windowAction('openSettings');
   }
+}
+
+// sessions changed elsewhere (settings window, scheduled task, sync): re-read
+// the list; if the open task no longer exists fall back to the draft home
+let refreshTimer = null;
+function scheduleSessionRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    await refreshSessions().catch(() => {});
+    if (current && !sessions.some((s) => s.id === current.id)) newTask();
+  }, 80);
 }
 
 function setDaemonStatus(ok) {
@@ -274,7 +295,7 @@ function handleEngineEvent(ev) {
     // stream finished: hydrate mermaid once on the final text (F19)
     if (streamingEl && streamingEl.isConnected) hydrateMermaid(streamingEl.querySelector('.md'));
     finishStreaming();
-    engineRunning = false;
+    runningSessions.delete(current && current.id);
     setSendEnabled(true);
     hideProgress();
     if (ev.reason === 'error') appendMessage('event', { content: 'engine error — see logs' });
@@ -286,9 +307,9 @@ function handleEngineEvent(ev) {
   } else if (ev.type === 'error') {
     finishStreaming();
     hideProgress();
+    setSendEnabled(true);
     appendMessage('event', { content: 'error: ' + ev.message });
   } else if (ev.type === 'engine_exit') {
-    engineRunning = false;
     setSendEnabled(true);
     hideProgress();
   }
@@ -334,7 +355,23 @@ const PILL_ICONS = {
   dev: '<svg viewBox="0 0 16 16" width="15" height="15"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
   design: '<svg viewBox="0 0 16 16" width="15" height="15"><path d="M8 2a6 6 0 1 0 0 12c.8 0 1.2-.5 1.2-1.1 0-.8-.6-1-.6-1.7 0-.6.5-1 1.1-1H11a3 3 0 0 0 3-3C14 4.4 11.3 2 8 2z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="5" cy="7" r=".9" fill="currentColor"/><circle cx="8" cy="5" r=".9" fill="currentColor"/></svg>',
 };
-const HERO_CHIPS = ['创作文档', '金融服务', '分析数据', '制作PPT', '深度研究', '策划方案', '定时任务'];
+// scene switch (办公/开发/设计) swaps the chip row and the suggestion list;
+// 办公 = the wb-live-home.png default content
+const SCENES = {
+  office: {
+    chips: ['创作文档', '金融服务', '分析数据', '制作PPT', '深度研究', '策划方案', '定时任务'],
+    suggestions: ['做一张应收、应付和开票查询表', '每周一提醒我安排本周工作重点', '做一份年报审计准备清单', '开会前30分钟提醒我准备会议资料'],
+  },
+  dev: {
+    chips: ['代码审查', '修复 Bug', '写单元测试', '解释代码', '重构模块', '搭建 MCP 服务', '写技术文档'],
+    suggestions: ['审查当前工作区最近的改动并列出风险', '为这个模块补齐单元测试', '解释这段代码的执行流程并画时序图', '把这个脚本改写成可复用的命令行工具'],
+  },
+  design: {
+    chips: ['海报设计', '配色方案', '落地页', '品牌规范', '图标草图', '演示文稿主题', '算法艺术'],
+    suggestions: ['设计一张活动海报并导出 PNG', '给我的产品出三套配色方案', '做一个产品介绍落地页 HTML', '为周会 PPT 设计一套统一主题'],
+  },
+};
+let scene = 'office';
 
 // WorkBuddy v5.8.2 home (design/33): 「MyAgent, 我帮你」 title + scene pill
 // row + chips row; suggestions live under the composer
@@ -343,28 +380,35 @@ function showHomeHero() {
   hero.className = 'home-hero';
   hero.innerHTML = '<div class="home-hero__title">MyAgent, 我帮你</div>' +
     '<div class="home-hero__pills">' +
-    '<button class="pill active">' + PILL_ICONS.office + '办公</button>' +
-    '<button class="pill">' + PILL_ICONS.dev + '开发</button>' +
-    '<button class="pill">' + PILL_ICONS.design + '设计</button></div>' +
-    '<div class="home-hero__chips">' +
-    HERO_CHIPS.map((c) => '<span class="chip">' + c + '</span>').join('') + '</div>';
+    '<button class="pill" data-scene="office">' + PILL_ICONS.office + '办公</button>' +
+    '<button class="pill" data-scene="dev">' + PILL_ICONS.dev + '开发</button>' +
+    '<button class="pill" data-scene="design">' + PILL_ICONS.design + '设计</button></div>' +
+    '<div class="home-hero__chips"></div>';
   $('#messages').appendChild(hero);
-  renderSuggestions();
-  hero.querySelectorAll('.home-hero__chips .chip').forEach((c) => {
-    c.onclick = () => { const i = $('#input'); i.value = c.textContent; i.focus(); };
+  hero.querySelectorAll('.home-hero__pills .pill').forEach((p) => {
+    p.onclick = () => { scene = p.dataset.scene; renderScene(hero); };
   });
+  renderScene(hero);
 }
 
-const SUGGESTIONS = [
-  '做一张应收、应付和开票查询表',
-  '每周一提醒我安排本周工作重点',
-  '做一份年报审计准备清单',
-  '开会前30分钟提醒我准备会议资料',
-];
+function renderScene(hero) {
+  hero.querySelectorAll('.home-hero__pills .pill').forEach((p) => p.classList.toggle('active', p.dataset.scene === scene));
+  const chips = hero.querySelector('.home-hero__chips');
+  chips.innerHTML = '';
+  for (const c of SCENES[scene].chips) {
+    const el = document.createElement('span');
+    el.className = 'chip';
+    el.textContent = c;
+    el.onclick = () => { const i = $('#input'); i.value = c; i.focus(); };
+    chips.appendChild(el);
+  }
+  renderSuggestions();
+}
+
 function renderSuggestions() {
   const list = $('#suggestion-list');
   list.innerHTML = '';
-  for (const s of SUGGESTIONS) {
+  for (const s of SCENES[scene].suggestions) {
     const b = document.createElement('button');
     b.className = 'suggestion';
     b.innerHTML = escapeHtml(s) + ' <span class="arr">↗</span>';
@@ -475,6 +519,8 @@ async function openSession(id) {
   $('#crumb-sep').classList.toggle('hidden', !spaceName);
   $('#session-title').textContent = s.title;
   updateModeButtons();
+  updateWorkspaceChip();
+  setSendEnabled(!runningSessions.has(s.id));
   $('#messages').innerHTML = '';
   toolCards.clear();
   todoEl = null;
@@ -498,6 +544,10 @@ function newTask() {
   current = null;
   closeHub();
   setHomeMode(true);
+  mode = 'craft'; draftMode = 'craft'; draftCwd = null;
+  updateModeButtons();
+  updateWorkspaceChip();
+  setSendEnabled(true);
   $('#crumb-space').classList.add('hidden');
   $('#crumb-sep').classList.add('hidden');
   $('#session-title').textContent = '新任务';
@@ -521,33 +571,59 @@ function updateModeButtons() {
 }
 
 // ---------- send ----------
-function setSendEnabled(on) { $('#btn-send').disabled = !on; $('#btn-send').textContent = on ? '发送' : '…'; }
+function setSendEnabled(on) { $('#btn-send').disabled = !on; $('#btn-send').textContent = on ? '↑' : '…'; }
+
+// 「选择工作空间」: draft → remembered for the session the first send creates;
+// open task → sessions.setCwd. Home dir counts as "no workspace".
+function updateWorkspaceChip() {
+  const cwd = current ? current.cwd : draftCwd;
+  const has = cwd && cwd !== homeDir;
+  $('#sub-workspace').textContent = (has ? basename(cwd) : '选择工作空间') + ' ▾';
+  $('#sub-workspace').title = has ? cwd : '当前会话工作空间';
+}
+async function pickWorkspace() {
+  const dir = await window.myagent.windowAction('pickDirectory');
+  if (!dir) return;
+  if (current) {
+    await rpc('sessions.setCwd', { id: current.id, cwd: dir });
+    current.cwd = dir;
+  } else draftCwd = dir;
+  updateWorkspaceChip();
+}
 
 async function send() {
   const input = $('#input');
   const text = input.value.trim();
   if (!text) return;
-  // draft → session materializes on first send (wb behavior)
-  if (!current) {
-    current = await rpc('sessions.create', { title: text.slice(0, 30) });
-    setHomeMode(false);
-    $('#session-title').textContent = current.title;
-  }
-  input.value = '';
-  // F43: @"path" tokens become engine context (stripped from the message)
+  // F43: @"path" tokens become engine context (stripped from the message and
+  // from the task title)
   const context = [...text.matchAll(/@"([^"]+)"/g)].map((m) => m[1]);
   const clean = context.length ? text.replace(/@"[^"]+"/g, '').replace(/ {2,}/g, ' ').trim() : text;
+  if (!clean && !context.length) return;
+  // draft → session materializes on first send (wb behavior)
+  if (!current) {
+    // the draft's mode / workspace choices belong to the session it becomes
+    current = await rpc('sessions.create', { title: (clean || basename(context[0])).slice(0, 30), mode: draftMode, ...(draftCwd ? { cwd: draftCwd } : {}) });
+    mode = current.mode;
+    setHomeMode(false);
+    $('#session-title').textContent = current.title;
+    updateModeButtons();
+  }
+  input.value = '';
   appendMessage('user', { content: clean });
+  // attached files are visible on the message (they ride as engine context)
+  if (context.length) appendMessage('event', { content: '📎 ' + context.map(basename).join('、') });
+  const sid = current.id;
   try {
-    if (!engineRunning) {
-      await rpc('engine.start', { sessionId: current.id });
-      engineRunning = true;
+    if (!runningSessions.has(sid)) {
+      await rpc('engine.start', { sessionId: sid });
+      runningSessions.add(sid);
       setSendEnabled(false);
     }
-    await rpc('engine.userMessage', { sessionId: current.id, text: clean, context });
+    await rpc('engine.userMessage', { sessionId: sid, text: clean, context });
   } catch (e) {
     appendMessage('event', { content: 'send failed: ' + e.message });
-    engineRunning = false;
+    runningSessions.delete(sid);
     setSendEnabled(true);
   }
 }
@@ -597,10 +673,16 @@ async function loadHubTab() {
         title: p.name, desc: (p.description || p.prompt || '').slice(0, 160), tag: '专家', letter: p.name })));
     } else if (hub.tab === 'connectors') {
       const list = await rpc('connectors.list');
+      const tag = (c) => (c.enabled === false ? '已停用'
+        : c.state === 'connected' ? '已连接 · ' + c.tools.length + ' 个工具'
+          : c.state === 'starting' ? '连接中…'
+            : c.state === 'error' ? '错误：' + (c.error || '') : '未连接');
       renderHubCards('#hub-connector-grid', '#hub-connector-empty', list.map((c) => ({
-        title: c.name || c.id, desc: (c.command || '') + ' ' + (c.args || []).join(' '),
-        tag: c.state === 'connected' ? '已连接 · ' + c.tools.length + ' 个工具' : (c.enabled === false ? '已停用' : '未连接'),
-        letter: c.name || c.id })));
+        title: c.name || c.id, desc: (c.command || '') + ' ' + (c.args || []).join(' '), tag: tag(c), letter: c.name || c.id })));
+      // a handshake in flight settles within seconds — keep the card live
+      if (list.some((c) => c.enabled !== false && c.state === 'starting')) {
+        setTimeout(() => { if (hub.tab === 'connectors' && !$('#hub').classList.contains('hidden')) loadHubTab(); }, 700);
+      }
     }
   } catch (e) {
     $('#hub-banner').textContent = '加载失败：' + e.message;
@@ -746,7 +828,7 @@ function toggleMoreMenu(force) {
 }
 
 // ---------- terminal panel (F14) ----------
-let term = null; let termId = null;
+let term = null; let termId = null; let termKind = null;
 async function toggleTerminal() {
   const panel = $('#terminal-panel');
   panel.classList.toggle('hidden');
@@ -755,11 +837,15 @@ async function toggleTerminal() {
       const { Terminal } = await import('@xterm/xterm');
       term = new Terminal({ convertEol: false, fontSize: 12 });
       term.open($('#terminal-view'));
+      // keystrokes go to the shell (the panel was display-only before)
+      term.onData((data) => { if (termId) rpc('terminal.write', { id: termId, data }).catch(() => {}); });
     }
     if (!termId) {
       const r = await rpc('terminal.create', { cwd: (current && current.cwd) || undefined });
       termId = r.id;
+      termKind = r.kind;
       term.write('MyAgent terminal (' + r.kind + ')\r\n');
+      rpc('terminal.resize', { id: termId, cols: term.cols, rows: term.rows }).catch(() => {});
     }
     term.focus();
   }
@@ -767,7 +853,10 @@ async function toggleTerminal() {
 
 function handleTerminalEvent(topic, payload) {
   if (!term) return;
-  if (topic.endsWith(':data') && termId && topic.startsWith('terminal:' + termId)) term.write(payload.data);
+  if (!termId || !topic.startsWith('terminal:' + termId + ':')) return;
+  // pipe fallback has no tty: bare \n from the shell needs \r\n in xterm
+  if (topic.endsWith(':data')) term.write(termKind === 'pipe' ? String(payload.data).replace(/\r?\n/g, '\r\n') : payload.data);
+  if (topic.endsWith(':exit')) { term.write('\r\n[shell exited]\r\n'); termId = null; }
 }
 
 // ---------- wire up ----------
@@ -858,6 +947,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       b.onclick = () => {
         menuEl.remove();
         mode = k;
+        if (!current) draftMode = k;
         updateModeButtons();
         if (current) rpc('sessions.setMode', { id: current.id, mode }).catch(() => {});
       };
@@ -875,9 +965,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });
+  $('#sub-workspace').onclick = () => pickWorkspace().catch((e) => appendMessage('event', { content: 'workspace: ' + e.message }));
   document.querySelectorAll('#mode-switch button').forEach((b) => {
     b.onclick = async () => {
-      if (!current) return;
+      if (!current) { draftMode = mode = b.dataset.mode; updateModeButtons(); return; }
       mode = b.dataset.mode;
       updateModeButtons();
       await rpc('sessions.setMode', { id: current.id, mode });

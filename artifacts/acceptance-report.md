@@ -1,9 +1,10 @@
 # MyAgent 验收报告
 
-- 生成时间: 2026-10-21T09:12:45.063Z
-- 单元测试: PASS (70 cases)
-- 集成测试: PASS (67 cases)
+- 生成时间: 2026-10-21T09:49:54.026Z
+- 单元测试: PASS (72 cases)
+- 集成测试: PASS (68 cases)
 - E2E 冒烟: PASS
+- 按钮审计: PASS (91/91，明细 artifacts/button-audit/button-audit.md)
 
 | T | 功能点 | 结果 | 明细 |
 |---|---|---|---|
@@ -16,13 +17,13 @@
 | T07 | F07 模式策略 | PASS | ✓ T07 ask mode blocks writes and commands (hard rules)<br>✓ T07 plan mode: read-only command allowed, writes need confirm<br>✓ T07 plan mode: write goes through confirm and denial stops it |
 | T08 | F08 沙箱 | PASS | ✓ T08 credentials dir is fully denied (WorkBuddy tsbx parity)<br>✓ T08 temp + workspace allowed for all ops<br>✓ T08 outside workspace defaults to read-only (fail-safe)<br>✓ T08 ** crosses segments, * stays within one<br>✓ T08 command rules deny/confirm/allow<br>✓ T08 default rules protect .ssh and keystore<br>✓ T08 rule separators are OS-agnostic (wb backslash rules hold on posix) |
 | T09 | F09 确认门控 | PASS | ✓ T09a sandbox deny pattern blocks rm -rf without confirm<br>✓ T09b confirm pattern asks, denial stops execution<br>✓ T09c approved confirm executes the command |
-| T10 | F10 凭证保护 | PASS | ✓ T10 vault roundtrip without plaintext on disk<br>✓ T10 vault delete |
+| T10 | F10 凭证保护 | PASS | ✓ T10 vault roundtrip without plaintext on disk<br>✓ T10 vault delete<br>✓ T10c settings.set routes credential keys into the vault; plaintext from old builds is migrated |
 | T11 | F11 技能系统 | PASS | ✓ T11 frontmatter parses WorkBuddy-style SKILL.md<br>✓ T11 frontmatter tolerates missing fields<br>✓ T11 scanSkillDir reads builtin sample<br>✓ T11 registry scan/toggle with builtin + user dirs<br>✓ T11 disable:true excluded from enabled<br>✓ T11b enabled skills appear in engine system prompt; skill_read works |
 | T12 | F12 本地市场 | PASS | ✓ T12d extractZip round-trips nested deflate entries<br>✓ T12d extractZip refuses zip-slip entries and writes nothing<br>✓ T12d extractZip rejects non-zip input<br>✓ T12c builtin evidence-check skill is scanned and readable (skill-parity method)<br>✓ T12a install from directory, list, uninstall<br>✓ T12b install from zip (pure-JS extractor, every OS) |
 | T13 | F13 记忆 | PASS | ✓ T13 preference reaches the LLM system message and deletion removes it<br>✓ T13 fact kind also injects |
 | T14 | F14 终端 | PASS | ✓ T14 terminal echo roundtrip |
 | T15 | F15 全局搜索 | PASS | ✓ T15 message + file hits with locators |
-| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"4ba0a8d3-86f6-4619-94cd-bd376cd11c7b"}])<br>✓ e2e:tray |
+| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"2871594b-c5d7-4ee1-b0d2-2aa94a25395d"}])<br>✓ e2e:tray |
 | T17 | F17 渲染管线 | PASS | ✓ e2e:render-sanitize ({"pwned":false,"html":"<p>&lt;img src=x onerror=window.__pwned=1&gt;</p>\n"}) |
 | T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (sqlite)<br>✓ e2e:preload-bridge (pong) |
 | T19 | F19 mermaid 渲染 | PASS | ✓ e2e:mermaid-render ({"svg":true,"errors":0}) |
@@ -36,14 +37,14 @@
 | T27 | F27 云沙箱 | PASS | ✓ T27 fs/exec roundtrip on the cloud backend<br>✓ T27 401 triggers exactly one shared reconnect then succeeds<br>✓ T27 concurrent auth failures share one reconnect attempt<br>✓ T27 reconnect throttle: second auth error within 10s fails closed<br>✓ T27 tool layer routes through the cloud backend<br>✓ e2e:phase4-fields |
 | T28 | F28 A2A 协作 | PASS | ✓ T28 agentCard has A2A-required fields<br>✓ T28 message/send roundtrip + delegate client + card shape<br>✓ T28 delegate reports unreachable agent as a value error<br>✓ e2e:a2a-card (MyAgent) |
 | T29 | F29-F33 像素级 UI（WorkBuddy 复刻，排除支付） | PASS | ✓ e2e:ui-token ({"brand":"#00c29a","side":360,"band":30})<br>✓ e2e:ui-shell ({"brand":"#00c29a","side":360,"band":30})<br>✓ e2e:ui-main ({"top":64,"heroOk":true})<br>✓ e2e:ui-settings (224)<br>✓ e2e:ui-search ([800,640,42])<br>✓ e2e:ui-preview ([980,720,32,"rgb(242, 242, 242)"])<br>✓ e2e:ui-token-dark ({"attr":"dark","brand":"#4ecba0","content":"#1a1a1a","side":"#1f1f1f","gray2":"#292929"})<br>✓ e2e:ui-paywall-zero |
-| T30 | F34 MCP 服务面 | PASS | ✓ T30 initialize handshake returns protocol version + server info<br>✓ T30 notifications return null (no response frame)<br>✓ T30 tools/list exposes the four minimal tools<br>✓ T30 tools/call sessions_list returns the seeded session<br>✓ T30 tools/call search_query finds the seeded message<br>✓ T30 tools/call with unknown tool fails -32602<br>✓ T30 resources/read round-trips the seeded session<br>✓ T30 unknown method fails -32601; invalid request fails -32600<br>✓ e2e:mcp-status ({"start":{"running":true,"pid":14246},"run":{"running":true,"pid":14246}}) |
-| T31 | F35 原生菜单最小面 | PASS | ✓ e2e:menu ({"accelerator":"CmdOrCtrl+N","menuState":{"home":true,"count":0},"before":9,"after":9}) |
+| T30 | F34 MCP 服务面 | PASS | ✓ T30 initialize handshake returns protocol version + server info<br>✓ T30 notifications return null (no response frame)<br>✓ T30 tools/list exposes the four minimal tools<br>✓ T30 tools/call sessions_list returns the seeded session<br>✓ T30 tools/call search_query finds the seeded message<br>✓ T30 tools/call with unknown tool fails -32602<br>✓ T30 resources/read round-trips the seeded session<br>✓ T30 unknown method fails -32601; invalid request fails -32600<br>✓ e2e:mcp-status ({"start":{"running":true,"pid":6638},"run":{"running":true,"pid":6638}}) |
+| T31 | F35 原生菜单最小面 | PASS | ✓ e2e:menu ({"accelerator":"CmdOrCtrl+N","menuState":{"home":true,"count":0},"before":13,"after":13}) |
 | T32 | F36 启动画面 splash | PASS | ✓ e2e:splash-handoff ({"created":true,"closed":true}) |
 | T33 | F39 空间 | PASS | ✓ T33 space field persists and groups sessions |
 | T34 | F40 定时任务 | PASS | ✓ T34 scheduler fires on interval and honors remove<br>✓ T34 scheduler disabled schedule does not fire |
 | T35 | F41 预设（助理） | PASS | ✓ T35 preset store CRUD |
 | T36 | F42 资料库 | PASS | ✓ T36 library tools list and read inside the library dir |
-| T37 | F43 @ 上下文 | PASS | ✓ T37 augmentContext inlines files and keeps unreadable notes |
+| T37 | F43 @ 上下文 | PASS | ✓ T37b leading /skill attaches that skill body<br>✓ T37b unknown skill, mid-text slash and paths are untouched<br>✓ T37 augmentContext inlines files and keeps unreadable notes |
 | T38 | F46 web_search/web_fetch 检索 | PASS | ✓ T38 bing SERP parser extracts title/url/snippet<br>✓ T38 htmlToText strips script/style and decodes entities<br>✓ T38 web_search uses cn.bing.com with encoded query (injected fetch)<br>✓ T38 web_search HTTP error and transport failure are values<br>✓ T38 web_fetch strips html over real localhost and caps chars |
 | T39 | F47 present_file 交付 | PASS | ✓ T39 present_file copies into the delivery stamp folder<br>✓ T39 present_file refuses outside-workspace and missing files<br>✓ T39b present_file tool_result carries artifact info |
 | T40 | F45 任务步数预算与续跑 | PASS | ✓ T40 engine.maxSteps bounds the loop and stays continuable |
@@ -54,6 +55,7 @@
 | T46 | F52 连接器（MCP 客户端） | PASS | ✓ T46a connector add → connected → tools listed over RPC<br>✓ T46b connector tool reaches the engine and round-trips a call |
 | T47 | F53 内置 Claude 技能市场 | PASS | ✓ T47a frontmatter parses YAML block scalars and quoted values<br>✓ T47a vendored catalog: Apache skills present and digests match, restricted ones view-only<br>✓ T47a builtin install copies the skill; restricted and tampered entries are refused<br>✓ T47a a remote entry cannot claim a builtin: source<br>✓ T47a market.builtin off → no builtin catalog<br>✓ T47b market.list exposes the Claude catalog; RPC install lands in skills.list<br>✓ T47b engine market tool searches and installs from the builtin catalog |
 | T48 | F54 wb 侧栏六项 + 专家·技能·连接器页 | PASS | ✓ e2e:ui-nav ({"labels":["新建任务","助理","专家·技能·连接器","定时任务","资料库","更多"],"h":202,"top":96,"time":true,"rel":["刚刚","5小时前"]})<br>✓ e2e:ui-hub ({"visible":true,"cards":23,"banner":"Claude 技能市场","viewOnly":"仅查看","picked":"skill-creator","after":"已安装","installedView":["skill-creator","evidence-check","marketplace-skill-installer","note-organizer","word-count"]}) |
+| T49 | 逐按钮结果审计（主窗/设置窗/搜索窗全部控件） | PASS | 91/91 控件按效果断言通过 |
 
 ## 降级记录
 - Electron 运行时 store 模式: sqlite

@@ -1,191 +1,639 @@
 [
   {
+    "section": "主窗 · 窗带",
     "id": "band-toggle",
     "name": "折叠/展开侧栏",
     "pass": true,
-    "note": "360→0→360",
-    "shots": []
+    "note": "360→0→360"
   },
   {
+    "section": "主窗 · 窗带",
     "id": "band-search",
-    "name": "窗带搜索钮 → 全局搜索窗",
+    "name": "窗带搜索 → 全局搜索窗（输入框聚焦）",
     "pass": true,
-    "note": "搜索窗出现",
-    "shots": []
+    "note": "search window opened, #q focused=true"
   },
   {
+    "section": "主窗 · 窗带",
     "id": "menu-edit",
-    "name": "菜单标签 编辑(E) → 原生菜单弹出",
+    "name": "菜单标签 edit → 弹出该分区的菜单项（非一层套娃）",
     "pass": true,
-    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
-    "shots": []
+    "note": "新建任务 / 打开设置 / 撤销 / 重做 / 剪切 / 复制 / 粘贴 / 全选"
   },
   {
+    "section": "主窗 · 窗带",
     "id": "menu-window",
-    "name": "菜单标签 窗口(W) → 原生菜单弹出",
+    "name": "菜单标签 window → 弹出该分区的菜单项（非一层套娃）",
     "pass": true,
-    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
-    "shots": []
+    "note": "全局搜索 / 最小化 / 最大化/还原 / 关闭"
   },
   {
+    "section": "主窗 · 窗带",
     "id": "menu-help",
-    "name": "菜单标签 帮助(H) → 原生菜单弹出",
+    "name": "菜单标签 help → 弹出该分区的菜单项（非一层套娃）",
     "pass": true,
-    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
-    "shots": []
+    "note": "使用手册（README）"
   },
   {
+    "section": "主窗 · 窗带",
     "id": "menu-about",
-    "name": "菜单标签 关于(A) → 原生菜单弹出",
+    "name": "菜单标签 about → 弹出该分区的菜单项（非一层套娃）",
     "pass": true,
-    "note": "点击无异常；原生弹层为 OS 层，不在页面截图内（见 design/31）",
-    "shots": []
+    "note": "MyAgent — WorkBuddy 个人复刻 / 版本 0.1.0"
   },
   {
+    "section": "主窗 · 窗带",
+    "id": "menu-edit-new",
+    "name": "编辑 → 新建任务 实际执行（进入草稿首页，不建会话）",
+    "pass": true,
+    "note": "home draft, sessions 2"
+  },
+  {
+    "section": "主窗 · 窗带",
+    "id": "menu-window-search",
+    "name": "窗口 → 全局搜索 实际打开搜索窗",
+    "pass": true,
+    "note": "opened"
+  },
+  {
+    "section": "主窗 · 窗带",
+    "id": "menu-help-manual",
+    "name": "帮助 → 使用手册 打开 README 预览",
+    "pass": true,
+    "note": "preview title=README.md"
+  },
+  {
+    "section": "主窗 · 窗带",
     "id": "win-max",
-    "name": "最大化/还原",
+    "name": "最大化/还原 改变窗口状态",
     "pass": true,
-    "note": "innerWidth 1200→2560→1200",
-    "shots": []
+    "note": "maximized false→true→false"
   },
   {
-    "id": "win-min-close",
-    "name": "最小化/关闭按钮存在",
+    "section": "主窗 · 窗带",
+    "id": "win-min",
+    "name": "最小化 让窗口最小化",
     "pass": true,
-    "note": "{\"min\":true,\"max\":true,\"close\":true}",
-    "shots": []
+    "note": "minimized=true, restored"
   },
   {
-    "id": "nav-presets",
-    "name": "助理（预设） → 设置窗对应面板",
+    "section": "主窗 · 侧栏",
+    "id": "btn-discover",
+    "name": "发现应用 → 主区技能页「全部」",
     "pass": true,
-    "note": "active panel=presets",
-    "shots": []
+    "note": "hub open on 技能/全部"
   },
   {
-    "id": "nav-market",
-    "name": "技能市场 → 设置窗对应面板",
+    "section": "主窗 · 侧栏",
+    "id": "btn-new",
+    "name": "新建任务 → 草稿首页（标题「新任务」、输入框聚焦、未建会话）",
     "pass": true,
-    "note": "active panel=market",
-    "shots": []
+    "note": "{\"home\":true,\"focus\":\"input\",\"title\":\"新任务\",\"hero\":true}"
   },
   {
+    "section": "主窗 · 侧栏",
+    "id": "nav-assistant",
+    "name": "nav-assistant → 设置窗「presets」面板",
+    "pass": true,
+    "note": "panel=presets"
+  },
+  {
+    "section": "主窗 · 侧栏",
     "id": "nav-tasks",
-    "name": "定时任务 → 设置窗对应面板",
+    "name": "nav-tasks → 设置窗「tasks」面板",
     "pass": true,
-    "note": "active panel=tasks",
-    "shots": []
+    "note": "panel=tasks"
   },
   {
+    "section": "主窗 · 侧栏",
     "id": "nav-library",
-    "name": "资料库 → 设置窗对应面板",
+    "name": "nav-library → 设置窗「library」面板",
     "pass": true,
-    "note": "active panel=library",
-    "shots": []
+    "note": "panel=library"
   },
   {
-    "id": "nav-skills",
-    "name": "技能 → 设置窗对应面板",
+    "section": "主窗 · 侧栏",
+    "id": "settings-panel-switch",
+    "name": "设置窗已开时再点另一导航 → 切到新面板（不是只聚焦旧面板）",
     "pass": true,
-    "note": "active panel=skills",
-    "shots": []
+    "note": "switched to tasks"
   },
   {
+    "section": "主窗 · 侧栏",
+    "id": "nav-hub",
+    "name": "专家·技能·连接器 → 主区技能页 + 导航高亮",
+    "pass": true,
+    "note": "23 cards"
+  },
+  {
+    "section": "主窗 · 侧栏",
+    "id": "nav-more",
+    "name": "更多 → 弹出菜单，再点关闭，点外部关闭",
+    "pass": true,
+    "note": "toggle + outside-close ok"
+  },
+  {
+    "section": "主窗 · 侧栏",
     "id": "nav-memory",
-    "name": "记忆 → 设置窗对应面板",
+    "name": "更多 → nav-memory",
     "pass": true,
-    "note": "active panel=memory",
-    "shots": []
+    "note": "settings/memory"
   },
   {
+    "section": "主窗 · 侧栏",
     "id": "nav-search",
-    "name": "侧栏全局搜索 → 搜索窗",
+    "name": "更多 → nav-search",
     "pass": true,
-    "note": "搜索窗出现",
-    "shots": []
+    "note": "search window"
   },
   {
-    "id": "session-open",
-    "name": "点击会话行 → 打开会话（面包屑+标题）",
+    "section": "主窗 · 侧栏",
+    "id": "nav-connectors",
+    "name": "更多 → nav-connectors",
     "pass": true,
-    "note": "{\"title\":\"审计-会话乙\",\"space\":\"phil\",\"home\":false}",
-    "shots": []
+    "note": "hub/连接器"
   },
   {
+    "section": "主窗 · 侧栏",
+    "id": "nav-market",
+    "name": "更多 → nav-market",
+    "pass": true,
+    "note": "settings/market"
+  },
+  {
+    "section": "主窗 · 侧栏",
+    "id": "btn-settings",
+    "name": "设置 → 设置窗",
+    "pass": true,
+    "note": "opened"
+  },
+  {
+    "section": "主窗 · 侧栏",
+    "id": "session-row",
+    "name": "点击会话行 → 打开该会话并加载其消息",
+    "pass": true,
+    "note": "审计-会话甲"
+  },
+  {
+    "section": "主窗 · 侧栏",
+    "id": "space-row-session",
+    "name": "空间分组下的会话行 → 打开且面包屑显示空间",
+    "pass": true,
+    "note": "{\"title\":\"审计-会话乙\",\"space\":\"审计空间\"}"
+  },
+  {
+    "section": "主窗 · 顶栏",
     "id": "mode-ask",
-    "name": "模式切换 → ask",
+    "name": "模式按钮 ask → daemon 持久化 + chip 同步",
     "pass": true,
-    "note": "chip=\"只读问答 ▾\"",
-    "shots": []
+    "note": "session.mode=ask"
   },
   {
+    "section": "主窗 · 顶栏",
     "id": "mode-plan",
-    "name": "模式切换 → plan",
+    "name": "模式按钮 plan → daemon 持久化 + chip 同步",
     "pass": true,
-    "note": "chip=\"计划模式 ▾\"",
-    "shots": []
+    "note": "session.mode=plan"
   },
   {
+    "section": "主窗 · 顶栏",
     "id": "mode-craft",
-    "name": "模式切换 → craft",
+    "name": "模式按钮 craft → daemon 持久化 + chip 同步",
     "pass": true,
-    "note": "chip=\"允许完全访问 ▾\"",
-    "shots": []
+    "note": "session.mode=craft"
   },
   {
+    "section": "主窗 · 顶栏",
     "id": "btn-terminal",
-    "name": "终端按钮 → 终端面板",
+    "name": "终端 → 面板打开，键入命令真的执行并回显",
     "pass": true,
-    "note": "打开=true 可关闭=true",
-    "shots": []
+    "note": "echoed AUDIT_TERM_42"
   },
   {
+    "section": "主窗 · 顶栏",
     "id": "btn-preview",
-    "name": "预览按钮存在（点击会打开系统文件对话框，无法自动化）",
+    "name": "预览 → 选文件 → 预览窗显示该文件内容",
     "pass": true,
-    "note": "{\"btn\":true,\"title\":\"预览文件 (docx/pdf/xlsx/pptx…)\"}",
-    "shots": []
+    "note": "preview shows the picked file"
   },
   {
-    "id": "btn-search-top",
-    "name": "顶栏搜索钮 → 搜索窗",
+    "section": "主窗 · 顶栏",
+    "id": "btn-preview-cancel",
+    "name": "预览 → 取消选择 → 不开窗",
     "pass": true,
-    "note": "搜索窗出现",
-    "shots": []
+    "note": "no window"
   },
   {
-    "id": "composer-context",
-    "name": "@ 上下文按钮存在（点击打开系统文件对话框，无法自动化）",
+    "section": "主窗 · 顶栏",
+    "id": "btn-search",
+    "name": "顶栏搜索 → 搜索窗",
     "pass": true,
-    "note": "{\"btn\":true}",
-    "shots": []
+    "note": "opened"
   },
   {
-    "id": "composer-slash",
-    "name": "/ 技能按钮 → 内联技能菜单",
+    "section": "主窗 · 技能页",
+    "id": "hub-chip-installed",
+    "name": "筛选「已安装」 → 只剩已安装技能",
     "pass": true,
-    "note": "{\"items\":3,\"value\":\"/ \"}",
-    "shots": []
+    "note": "evidence-check,marketplace-skill-installer,note-organizer,word-count"
   },
   {
-    "id": "sub-mode",
-    "name": "模式 chip → 三选项菜单",
+    "section": "主窗 · 技能页",
+    "id": "hub-chip-creative",
+    "name": "筛选「creative」 → 只剩该分组",
     "pass": true,
-    "note": "菜单项=3",
-    "shots": []
+    "note": "5 cards"
   },
   {
+    "section": "主窗 · 技能页",
+    "id": "hub-chip-dev",
+    "name": "筛选「dev」 → 只剩该分组",
+    "pass": true,
+    "note": "5 cards"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-chip-enterprise",
+    "name": "筛选「enterprise」 → 只剩该分组",
+    "pass": true,
+    "note": "5 cards"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-chip-document",
+    "name": "筛选「document」 → 只剩该分组",
+    "pass": true,
+    "note": "4 cards"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-search",
+    "name": "搜索框 → 按名称/中文名过滤",
+    "pass": true,
+    "note": "MCP→mcp-builder,claude-api,academy-guide; 主题工厂→theme-factory; empty state"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-install",
+    "name": "卡片「安装」 → 技能装入用户目录，按钮变「已安装」",
+    "pass": true,
+    "note": "installed to skills/mcp-builder"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-toggle",
+    "name": "「已安装」再点 → 停用（引擎不再加载），再点 → 启用",
+    "pass": true,
+    "note": "disable → enable round trip"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-view-only",
+    "name": "「仅查看」 → 打开上游 https 页面，不安装",
+    "pass": true,
+    "note": "opened upstream page"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-tab-experts",
+    "name": "Tab 专家 → 显示预设",
+    "pass": true,
+    "note": "preset card shown"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-manage-experts",
+    "name": "管理专家 → 设置窗「presets」",
+    "pass": true,
+    "note": "settings/presets"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-tab-connectors",
+    "name": "Tab 连接器 → 显示连接器与连接状态",
+    "pass": true,
+    "note": "auditmcp 已连接 · 1 个工具"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-manage-connectors",
+    "name": "管理连接器 → 设置窗「connectors」",
+    "pass": true,
+    "note": "settings/connectors"
+  },
+  {
+    "section": "主窗 · 技能页",
+    "id": "hub-tab-skills",
+    "name": "Tab 技能 → 回到技能卡片",
+    "pass": true,
+    "note": "ok"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "hero-pills",
+    "name": "场景切换 办公/开发/设计 → 激活态与 chip/建议随场景变化",
+    "pass": true,
+    "note": "代码审查|修复 Bug|写单元测试|解释代码|重构模块|搭建 MCP 服务|写技术文档"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "hero-chip",
+    "name": "chip → 填入输入框并聚焦",
+    "pass": true,
+    "note": "创作文档"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "suggestion",
+    "name": "建议条 → 填入输入框",
+    "pass": true,
+    "note": "做一张应收、应付和开票查询表"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "btn-plus",
+    "name": "＋ → 弹出 @/技能 菜单，点外部关闭",
+    "pass": true,
+    "note": "ok"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "sub-workspace",
+    "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
+    "pass": true,
+    "note": "cwd=/tmp/myagent-audit-fx-zIYwft/audit_workspace"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "sub-mode-draft",
+    "name": "草稿态选「只读问答」 → 首条消息建的会话 mode=ask（引擎按 ask 跑）",
+    "pass": true,
+    "note": "mode=ask"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "sub-mode-session",
+    "name": "会话中 chip 菜单切到「计划模式」 → daemon 持久化",
+    "pass": true,
+    "note": "topbar (chip hidden in task view)"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "btn-context",
+    "name": "＋ → @ 添加上下文 → 选文件 → 发送后 LLM 收到文件内容",
+    "pass": true,
+    "note": "LLM user message carries the file content"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "btn-slash",
+    "name": "＋ → / 调用技能 → 选技能 → 发送后 LLM 收到该技能正文",
+    "pass": true,
+    "note": "LLM got the mcp-builder SKILL.md body"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
     "id": "composer-model",
-    "name": "模型 chip → 设置模型面板",
+    "name": "模型 chip → 设置窗「model」面板，显示当前模型",
     "pass": true,
-    "note": "active panel=model",
-    "shots": []
+    "note": "chip=audit-model → settings/model"
   },
   {
+    "section": "主窗 · 首页与输入区",
     "id": "btn-send",
-    "name": "发送 → 草稿物化为会话 + mock 回复",
+    "name": "发送（Enter 与按钮）→ 草稿物化为会话 + 回复渲染 + 消息落库",
     "pass": true,
-    "note": "回复=\"mock default reply\" 会话 2→3",
-    "shots": []
+    "note": "two turns rendered + persisted"
+  },
+  {
+    "section": "主窗 · 首页与输入区",
+    "id": "btn-send-empty",
+    "name": "空输入点发送 → 不建会话、不请求 LLM",
+    "pass": true,
+    "note": "no-op"
+  },
+  {
+    "section": "主窗 · 运行中控件",
+    "id": "confirm-approve",
+    "name": "plan 模式写文件 → 批准条「Approve」→ 文件真的写入",
+    "pass": true,
+    "note": "approved.txt written"
+  },
+  {
+    "section": "主窗 · 运行中控件",
+    "id": "confirm-deny",
+    "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
+    "pass": true,
+    "note": "denied, not written; s=c6c3c9"
+  },
+  {
+    "section": "主窗 · 运行中控件",
+    "id": "artifact-card",
+    "name": "产物卡片 → 预览窗打开该文件",
+    "pass": true,
+    "note": "preview of approved.txt"
+  },
+  {
+    "section": "主窗 · 运行中控件",
+    "id": "continue",
+    "name": "步数上限 → 「继续」按钮 → 同一引擎继续并完成",
+    "pass": true,
+    "note": "continued"
+  },
+  {
+    "section": "设置窗",
+    "id": "settings-nav",
+    "name": "左侧 17 个导航 → 各自面板显示、其余隐藏",
+    "pass": true,
+    "note": "appearance,model,engine,update,presets,tasks,library,market,skills,connectors,memory,im,a2a,sync,sandbox,selfcheck,data"
+  },
+  {
+    "section": "设置窗",
+    "id": "settings-search",
+    "name": "搜索设置项 → 只留匹配导航",
+    "pass": true,
+    "note": "connectors"
+  },
+  {
+    "section": "设置窗",
+    "id": "theme-select",
+    "name": "主题 深色 → 设置窗与主窗都变深色并持久化",
+    "pass": true,
+    "note": "cross-window + persisted"
+  },
+  {
+    "section": "设置窗",
+    "id": "llm-fields",
+    "name": "模型 Base URL / Model 改动 → 持久化；API Key → 进 vault 不落明文",
+    "pass": true,
+    "note": "model persisted, chip follows, key in vault only"
+  },
+  {
+    "section": "设置窗",
+    "id": "btn-test-llm",
+    "name": "测试连接 → 对 mock 端点 OK；坏地址 → 显示失败",
+    "pass": true,
+    "note": "OK / fail: fetch failed"
+  },
+  {
+    "section": "设置窗",
+    "id": "prewarm-chk",
+    "name": "预热进程池 → 设置持久化且引擎池真的起/停空闲进程",
+    "pass": true,
+    "note": "pool up then drained"
+  },
+  {
+    "section": "设置窗",
+    "id": "presets",
+    "name": "创建预设 → 列表出现；选中 + 删除 → 消失",
+    "pass": true,
+    "note": "create + remove"
+  },
+  {
+    "section": "设置窗",
+    "id": "tasks",
+    "name": "定时任务 创建/选中删除/刷新",
+    "pass": true,
+    "note": "create(30min) / refresh / remove"
+  },
+  {
+    "section": "设置窗",
+    "id": "library",
+    "name": "资料库 添加文件 → 引擎可读；选中移除；刷新",
+    "pass": true,
+    "note": "add / refresh / remove"
+  },
+  {
+    "section": "设置窗",
+    "id": "connectors",
+    "name": "连接器 添加并连接 → 已连接；停用/启用；移除；刷新",
+    "pass": true,
+    "note": "add/connect, toggle, remove, bad-args error"
+  },
+  {
+    "section": "设置窗",
+    "id": "update",
+    "name": "清单 URL 持久化；检查更新（不可达清单）→ 如实报错；应用更新（无已下载）→ 如实报错",
+    "pass": true,
+    "note": "error: fetch failed / error: nothing ready to apply"
+  },
+  {
+    "section": "设置窗",
+    "id": "market-panel",
+    "name": "云端市场 搜索/安装首个结果（内置目录）+ 源设置持久化",
+    "pass": true,
+    "note": "search → install webapp-testing; url/insecure persisted"
+  },
+  {
+    "section": "设置窗",
+    "id": "sync",
+    "name": "同步 保存目标/立即推送（文件落到目录）/立即拉取",
+    "pass": true,
+    "note": "pushed 9 / applied 0 / auto toggle"
+  },
+  {
+    "section": "设置窗",
+    "id": "sandbox",
+    "name": "沙箱后端选择 → 持久化；云端字段持久化",
+    "pass": true,
+    "note": "backend/url/id persisted, key → vault"
+  },
+  {
+    "section": "设置窗",
+    "id": "a2a",
+    "name": "A2A 开关 → 端点真的可访问（agent card），关 → 不可访问",
+    "pass": true,
+    "note": "card MyAgent then down"
+  },
+  {
+    "section": "设置窗",
+    "id": "skills-panel",
+    "name": "技能 导入目录 → 安装；勾选框停用/启用；uninstall 卸载",
+    "pass": true,
+    "note": "import / toggle / uninstall"
+  },
+  {
+    "section": "设置窗",
+    "id": "memory",
+    "name": "记忆 添加 → 下条消息 system 带上；× 删除 → 消失",
+    "pass": true,
+    "note": "reached system prompt, then deleted"
+  },
+  {
+    "section": "设置窗",
+    "id": "im",
+    "name": "IM 保存 token（vault）/ 启动（假 token → 如实报错）/ 停止",
+    "pass": true,
+    "note": "telegram → error (Token invalid or expired)"
+  },
+  {
+    "section": "设置窗",
+    "id": "export",
+    "name": "导出会话 JSON → 真的产出含会话的 JSON 文件，Key 已脱敏",
+    "pass": true,
+    "note": "10 sessions exported"
+  },
+  {
+    "section": "设置窗",
+    "id": "clear",
+    "name": "清空全部数据 → 取消不删；确认后会话与记忆清空，主窗侧栏同步",
+    "pass": true,
+    "note": "10 → 0, sidebar synced"
+  },
+  {
+    "section": "设置窗",
+    "id": "settings-close",
+    "name": "× 关闭 → 设置窗关闭",
+    "pass": true,
+    "note": "closed"
+  },
+  {
+    "section": "搜索窗",
+    "id": "search-enter",
+    "name": "Enter → 结果列表（任务 + 文件）",
+    "pass": true,
+    "note": "2 results (task + file)"
+  },
+  {
+    "section": "搜索窗",
+    "id": "search-tabs",
+    "name": "Tab 任务/文件/全部 → 结果按类型过滤；空查询 → 空态",
+    "pass": true,
+    "note": "任务 1 / 文件 1 / 空态 ok"
+  },
+  {
+    "section": "搜索窗",
+    "id": "search-keys",
+    "name": "↑↓ 移动选中，↵ 打开选中任务 → 主窗打开该会话",
+    "pass": true,
+    "note": "opened 审计-搜索目标 in main"
+  },
+  {
+    "section": "搜索窗",
+    "id": "search-click-message",
+    "name": "点击任务结果 → 主窗打开该会话，搜索窗关闭",
+    "pass": true,
+    "note": "opened + closed"
+  },
+  {
+    "section": "搜索窗",
+    "id": "search-click-file",
+    "name": "点击文件结果 → 预览窗打开该文件",
+    "pass": true,
+    "note": "preview findme.txt"
+  },
+  {
+    "section": "搜索窗",
+    "id": "search-esc",
+    "name": "ESC → 搜索窗关闭",
+    "pass": true,
+    "note": "closed"
+  },
+  {
+    "section": "主窗 · 窗带（收尾）",
+    "id": "win-close",
+    "name": "关闭 → 主窗关闭，最后一个窗口关闭后应用退出",
+    "pass": true,
+    "note": "window closed, app exited"
   }
 ]

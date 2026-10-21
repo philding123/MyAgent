@@ -43,7 +43,8 @@ class TerminalHost {
   write(id, data) {
     const t = this.terminals.get(id);
     if (!t) return false;
-    t.proc.write ? t.proc.write(data) : t.proc.stdin.write(data);
+    // pipe fallback: xterm sends \r for Enter, a non-tty shell wants \n
+    t.proc.write ? t.proc.write(data) : t.proc.stdin.write(t.kind === 'pipe' ? String(data).replace(/\r/g, '\n') : data);
     return true;
   }
 

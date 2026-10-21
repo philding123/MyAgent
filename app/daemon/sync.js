@@ -114,11 +114,12 @@ class SyncService {
     return { session, messages, rev: (this.revs.get(id) || 0) + 1, updatedAt: new Date().toISOString() };
   }
 
-  async push() {
+  /** @param opts {all?: boolean} all = every session (manual push), else dirty ones */
+  async push(opts = {}) {
     if (!this.target) return { ok: false, reason: 'no target configured' };
     this.lastError = null;
     try {
-      const ids = this.dirty.size ? [...this.dirty] : this.store.listSessions().map((s) => s.id);
+      const ids = opts.all || !this.dirty.size ? this.store.listSessions().map((s) => s.id) : [...this.dirty];
       let pushed = 0;
       for (const id of ids) {
         const doc = this.exportSession(id);

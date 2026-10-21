@@ -10,6 +10,7 @@
 |---|---|---|
 | `build.mjs` | esbuild 打包 renderer 三页面 → `app/renderer/dist/` | 改 renderer 后必须执行 |
 | `verify.mjs` | 验收 runner：build → unit(TAP) → integration(TAP) → e2e 冒烟 → `artifacts/acceptance-report.md` + `verify-raw.json` | 用例名 `T\d+` 正则映射功能点；Electron 退出码以冒烟 JSON 的 exitCode 为准，跑完收割 myagent 路径下的 electron 进程 |
+| `button-audit.mjs` | T49：真实应用 + mock LLM/MCP，主窗/设置窗/搜索窗全部控件按效果断言（91 项），verify 第 3b 步 | 结果 `artifacts/button-audit/{button-audit.md,results.json}`；失败截图同目录；Linux 自动 Xvfb+openbox；新增按钮必须在此加效果断言 |
 | `pixel-match-live.mjs` | wb 实机 CDP 截图（含 DPR）box 降采样到 CSS 像素后与 MyAgent 截图 pixelmatch | `--t` 阈值（0.02 能分辨 #f7f7f7 vs #fff 这类底色差，0.1 不能） |
 | `vendor-claude-skills.mjs` | F53：从 anthropics/skills（锁 commit）生成 `market/claude-skills/`（index.json + Apache-2.0 技能 + tree_sha256；文档四件套仅列出） | `--repo <clone>` 复用本地克隆，`--ref <sha>` 锁版本；升级上游 = 重跑后跑 T47 |
 | `mock-llm.mjs` | OpenAI 兼容 mock server（scenario 队列：content/tool_calls/__error） | `startMockLlm()` 供集成测试 import；独立跑可当调试端点 |

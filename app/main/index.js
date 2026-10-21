@@ -90,21 +90,34 @@ async function bootstrap() {
   daemon.start();
 
   ipcMain.handle('rpc', (_e, req) => daemon.request(req.method, req.params));
+  // MYAGENT_TEST_SEAMS=1 (audit harness only): OS dialogs answer from a queue
+  // the harness fills, external links are recorded instead of launched
+  const seams = process.env.MYAGENT_TEST_SEAMS ? { picks: [], external: [] } : null;
+  const pick = (properties) => {
+    if (seams) return Promise.resolve(seams.picks.length ? seams.picks.shift() : null);
+    return dialog.showOpenDialog({ properties }).then((r) => (r.canceled ? null : r.filePaths[0]));
+  };
   ipcMain.handle('rpc.window', async (_e, req) => {
     if (req.action === 'openSettings') windows.createSettings(req.panel);
     if (req.action === 'openSearch') windows.createSearch();
     if (req.action === 'openPreview' && req.path) windows.createPreview(String(req.path));
+    // search window → open a task in the main window (same queue as deeplinks)
+    if (req.action === 'openSession' && req.id) {
+      const w = windows.get('main');
+      if (w) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); }
+      pendingUrls.push({ action: 'session', id: String(req.id) });
+      deliverPendingUrls();
+      return true;
+    }
     // F54: catalog homepage links (view-only skills) — https only, OS browser
     if (req.action === 'openExternal') {
       let u = null;
       try { u = new URL(String(req.url || '')); } catch (_) {}
       if (!u || u.protocol !== 'https:') return false;
-      await shell.openExternal(u.href);
+      if (seams) seams.external.push(u.href); else await shell.openExternal(u.href);
       return true;
     }
-    if (req.action === 'pickFile') {
-      return dialog.showOpenDialog({ properties: ['openFile'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
-    }
+    if (req.action === 'pickFile') return pick(['openFile']);
     if (req.action === 'setTheme') {
       windows.setTheme(req.theme);
       // F29: persist so relaunch and new windows come back in the same theme
@@ -122,9 +135,7 @@ async function bootstrap() {
         quitFn: () => { global.__myagentQuitting = true; app.quit(); } });
     }
     if (req.action === 'updateState') return updater.status();
-    if (req.action === 'pickDirectory') {
-      return dialog.showOpenDialog({ properties: ['openDirectory'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
-    }
+    if (req.action === 'pickDirectory') return pick(['openDirectory']);
     // F38 band window controls + menu popups (frameless main window)
     if (req.action === 'win-minimize') { const w = windows.get('main'); if (w) w.minimize(); return null; }
     if (req.action === 'win-maximize') {
@@ -135,8 +146,19 @@ async function bootstrap() {
     if (req.action === 'win-close') { const w = windows.get('main'); if (w) w.close(); return null; }
     if (req.action === 'menu-popup') {
       const w = windows.get('main');
-      if (w) global.__myagentMenu.popSection(req.section, w);
-      return null;
+      return w ? global.__myagentMenu.popSection(req.section, w) : null;
+    }
+    // read-only window state (band controls are verified against it)
+    if (req.action === 'win-state') {
+      const w = windows.get('main');
+      return w ? { visible: w.isVisible(), minimized: w.isMinimized(), maximized: w.isMaximized(),
+        windows: windows.ids() } : null;
+    }
+    if (seams && req.action === 'test-seam') {
+      if (req.pick !== undefined) seams.picks = [req.pick]; // one answer per armed dialog
+      if (req.menuClick) return global.__myagentMenu.clickItem(req.menuClick.section, req.menuClick.id, windows.get('main'));
+      if (req.restoreMain) { const w = windows.get('main'); if (w) { w.restore(); w.show(); } }
+      return { external: seams.external.slice(), picks: seams.picks.length };
     }
     return null;
   });
@@ -175,7 +197,8 @@ async function bootstrap() {
 
   // F35: application menu (design/31-menu.md, wb band order); the in-DOM band
   // labels pop these native sections via rpc.window menu-popup
-  const menuApi = buildMenu({ sendToMain: (msg) => windows.broadcast('rpc:event', msg) });
+  const menuApi = buildMenu({ sendToMain: (msg) => windows.broadcast('rpc:event', msg),
+    openManual: () => windows.createPreview(path.join(__dirname, '..', '..', 'README.md')) });
   global.__myagentMenu = menuApi;
 
   // cold-start deeplink from argv (Windows)

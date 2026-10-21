@@ -109,6 +109,17 @@ let unitTests = [], intTests = [];
   }
 }
 
+// 3b) outcome-based button audit (T49): every clickable control in the main /
+// settings / search windows driven for real and asserted by its effect
+{
+  const auditOut = path.join(ART, 'button-audit');
+  const r = run('button-audit', process.execPath, ['scripts/button-audit.mjs', '--out', auditOut], { log: false, timeout: 900000 });
+  let list = [];
+  try { list = JSON.parse(readFileSync(path.join(auditOut, 'results.json'), 'utf8')); } catch (_) {}
+  results.audit = { code: r.code, results: list };
+  console.log(r.out.split('\n').filter((l) => /^(FAIL|button audit)/.test(l)).join('\n'));
+}
+
 // 4) acceptance report
 const tIndex = {};
 for (const t of [...unitTests, ...intTests]) {
@@ -150,6 +161,7 @@ const e2eMap = {
   T46: [],
   T47: [],
   T48: ['ui-nav', 'ui-hub'],
+  T49: [],
 };
 
 const featureNames = {
@@ -168,6 +180,7 @@ const featureNames = {
   T46: 'F52 连接器（MCP 客户端）',
   T47: 'F53 内置 Claude 技能市场',
   T48: 'F54 wb 侧栏六项 + 专家·技能·连接器页',
+  T49: '逐按钮结果审计（主窗/设置窗/搜索窗全部控件）',
 };
 
 let lines = [];
@@ -179,19 +192,27 @@ lines.push('- 单元测试: ' + (results.unit ? (results.unit.code === 0 ? 'PASS
 lines.push('- 集成测试: ' + (results.integration ? (results.integration.code === 0 ? 'PASS' : 'FAIL') : 'n/a')
   + ` (${(results.integration?.tests || []).length} cases)`);
 lines.push('- E2E 冒烟: ' + (results.e2e ? (results.e2e.code === 0 ? 'PASS' : 'FAIL') : 'n/a'));
+const auditList = results.audit?.results || [];
+lines.push('- 按钮审计: ' + (results.audit ? (results.audit.code === 0 && auditList.length ? 'PASS' : 'FAIL') : 'n/a')
+  + ` (${auditList.filter((a) => a.pass).length}/${auditList.length}，明细 artifacts/button-audit/button-audit.md)`);
 lines.push('');
 lines.push('| T | 功能点 | 结果 | 明细 |');
 lines.push('|---|---|---|---|');
 for (const tid of Object.keys(featureNames)) {
-  const subs = tIndex[tid] || [];
+  const subs = tid === 'T49'
+    ? (auditList.length ? auditList.map((a) => ({ ok: a.pass, name: a.id })) : [{ ok: false, name: 'button audit produced no results' }])
+    : (tIndex[tid] || []);
   const e2eNames = e2eMap[tid] || [];
   const e2eSteps = (results.e2e?.steps || []).filter((s) => e2eNames.includes(s.name));
   const allOk = subs.every((s) => s.ok) && e2eSteps.every((s) => s.ok)
     && (subs.length + e2eSteps.length > 0);
-  const detail = [
-    ...subs.map((s) => (s.ok ? '✓' : '✗') + ' ' + s.name),
-    ...e2eSteps.map((s) => (s.ok ? '✓' : '✗') + ' e2e:' + s.name + (s.detail ? ' (' + s.detail + ')' : '')),
-  ].join('<br>');
+  // T49 has ~90 rows: summarise, list only the failures
+  const detail = tid === 'T49'
+    ? `${subs.filter((s) => s.ok).length}/${subs.length} 控件按效果断言通过` + subs.filter((s) => !s.ok).map((s) => '<br>✗ ' + s.name).join('')
+    : [
+      ...subs.map((s) => (s.ok ? '✓' : '✗') + ' ' + s.name),
+      ...e2eSteps.map((s) => (s.ok ? '✓' : '✗') + ' e2e:' + s.name + (s.detail ? ' (' + s.detail + ')' : '')),
+    ].join('<br>');
   lines.push(`| ${tid} | ${featureNames[tid] || ''} | ${allOk ? 'PASS' : 'FAIL'} | ${detail} |`);
 }
 lines.push('');
@@ -205,6 +226,7 @@ const report = lines.join('\n');
 writeFileSync(path.join(ART, 'acceptance-report.md'), report);
 writeFileSync(path.join(ART, 'verify-raw.json'), JSON.stringify(results, null, 2));
 console.log('\n' + report);
-const allGreen = results.unit?.code === 0 && results.integration?.code === 0 && results.e2e?.code === 0;
+const allGreen = results.unit?.code === 0 && results.integration?.code === 0 && results.e2e?.code === 0
+  && results.audit?.code === 0 && auditList.length > 0;
 console.log(allGreen ? '\nALL GREEN' : '\nHAS FAILURES');
 process.exit(allGreen ? 0 : 1);

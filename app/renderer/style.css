@@ -577,7 +577,7 @@ body[data-theme="dark"] .gs-spinner {
   border-radius: var(--radius-lg); padding: 10px 14px; margin: 8px 0;
   cursor: pointer; font-size: var(--fs-base); color: var(--text-1);
 }
-#results li:hover { background: var(--fill-hover); }
+#results li:hover, #results li.active { background: var(--fill-hover); }
 #results .tag {
   background: var(--gray-3); border-radius: var(--radius-sm); padding: 1px 6px;
   font-size: var(--fs-caption); color: var(--text-2); margin-right: 6px;

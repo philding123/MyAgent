@@ -12,7 +12,7 @@ const { MAX_PREVIEW_BYTES } = require('../shared/preview-kind');
 const { SkillRegistry, installSkill, uninstallSkill } = require('./skills');
 const { createPresetStore } = require('./presets');
 const { createScheduler } = require('./tasks');
-const { augmentContext } = require('./context');
+const { augmentContext, augmentSkill } = require('./context');
 const { EngineHost } = require('./engine-host');
 const { McpConnectorManager } = require('./mcp-client');
 const { TerminalHost } = require('./terminal');
@@ -43,6 +43,17 @@ function createDaemon({ send }) {
 
   const { store, warning } = openStore(dataDir);
   const vault = new CredentialVault(path.join(home, 'keystore'), null);
+  // every secret a settings panel can submit; older builds stored the cloud
+  // sandbox key in plain settings — move any such value into the vault
+  const VAULT_KEYS = new Set(['llm.apiKey', 'sandbox.cloud.apiKey']);
+  for (const k of VAULT_KEYS) {
+    const plain = store.getSetting(k);
+    if (typeof plain === 'string' && plain) {
+      if (!vault.get(k)) vault.set(k, plain);
+      store.setSetting(k, null);
+      store.setSetting(k + '.set', true);
+    }
+  }
   const registry = new SkillRegistry([skillsBuiltin, skillsUser]);
   const presetsStore = createPresetStore(path.join(home, 'presets'));
   const libraryDir = path.join(home, 'library');
@@ -101,6 +112,7 @@ function createDaemon({ send }) {
       await methods['engine.start']({ sessionId: sid });
       await methods['engine.userMessage']({ sessionId: sid, text: t.prompt });
       emit('app:sync', { kind: 'schedule-fired', id: t.id, sessionId: sid });
+      emit('sessions:changed', { method: 'tasks.fire' });
     },
   });
   scheduler.start();
@@ -308,7 +320,8 @@ function createDaemon({ send }) {
     'settings.all': async () => store.allSettings(),
     'settings.get': async (p) => store.getSetting(p.key),
     'settings.set': async (p) => {
-      if (p.key === 'llm.apiKey') { vault.set('llm.apiKey', String(p.value)); store.setSetting('llm.apiKey.set', true); return true; }
+      // credentials never touch the settings table (T10 red line)
+      if (VAULT_KEYS.has(p.key)) { vault.set(p.key, String(p.value)); store.setSetting(p.key + '.set', true); return true; }
       if (p.key === 'engine.prewarm') { prewarmOn = !!p.value; engineHost.opts.prewarm = prewarmOn; if (prewarmOn) engineHost.replenish(); else engineHost.stopPool(); }
       return store.setSetting(p.key, p.value);
     },
@@ -318,6 +331,13 @@ function createDaemon({ send }) {
     // F39 spaces / F41 presets (design/34)
     'sessions.setSpace': async (p) => (store.updateSession(p.id, { space: p.space || '' }), { ok: true }),
     'sessions.setPreset': async (p) => (store.updateSession(p.id, { preset: p.preset || '' }), { ok: true }),
+    // composer 「选择工作空间」 on an existing session (draft passes cwd to create)
+    'sessions.setCwd': async (p) => {
+      if (!p.cwd || !fs.existsSync(p.cwd) || !fs.statSync(p.cwd).isDirectory()) throw new Error('not a directory: ' + p.cwd);
+      store.updateSession(p.id, { cwd: p.cwd });
+      engineHost.stop(p.id); // next start runs in the new workspace
+      return { ok: true };
+    },
     'presets.list': async () => presetsStore.list(),
     'presets.create': async (p) => presetsStore.create(p),
     'presets.remove': async (p) => presetsStore.remove(p.id),
@@ -386,7 +406,8 @@ function createDaemon({ send }) {
       if (p.config) store.setSetting('sync.config', p.config);
       return st;
     },
-    'sync.push': async () => sync.push(),
+    // 立即推送 is an explicit user action: push every session, not just dirty ones
+    'sync.push': async (p) => sync.push({ all: !(p && p.dirtyOnly) }),
     'sync.pull': async () => sync.pull(),
     'sync.status': async () => sync.status(),
     // ---- F28 A2A ----
@@ -407,9 +428,12 @@ function createDaemon({ send }) {
       // F43: @"path" tokens / explicit context files are inlined for the
       // engine; the stored user message keeps the original text
       const aug = augmentContext(p.text, p.context || []);
+      // F43 「/技能名」: the named enabled skill is really invoked — its SKILL.md
+      // body rides along with the message instead of hoping the model reads it
+      const sk = augmentSkill(aug.text, (name) => registry.enabled().find((x) => x.name === name));
       store.appendMessage({ session_id: p.sessionId, role: 'user', content: p.text });
-      await engineHost.userMessage(p.sessionId, aug.text);
-      return { ok: true, contextUsed: aug.used };
+      await engineHost.userMessage(p.sessionId, sk.text);
+      return { ok: true, contextUsed: aug.used, skill: sk.skill };
     },
     'engine.confirm': async (p) => engineHost.confirm(p.id, p.approved),
     'engine.mode': async (p) => methods['sessions.setMode'](p),
@@ -419,8 +443,19 @@ function createDaemon({ send }) {
     'terminal.resize': async (p) => terminalHost.resize(p.id, p.cols, p.rows),
     'terminal.kill': async (p) => terminalHost.kill(p.id),
     'search.query': async (p) => {
-      const s = store.getSession(p.sessionId);
-      return globalSearch(store, p.q, (s && s.cwd) || null);
+      // the search window has no current session: scan the workspaces of the
+      // most recent sessions (home dir excluded — that is "no workspace")
+      const s = p.sessionId && store.getSession(p.sessionId);
+      const spaces = s && s.cwd ? [s.cwd] : [...new Set(store.listSessions().map((x) => x.cwd)
+        .filter((c) => c && path.resolve(c) !== path.resolve(os.homedir())))].slice(0, 3);
+      const merged = [];
+      for (const w of spaces.length ? spaces : [null]) {
+        for (const r of globalSearch(store, p.q, w)) {
+          if (r.type === 'message' && merged.some((m) => m.type === 'message' && m.session_id === r.session_id && m.content === r.content)) continue;
+          merged.push(r.type === 'file' ? { ...r, workspace: w } : r);
+        }
+      }
+      return merged.slice(0, 80);
     },
     // F20 preview source: sandbox-checked binary read (credential dirs stay
     // denied by defaultRules; size capped). Returns base64 for the renderer.
@@ -453,11 +488,24 @@ function createDaemon({ send }) {
     },
   };
 
+  // every window mirrors these (sidebar, composer chips) — a change made in
+  // the settings window or by a scheduled task must show up in the main window
+  const SESSION_MUTATIONS = new Set(['sessions.create', 'sessions.delete', 'sessions.rename', 'sessions.setMode',
+    'sessions.setSpace', 'sessions.setCwd', 'sessions.setPreset', 'data.clear', 'sync.pull']);
   function handle(msg, cb) {
     const fn = methods[msg.method];
     if (!fn) return cb({ id: msg.id, ok: false, error: { code: 'no_method', message: 'unknown method: ' + msg.method } });
     Promise.resolve()
       .then(() => fn(msg.params || {}))
+      .then((result) => {
+        if (SESSION_MUTATIONS.has(msg.method)) emit('sessions:changed', { method: msg.method });
+        if (msg.method === 'settings.set') {
+          const k = String((msg.params || {}).key || '');
+          // never echo secrets: key name only for credential-ish settings
+          emit('settings:changed', /key|token|secret|password/i.test(k) ? { key: k } : { key: k, value: msg.params.value });
+        }
+        return result;
+      })
       .then((result) => cb({ id: msg.id, ok: true, result }))
       .catch((e) => cb({ id: msg.id, ok: false, error: { code: 'handler_error', message: e.message } }));
   }

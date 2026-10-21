@@ -6,7 +6,7 @@
 const { Menu } = require('electron');
 const pkg = require('../../package.json');
 
-function buildMenu({ sendToMain }) {
+function buildMenu({ sendToMain, openManual }) {
   const act = (action) => () => sendToMain({ topic: 'menu:action', payload: { action } });
   const sections = {
     edit: {
@@ -26,12 +26,15 @@ function buildMenu({ sendToMain }) {
       submenu: [
         { id: 'open-search', label: '全局搜索', accelerator: 'CmdOrCtrl+Shift+F', click: act('open-search') },
         { type: 'separator' },
-        { role: 'minimize', label: '最小化' }, { role: 'zoom', label: '缩放' }, { role: 'close', label: '关闭' },
+        // role 'zoom' is macOS-only (no-op on Windows/Linux) — toggle maximize
+        { role: 'minimize', label: '最小化' }, { id: 'toggle-maximize', label: '最大化/还原', click: (_i, w) => {
+          if (w) { w.isMaximized() ? w.unmaximize() : w.maximize(); }
+        } }, { role: 'close', label: '关闭' },
       ],
     },
     help: {
       label: '帮助(H)',
-      submenu: [{ label: '使用手册（见仓库 README）', enabled: false }],
+      submenu: [{ id: 'open-manual', label: '使用手册（README）', click: () => openManual && openManual() }],
     },
     about: {
       label: '关于(A)',
@@ -43,11 +46,24 @@ function buildMenu({ sendToMain }) {
   };
   const menu = Menu.buildFromTemplate(Object.values(sections));
   Menu.setApplicationMenu(menu);
+  // band label → that section's items directly (not a one-entry menu whose
+  // only item is the section again); returns the labels for the audit
   function popSection(name, win) {
     const s = sections[name];
-    if (s && win && !win.isDestroyed()) Menu.buildFromTemplate([s]).popup({ window: win });
+    if (!s || !win || win.isDestroyed()) return null;
+    const m = Menu.buildFromTemplate(s.submenu);
+    if (!process.env.MYAGENT_TEST_SEAMS) m.popup({ window: win });
+    return { section: name, items: m.items.filter((i) => i.type !== 'separator').map((i) => ({ id: i.id || i.role || null, label: i.label, enabled: i.enabled })) };
   }
-  return { menu, popSection };
+  // test seam: fire a section item's click exactly as a user click would
+  function clickItem(name, id, win) {
+    const s = sections[name];
+    const item = s && Menu.buildFromTemplate(s.submenu).getMenuItemById(id);
+    if (!item) return false;
+    item.click(undefined, win, undefined);
+    return true;
+  }
+  return { menu, popSection, clickItem };
 }
 
 module.exports = { buildMenu };

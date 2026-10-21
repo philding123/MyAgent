@@ -1,5 +1,10 @@
 # 逐按钮证据映射（MyAgent 审计 ↔ wb V5.8.2 实机行为）
 
+> **更正（2026-10-21）**：下表 2026-10-16 的「27/27 PASS」含存在性断言（最小化/关闭/菜单标签/预览/@ 上下文只检查按钮存在），
+> 不算行为验证；且当时未覆盖设置窗与搜索窗。按效果断言的新审计（91 项，含设置窗/搜索窗全部控件）见
+> 同目录 `button-audit.md`，已并入 `npm run verify`（T49）；新审计发现并修复的问题见 `design/36-button-audit.md`。
+> 侧栏行（技能市场/技能/记忆）已按 F54 六项导航变更。下表 wb 侧对应关系仍有效。
+
 - MyAgent 侧：`scripts/button-audit.mjs` 实测（本目录 results.json + 27 张截图 +
   button-audit.md），**27/27 PASS**（2026-10-16）。
 - wb 侧：`scripts/behavior-parity.mjs --side wb` 实机 CDP 驱动（同用例表）+

@@ -89,6 +89,10 @@ window.addEventListener('DOMContentLoaded', () => {
       document.body.dataset.theme = msg.payload.theme;
       $('#theme-select').value = msg.payload.theme;
     }
+    if (msg.topic === 'settings:panel') {
+      const b = document.querySelector(`.settings-navigation__item[data-panel="${msg.payload.panel}"]`);
+      if (b) b.click();
+    }
   });
   loadSettings().catch(() => {});
   loadSelfcheck().catch(() => {});
@@ -350,11 +354,11 @@ window.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.settings-window-panel').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== b.dataset.panel));
   };
   document.querySelectorAll('.settings-navigation__item').forEach((b) => { b.onclick = () => activate(b); });
+  // ?panel= deep link, else the first panel — never an empty content area
   const panelParam = new URLSearchParams(location.search).get('panel');
-  if (panelParam) {
-    const b = document.querySelector(`.settings-navigation__item[data-panel="${panelParam}"]`);
-    if (b) activate(b);
-  }
+  const first = document.querySelector('.settings-navigation__item');
+  const target = (panelParam && document.querySelector(`.settings-navigation__item[data-panel="${panelParam}"]`)) || first;
+  if (target) activate(target);
   $('#settings-search').addEventListener('input', (e) => {
     const v = e.target.value.trim();
     document.querySelectorAll('.settings-navigation__item').forEach((b) => {
