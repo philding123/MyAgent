@@ -1,7 +1,7 @@
 ---
 name: marketplace-skill-installer
 description: |
-  通过一句话从云端技能市场搜索并安装技能。
+  通过一句话从技能市场（内置 Claude 技能市场 + 云端源）搜索并安装技能。
   触发词：安装 skill、安装技能、install skill、添加技能、装个 X 技能、帮我安装 X、search skill。
 allowed-tools: market
 disable: false
@@ -17,8 +17,11 @@ disable: false
    { "action": "search", "keywords": ["code review"] }
    ```
 
-2. 搜索返回 `{ "skills": [{ "name": "...", "display_name": "...", "description": "..." }] }`。
+2. 搜索返回 `{ "skills": [{ "name": "...", "display_name": "...", "description": "...", "installed": false, "installable": true }] }`。
    向用户展示显示名和描述；只安装用户明确要求或在看到候选后同意的技能。
+   内置的「Claude 技能市场」（Anthropic 公开分享的技能，如 skill-creator、mcp-builder、
+   canvas-design、webapp-testing）离线可装，英文关键词命中率更高。
+   `installable: false` 的条目（如 docx/pdf/pptx/xlsx，许可不允许复制）只展示其 `reason`，不要尝试安装。
 3. 名称必须逐字复制当前会话最近一次搜索结果的 `name`，每次安装前都要重新搜索：
 
    ```json

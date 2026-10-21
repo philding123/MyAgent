@@ -13,9 +13,11 @@
 | `index.js` | `createDaemon({send})` + methods 方法表 + snapshot + shutdown | 新业务能力唯一入口；`homeDir()`：MYAGENT_HOME > APPDATA/myagent > ~/.config/myagent |
 | `store.js` | `openStore()` → SqliteStore / JsonStore（同 DAO） | WAL + 启动 checkpoint；损坏恢复（close→清 -wal/-shm→改名 .corrupt-ts→重建，置 recovered） |
 | `sandbox.js` | `Sandbox` 规则引擎 + `defaultRules()` | 规则格式同 WorkBuddy tsbx_rules.json；`checkFile(path, op)`、`checkCommand(cmd)` → allow/deny/confirm |
-| `skills.js` | SkillRegistry（多目录扫描/启停/读取）+ install/uninstall | frontmatter 解析支持块列表；install=**复制**（市场语义，源目录不动） |
+| `skills.js` | SkillRegistry（多目录扫描/启停/读取）+ install/uninstall | frontmatter 解析支持块列表、YAML 块标量（`>`/`|`/`|-`）与引号串；install=**复制**（市场语义，源目录不动） |
 | `engine-host.js` | EngineHandle/EngineHost/PrewarmPoolProbe | 每会话一引擎；pool 激活补货；stop() 等待 exit（≤1s）；exit 回调带句柄同一性保护 |
 | `terminal.js` | TerminalHost | 优先 @lydell/node-pty（kind='pty'），降级 child_process（kind='pipe'）；win32 shell 取 ComSpec |
+| `market.js` | Market：内置目录（F53，`builtin:` 源复制安装 + tree_sha256 复核）+ 远端源（F25，zip + sha256） | 返回 installed/already_installed/refused；`installable:false` 直接 refused 带原因；不升级已装 |
+| `unzip.js` | 纯 JS zip 解压（stored/deflate） | zip-slip/符号链接/加密条目整体拒绝，先校验后落盘；各平台一致 |
 | `search.js` | globalSearch(store, q, workspace) | 会话库 LIKE + 工作区行级扫描（忽略 node_modules/.git 等，上限 50 条） |
 | `crypto.js` | CredentialVault | safeStorage 优先，降级 AES-256-GCM + 0600 keyfile；条目前缀 ss:/aes: |
 | `jsonl.js` | JsonlCodec | 引擎 stdio 边界专用；坏帧转 `{type:'error'}` |

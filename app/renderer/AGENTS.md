@@ -8,7 +8,7 @@
 
 | 文件 | 职责 | 关键点 |
 |---|---|---|
-| `index.html` + `src/app.js` | 聊天主界面 | 会话 CRUD、模式切换、流式渲染、confirm 条、终端面板（xterm 懒加载）、`__renderTest` 冒烟钩子 |
+| `index.html` + `src/app.js` | 聊天主界面 | 会话 CRUD、模式切换、流式渲染、confirm 条、终端面板（xterm 懒加载）、`__renderTest` 冒烟钩子；wb 侧栏六项 + 「更多」弹出菜单、主区「专家·技能·连接器」页（`openHub`，F54，design/35）、会话相对时间 `relTime` |
 | `settings.html` + `src/settings.js` | 设置中心 | 模型三件套（key 回车即加密入库后清空输入框）、技能启停/导入、记忆、selfcheck 展示、导出/清空 |
 | `search.html` + `src/search.js` | 全局搜索 | Enter 触发 `search.query`，结果分 message/file 两类可跳转 |
 | `style.css` | 主题与布局 | CSS 变量双主题；`hidden` 类控制面板 |

@@ -136,16 +136,16 @@ await audit('win-min-close', '最小化/关闭按钮存在', async () => {
   return { pass: r.min && r.max && r.close, note: JSON.stringify(r) };
 });
 
-// ---------- sidebar nav → settings panels ----------
-for (const [nav, panel, label] of [
+// ---------- sidebar nav (wb six rows; 更多 popup holds the rest) ----------
+for (const [nav, panel, label, viaMore] of [
   ['nav-assistant', 'presets', '助理（预设）'],
-  ['nav-market', 'market', '技能市场'],
   ['nav-tasks', 'tasks', '定时任务'],
   ['nav-library', 'library', '资料库'],
-  ['nav-skills', 'skills', '技能'],
-  ['nav-memory', 'memory', '记忆'],
+  ['nav-memory', 'memory', '更多 → 记忆', true],
+  ['nav-market', 'market', '更多 → 云端市场源', true],
 ]) {
   await audit('nav-' + panel, `${label} → 设置窗对应面板`, async () => {
+    if (viaMore) { await main.click('#nav-more'); await sleep(200); }
     await main.click('#' + nav);
     await sleep(1000);
     const active = await settingsActivePanel();
@@ -154,7 +154,20 @@ for (const [nav, panel, label] of [
     return { pass, note: `active panel=${active}` };
   });
 }
-await audit('nav-search', '侧栏全局搜索 → 搜索窗', async () => {
+await audit('nav-hub', '专家·技能·连接器 → 主区技能页（Claude 技能市场）', async () => {
+  await main.click('#nav-hub');
+  await sleep(800);
+  const r = await main.evaluate(() => ({
+    open: !document.getElementById('hub').classList.contains('hidden'),
+    cards: document.querySelectorAll('#hub-skill-grid .skill-card').length,
+  }));
+  await main.click('#btn-new');
+  await sleep(300);
+  return { pass: r.open && r.cards > 0, note: JSON.stringify(r) };
+});
+await audit('nav-search', '更多 → 全局搜索 → 搜索窗', async () => {
+  await main.click('#nav-more');
+  await sleep(200);
   await main.click('#nav-search');
   await sleep(900);
   const s = ctx.pages().find((p) => /search\.html/.test(p.url()));
@@ -211,11 +224,13 @@ await audit('btn-search-top', '顶栏搜索钮 → 搜索窗', async () => {
 });
 
 // ---------- composer ----------
-await audit('composer-context', '@ 上下文按钮存在（点击打开系统文件对话框，无法自动化）', async () => {
+await audit('composer-context', '＋ 菜单内 @ 上下文项存在（点击打开系统文件对话框，无法自动化）', async () => {
   const r = await main.evaluate(() => ({ btn: !!document.getElementById('btn-context') }));
   return { pass: r.btn, note: JSON.stringify(r) };
 });
-await audit('composer-slash', '/ 技能按钮 → 内联技能菜单', async () => {
+await audit('composer-slash', '＋ → / 调用技能 → 内联技能菜单', async () => {
+  await main.click('#btn-plus');
+  await sleep(200);
   await main.click('#btn-slash');
   await sleep(800);
   const r = await main.evaluate(() => {

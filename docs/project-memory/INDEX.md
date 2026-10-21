@@ -9,12 +9,13 @@
 - [Architecture for engineers](./ARCHITECTURE-TECHNICAL.md)
 - [Current status snapshot](./STATUS.md)
 - [Current todo list](./todo.md)
-- [Latest daily progress](./daily/2026-10-14.md)
+- [Latest daily progress](./daily/2026-10-21.md)
 - [Latest decision](./decisions/2026-10-14-wsl-ghidra-native-analysis-engine.md)
 - [Latest issue](./issues/2026-10-14-sqlite-corrupt-recovery-locked-files.md)
 
 ## Recent Daily Notes
 
+- [2026-10-21](./daily/2026-10-21.md)
 - [2026-10-14](./daily/2026-10-14.md)
 
 ## Recent Decisions

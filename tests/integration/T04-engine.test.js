@@ -92,7 +92,7 @@ test('T04d failed run_command carries stderr detail for the UI', { timeout: 3000
   await d.waitEvent((m) => m.topic === 'engine:' + sessionId && m.payload.type === 'done', 20000);
   const tr = d.events.find((m) => m.topic === 'engine:' + sessionId && m.payload.type === 'tool_result' && m.payload.ok === false);
   assert.ok(tr, 'saw failing tool_result');
-  assert.match(tr.payload.summary, /exit 1/);
+  assert.match(tr.payload.summary, /exit [1-9]/); // dir → 1, GNU ls → 2
   assert.ok(tr.payload.detail && tr.payload.detail.includes('[stderr]'), 'stderr tail surfaced as detail');
   // the LLM still receives the full data payload via the tool history message
   const toolMsg = mock.requests[1].messages.find((m) => m.role === 'tool' && m.tool_call_id === 'c2');

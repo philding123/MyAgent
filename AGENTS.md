@@ -22,7 +22,8 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 | 引擎 stdio | stdin 控制 `{type:init\|user\|confirm\|abort\|daemon_tool_result}`；stdout 事件 `{type:status\|token\|tool_call\|tool_result\|confirm_request\|done\|error\|daemon_tool_request}`（daemon_tool_* 是引擎工具回调 daemon 能力的桥，仅 market） |
 | 存储 DAO | `openStore()` 返回 sqlite 或 json 实现，接口一致：sessions/messages/settings/memory/logs + health/checkpoint + importSession（F26 同步导入） |
 | 沙箱规则 | 格式同 WorkBuddy `tsbx_rules.json`：env 展开 + `**` glob + `read\|write\|delete=allow\|deny`，首条命中生效，无命中走 fail-safe；`sandbox.backend=cloud` 时文件/命令工具走 e2b 兼容云沙箱（隔离责任转移，策略 kind 不变） |
-| 技能 | `SKILL.md` frontmatter：name/description/allowed-tools/disable；渐进披露（清单进 system，全文经 `skill_read`） |
+| 技能 | `SKILL.md` frontmatter：name/description/allowed-tools/disable（支持 YAML 块标量 `>`/`\|`/`\|-` 与引号）；渐进披露（清单进 system，全文经 `skill_read`） |
+| 技能市场 | 内置目录 `market/claude-skills/`（F53，anthropics/skills 锁 commit，`builtin:` 源 + tree_sha256；文档四件套 installable:false）先于远端源（F25 `market.url`）；`market.list` → `{catalogs, plugins}`；`market.builtin=false` 关闭 |
 | IM 通道插件 | `{id, meta, capabilities, gateway, outbound, defaultReplyPolicy}`；入站 `{messageId, content[], sender, group?, timestamp, replyContext}`；500 环形去重；凭证入 vault `im.<channel>.token`（telegram 完整实现，slack/discord/dingtalk/feishu 骨架+真连手工，webhook 本地回环） |
 | 引擎工具面 | read_file/list_dir/write_file/run_command/search/skill_read + `browser`（F22，read 动作 browse、click/fill/press/scroll 经 kindOf 归 exec 受策略门控）+ `market`（F25，daemon 桥）+ `agent_delegate`（F28，A2A 客户端） |
 | 数据目录 | 真实：`%APPDATA%/myagent`（keystore/ data/ skills/）；测试用 `MYAGENT_HOME` 覆盖 |
@@ -59,4 +60,5 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 | L2 | tests/ | [AGENTS.md](tests/AGENTS.md) | T 编号 = 验收映射（T01–T28） |
 | L2 | scripts/ | [AGENTS.md](scripts/AGENTS.md) | build/verify/mock/real-llm + update/（更新过渡窗） |
 | L2 | skills/ | [AGENTS.md](skills/AGENTS.md) | SKILL.md 格式规范 |
+| L2 | market/claude-skills/ | design/35-claude-skill-market.md | 内置 Claude 技能市场（vendor 脚本生成，勿手改） |
 | L2 | share-target/ | design/24-share-target.md | sparse MSIX + register/unregister 脚本 |

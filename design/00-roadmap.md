@@ -29,6 +29,7 @@ design/27 §「支付/订阅 UI 排除清单」。全量功能对照（wb 13 域
 Phase 6（P6 补面）：F34–F36 已实现并验收（T30–T32，2026-10-15）；F37（会话独立窗）P2 观察。
 Phase 7（P7 真实 UI 对齐）：F38 已完成（实机 CDP 基线，2026-10-15）——本机 WorkBuddy 已自动升级 V5.8.2，design/27 的 v5.7.7 骨架基线由实机 CDP 基线取代（骨架口径数字保留于 pixel-comparison.md 作历史）。
 Phase 8（P8 功能补齐）：F39–F44 已实现并验收（T33–T37 + 渲染层产物卡片，2026-10-15）。
+Phase 11（P11 技能分发对齐）：F53 内置 Claude 技能市场 + F54 侧栏六项/技能页已实现并验收（T47–T48，2026-10-21，design/35）。
 
 ## 二、功能点总表（F01–F18）
 
@@ -85,6 +86,8 @@ Phase 8（P8 功能补齐）：F39–F44 已实现并验收（T33–T37 + 渲染
 | F50 | 上下文自动压缩（组裁剪保目标+近组，engine.maxContextChars） | task-parity P1：wb「只保留关键上下文」vs 全量直送 | P10 | 10-agent-core.md | ✅ T42 |
 | F51 | 会话消息落库（assistant/tool 入 store，重开全量回放，D10） | wb conversations 全量回放 vs 只剩 user 消息 | P10 | 10-agent-core.md | ✅ T43 |
 | F52 | 连接器（MCP 客户端：stdio 服务器接入，工具 mcp_<连接器>_<工具> 注入引擎，设置页+侧栏） | wb 侧栏「专家·技能·连接器」= MCP 集成（mcp-tool-list.json 证据） | P10 | 30-mcp.md | ✅ T46 |
+| F53 | 内置 Claude 技能市场（anthropics/skills 15 个 Apache-2.0 技能离线内置 + tree_sha256 校验；文档四件套许可受限仅列出；market.list RPC；块标量 frontmatter；纯 JS zip） | wb marketplace.json 内置市场结构 + 「专家·技能·连接器」技能子 Tab | P11 | 35-claude-skill-market.md | ✅ T47 |
+| F54 | wb 侧栏六项（202px 导航块）+ 主区「专家·技能·连接器」页（技能/专家/连接器三 Tab）+ 会话相对时间 + home 态取色对齐 | wb-live-tokens-main.json navNewTask h=202、wb-live-home.png 取色 | P11 | 35-claude-skill-market.md | ✅ T48 |
 | F37 | 会话独立窗（P2 观察：个人并行会话需求出现再实施） | window-apps `conversation` + bootstrap `?windowKind=conversation` | P7 | — | 观察 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |

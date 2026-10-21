@@ -76,6 +76,8 @@ window.__renderTest = (sample) => {
 window.__myagentTest = {
   openSession: (id) => openSession(id),
   refresh: () => refreshSessions(),
+  openHub: (tab, filter) => openHub(tab, filter),
+  relTime: (ts, now) => relTime(ts, now),
   injectEngineEvent: (ev) => handleEngineEvent(ev),
 };
 
@@ -191,6 +193,7 @@ let current = null; // session row
 let mode = 'craft';
 let streamingEl = null;
 let engineRunning = false;
+let homeDir = null; // from app.version — sessions whose cwd is home are loose tasks
 
 // ---------- RPC helpers ----------
 async function rpc(method, params) {
@@ -325,6 +328,14 @@ function showConfirm(ev) {
   }
 }
 
+// wb-live-home.png: line icons in the segmented scene switch, seven chips
+const PILL_ICONS = {
+  office: '<svg viewBox="0 0 16 16" width="15" height="15"><path d="M5.5 5V3.8c0-.7.5-1.2 1.2-1.2h2.6c.7 0 1.2.5 1.2 1.2V5M2.5 5.2h11v7.6h-11z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  dev: '<svg viewBox="0 0 16 16" width="15" height="15"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  design: '<svg viewBox="0 0 16 16" width="15" height="15"><path d="M8 2a6 6 0 1 0 0 12c.8 0 1.2-.5 1.2-1.1 0-.8-.6-1-.6-1.7 0-.6.5-1 1.1-1H11a3 3 0 0 0 3-3C14 4.4 11.3 2 8 2z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="5" cy="7" r=".9" fill="currentColor"/><circle cx="8" cy="5" r=".9" fill="currentColor"/></svg>',
+};
+const HERO_CHIPS = ['创作文档', '金融服务', '分析数据', '制作PPT', '深度研究', '策划方案', '定时任务'];
+
 // WorkBuddy v5.8.2 home (design/33): 「MyAgent, 我帮你」 title + scene pill
 // row + chips row; suggestions live under the composer
 function showHomeHero() {
@@ -332,12 +343,11 @@ function showHomeHero() {
   hero.className = 'home-hero';
   hero.innerHTML = '<div class="home-hero__title">MyAgent, 我帮你</div>' +
     '<div class="home-hero__pills">' +
-    '<button class="pill active">💼 办公</button>' +
-    '<button class="pill">⌨ 开发</button>' +
-    '<button class="pill">🎨 设计</button></div>' +
+    '<button class="pill active">' + PILL_ICONS.office + '办公</button>' +
+    '<button class="pill">' + PILL_ICONS.dev + '开发</button>' +
+    '<button class="pill">' + PILL_ICONS.design + '设计</button></div>' +
     '<div class="home-hero__chips">' +
-    '<span class="chip">写周报</span><span class="chip">分析数据</span>' +
-    '<span class="chip">制作PPT</span><span class="chip">深度研究</span></div>';
+    HERO_CHIPS.map((c) => '<span class="chip">' + c + '</span>').join('') + '</div>';
   $('#messages').appendChild(hero);
   renderSuggestions();
   hero.querySelectorAll('.home-hero__chips .chip').forEach((c) => {
@@ -378,9 +388,30 @@ function setHomeMode(on) {
 // ---------- sessions ----------
 function basename(p) { return String(p || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop(); }
 
+// wb sidebar time column: 刚刚 / N分钟前 / N小时前 / N天前 (<7d) / M月D日
+// (same year) / YYYY/M/D
+function relTime(ts, now = Date.now()) {
+  if (!ts) return '';
+  const d = Math.max(0, now - ts);
+  if (d < 60e3) return '刚刚';
+  if (d < 3600e3) return Math.floor(d / 60e3) + '分钟前';
+  if (d < 86400e3) return Math.floor(d / 3600e3) + '小时前';
+  if (d < 7 * 86400e3) return Math.floor(d / 86400e3) + '天前';
+  const t = new Date(ts); const n = new Date(now);
+  return t.getFullYear() === n.getFullYear() ? (t.getMonth() + 1) + '月' + t.getDate() + '日'
+    : t.getFullYear() + '/' + (t.getMonth() + 1) + '/' + t.getDate();
+}
+
 function sessionRow(s) {
   const li = document.createElement('li');
-  li.textContent = s.title;
+  const title = document.createElement('span');
+  title.className = 'sr-title';
+  title.textContent = s.title;
+  const time = document.createElement('span');
+  time.className = 'sr-time';
+  time.textContent = relTime(s.updated_at);
+  li.append(title, time);
+  li.title = s.title;
   li.dataset.id = s.id;
   if (current && s.id === current.id) li.classList.add('active');
   li.onclick = () => openSession(s.id);
@@ -396,13 +427,14 @@ async function refreshSessions(preloaded) {
   const loose = [];
   const spaces = new Map();
   for (const s of sessions) {
-    const key = s.space || s.cwd;
+    // the daemon defaults cwd to the home dir — that is "no workspace" (wb 任务)
+    const key = s.space || (s.cwd && s.cwd !== homeDir ? s.cwd : null);
     if (key) {
       if (!spaces.has(key)) spaces.set(key, { label: s.space || basename(s.cwd), list: [] });
       spaces.get(key).list.push(s);
     } else loose.push(s);
   }
-  $('#tasks-label').textContent = loose.length ? `任务 (${loose.length})` : '任务';
+  $('#tasks-label').textContent = `任务 (${loose.length})`;
   if (!loose.length) {
     const d = document.createElement('div');
     d.className = 'side-empty';
@@ -412,11 +444,19 @@ async function refreshSessions(preloaded) {
   loose.forEach((s) => ul.appendChild(sessionRow(s)));
   const sg = $('#space-groups');
   sg.innerHTML = '';
-  for (const [, g] of spaces) {
+  if (spaces.size) {
     const label = document.createElement('div');
     label.className = 'side-section-label';
-    label.textContent = `${g.label} (${g.list.length})`;
+    label.textContent = `空间 (${spaces.size})`;
     sg.appendChild(label);
+  }
+  for (const [, g] of spaces) {
+    const row = document.createElement('div');
+    row.className = 'space-row';
+    row.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M1.8 4.2c0-.7.5-1.2 1.2-1.2h3.2l1.4 1.5H13c.7 0 1.2.5 1.2 1.2v6.1c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg><span class="sr-title"></span>';
+    row.querySelector('.sr-title').textContent = g.label;
+    row.title = g.label;
+    sg.appendChild(row);
     const nested = document.createElement('ul');
     nested.className = 'session-list-nested';
     g.list.forEach((s) => nested.appendChild(sessionRow(s)));
@@ -427,6 +467,7 @@ async function refreshSessions(preloaded) {
 async function openSession(id) {
   const s = await rpc('sessions.get', { id });
   current = s; mode = s.mode || 'craft';
+  closeHub();
   setHomeMode(false);
   const spaceName = s.space || basename(s.cwd || '');
   $('#crumb-space').textContent = spaceName;
@@ -455,6 +496,7 @@ async function openSession(id) {
 // is sent (title taken from it)
 function newTask() {
   current = null;
+  closeHub();
   setHomeMode(true);
   $('#crumb-space').classList.add('hidden');
   $('#crumb-sep').classList.add('hidden');
@@ -510,6 +552,199 @@ async function send() {
   }
 }
 
+// ---------- F54 「专家·技能·连接器」 hub (design/35) ----------
+// Main-area page like wb: three tabs; the 技能 tab merges the builtin Claude
+// skills catalog (market.list) with locally installed skills (skills.list).
+const HUB_GROUPS = { creative: '创意设计', dev: '开发技术', enterprise: '企业沟通', document: '文档' };
+const hub = { tab: 'skills', filter: 'all', q: '', plugins: [], skills: [], catalogs: [] };
+
+function setNavActive(id) {
+  document.querySelectorAll('#sb-nav .nav-item').forEach((b) => b.classList.toggle('active', b.id === id));
+}
+
+async function openHub(tab, filter) {
+  hub.tab = tab || hub.tab;
+  if (filter) hub.filter = filter;
+  document.getElementById('main').classList.add('hub-open');
+  $('#hub').classList.remove('hidden');
+  setNavActive('nav-hub');
+  renderHubTabs();
+  await loadHubTab();
+}
+
+function closeHub() {
+  const main = document.getElementById('main');
+  if (!main.classList.contains('hub-open')) return;
+  main.classList.remove('hub-open');
+  $('#hub').classList.add('hidden');
+  setNavActive('btn-new');
+}
+
+function renderHubTabs() {
+  document.querySelectorAll('#hub .hub-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === hub.tab));
+  document.querySelectorAll('#hub .hub-pane').forEach((p) => p.classList.toggle('hidden', p.dataset.pane !== hub.tab));
+  document.querySelectorAll('#hub-filters .hub-chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === hub.filter));
+}
+
+async function loadHubTab() {
+  try {
+    if (hub.tab === 'skills') {
+      const [ls, skills] = await Promise.all([rpc('market.list', {}), rpc('skills.list')]);
+      hub.plugins = ls.plugins; hub.catalogs = ls.catalogs; hub.skills = skills;
+      renderHubSkills();
+    } else if (hub.tab === 'experts') {
+      renderHubCards('#hub-expert-grid', '#hub-expert-empty', (await rpc('presets.list')).map((p) => ({
+        title: p.name, desc: (p.description || p.prompt || '').slice(0, 160), tag: '专家', letter: p.name })));
+    } else if (hub.tab === 'connectors') {
+      const list = await rpc('connectors.list');
+      renderHubCards('#hub-connector-grid', '#hub-connector-empty', list.map((c) => ({
+        title: c.name || c.id, desc: (c.command || '') + ' ' + (c.args || []).join(' '),
+        tag: c.state === 'connected' ? '已连接 · ' + c.tools.length + ' 个工具' : (c.enabled === false ? '已停用' : '未连接'),
+        letter: c.name || c.id })));
+    }
+  } catch (e) {
+    $('#hub-banner').textContent = '加载失败：' + e.message;
+  }
+}
+
+function cardIcon(letter, group) {
+  const ico = document.createElement('span');
+  ico.className = 'sc-ico sc-ico--' + (group || 'other');
+  ico.textContent = String(letter || '?').replace(/^[^A-Za-z一-龥]+/, '').slice(0, 1).toUpperCase();
+  return ico;
+}
+
+function renderHubCards(gridSel, emptySel, items) {
+  const grid = $(gridSel);
+  grid.innerHTML = '';
+  for (const it of items) {
+    const card = document.createElement('div');
+    card.className = 'skill-card';
+    const main = document.createElement('div');
+    main.className = 'sc-main';
+    main.innerHTML = '<div class="sc-name"><span class="sc-title"></span><span class="sc-tag"></span></div><div class="sc-desc"></div>';
+    main.querySelector('.sc-title').textContent = it.title;
+    main.querySelector('.sc-tag').textContent = it.tag || '';
+    main.querySelector('.sc-desc').textContent = it.desc || '';
+    card.append(cardIcon(it.letter, it.group), main);
+    grid.appendChild(card);
+  }
+  $(emptySel).classList.toggle('hidden', items.length > 0);
+}
+
+function hubSkillItems() {
+  const installedMeta = new Map(hub.skills.map((s) => [s.name, s]));
+  const marketNames = new Set(hub.plugins.map((p) => p.name));
+  const items = hub.plugins.map((p) => ({ kind: 'market', p, local: installedMeta.get(p.name) }));
+  // locally installed skills that no catalog knows (builtin MyAgent skills,
+  // imports) still belong on the 已安装 view
+  for (const s of hub.skills) if (!marketNames.has(s.name)) items.push({ kind: 'local', s });
+  const q = hub.q.trim().toLowerCase();
+  return items.filter((it) => {
+    const installed = it.kind === 'local' || it.p.installed;
+    if (hub.filter === 'installed' && !installed) return false;
+    if (HUB_GROUPS[hub.filter] && (it.kind === 'local' || it.p.group !== hub.filter)) return false;
+    if (!q) return true;
+    const hay = it.kind === 'local' ? it.s.name + ' ' + it.s.description
+      : [it.p.name, it.p.display_name, it.p.description, it.p.description_zh].join(' ');
+    return hay.toLowerCase().includes(q);
+  });
+}
+
+function renderHubSkills() {
+  const cat = hub.catalogs.find((c) => c.id === 'builtin:claude-skills');
+  const banner = $('#hub-banner');
+  banner.innerHTML = '';
+  if (cat) {
+    const n = hub.plugins.filter((p) => p.from === cat.id && p.installable).length;
+    const b = document.createElement('div');
+    b.className = 'hub-banner__row';
+    b.innerHTML = '<span class="hub-banner__title"></span><span class="hub-banner__meta"></span>';
+    b.querySelector('.hub-banner__title').textContent = cat.display_name;
+    b.querySelector('.hub-banner__meta').textContent = 'Anthropic 官方分享 · ' + n + ' 个可离线安装 · 版本 ' +
+      String((cat.metadata && cat.metadata.commit) || '').slice(0, 7);
+    banner.appendChild(b);
+  }
+  const grid = $('#hub-skill-grid');
+  grid.innerHTML = '';
+  const items = hubSkillItems();
+  for (const it of items) grid.appendChild(it.kind === 'local' ? localSkillCard(it.s) : marketSkillCard(it.p, it.local));
+  $('#hub-skill-empty').classList.toggle('hidden', items.length > 0);
+}
+
+function skillCardShell(letter, group, title, tag, desc, hoverTitle) {
+  const card = document.createElement('div');
+  card.className = 'skill-card';
+  card.title = hoverTitle || '';
+  const main = document.createElement('div');
+  main.className = 'sc-main';
+  main.innerHTML = '<div class="sc-name"><span class="sc-title"></span><span class="sc-tag"></span></div><div class="sc-desc"></div>';
+  main.querySelector('.sc-title').textContent = title;
+  main.querySelector('.sc-tag').textContent = tag;
+  main.querySelector('.sc-desc').textContent = desc;
+  card.append(cardIcon(letter, group), main);
+  return card;
+}
+
+function marketSkillCard(p, local) {
+  const card = skillCardShell(p.name, p.group, p.display_name, p.author || p.market,
+    p.description_zh || p.description, p.name + (p.license ? ' · ' + p.license : '') + '\n' + p.description);
+  card.dataset.name = p.name;
+  const act = document.createElement('button');
+  act.className = 'sc-act';
+  if (p.installed) {
+    act.textContent = local && local.disable ? '已停用' : '已安装';
+    act.classList.add('sc-act--done');
+    act.onclick = () => toggleSkill(p.name, local);
+  } else if (!p.installable) {
+    act.textContent = '仅查看';
+    act.classList.add('sc-act--view');
+    act.title = p.reason;
+    act.onclick = () => { if (p.homepage) window.myagent.windowAction('openExternal', { url: p.homepage }); };
+  } else {
+    act.textContent = '安装';
+    act.onclick = async () => {
+      act.disabled = true; act.textContent = '安装中…';
+      try {
+        const [r] = await rpc('market.install', { names: [p.name] });
+        if (r.status === 'refused') { act.textContent = '失败'; act.title = r.reason || ''; return; }
+      } catch (e) { act.textContent = '失败'; act.title = e.message; return; }
+      await loadHubTab();
+    };
+  }
+  card.appendChild(act);
+  return card;
+}
+
+function localSkillCard(s) {
+  const card = skillCardShell(s.name, 'local', s.name, s.source === 'builtin' ? 'MyAgent 内置' : '本地',
+    s.description, s.dir);
+  card.dataset.name = s.name;
+  const act = document.createElement('button');
+  act.className = 'sc-act sc-act--done';
+  act.textContent = s.disable ? '已停用' : '已启用';
+  act.onclick = () => toggleSkill(s.name, s);
+  card.appendChild(act);
+  return card;
+}
+
+async function toggleSkill(name, local) {
+  const enabled = !!(local && local.disable);
+  await rpc('skills.toggle', { name, enabled });
+  await loadHubTab();
+}
+
+function toggleMoreMenu(force) {
+  const m = $('#more-menu');
+  const open = force === undefined ? m.classList.contains('hidden') : force;
+  m.classList.toggle('hidden', !open);
+  if (open) {
+    const r = $('#nav-more').getBoundingClientRect();
+    m.style.left = (r.left + 8) + 'px';
+    m.style.top = (r.bottom + 4) + 'px';
+  }
+}
+
 // ---------- terminal panel (F14) ----------
 let term = null; let termId = null;
 async function toggleTerminal() {
@@ -548,12 +783,25 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#btn-settings').onclick = () => window.myagent.windowAction('openSettings');
   // F38 band + sidebar nav (v5.8.2 real UI)
   $('#band-search').onclick = () => window.myagent.windowAction('openSearch');
-  $('#nav-search').onclick = () => window.myagent.windowAction('openSearch');
-  $('#nav-market').onclick = () => window.myagent.windowAction('openSettings', { panel: 'market' });
-  $('#nav-skills').onclick = () => window.myagent.windowAction('openSettings', { panel: 'skills' });
-  $('#nav-connectors').onclick = () => window.myagent.windowAction('openSettings', { panel: 'connectors' });
-  $('#nav-memory').onclick = () => window.myagent.windowAction('openSettings', { panel: 'memory' });
+  // wb six-row nav: 新建任务 / 助理 / 专家·技能·连接器 / 定时任务 / 资料库 / 更多
+  $('#nav-hub').onclick = () => openHub('skills');
+  $('#btn-discover').onclick = () => openHub('skills', 'all');
+  $('#nav-more').onclick = (e) => { e.stopPropagation(); toggleMoreMenu(); };
+  document.addEventListener('click', (e) => { if (!e.target.closest('#more-menu')) toggleMoreMenu(false); });
+  $('#nav-search').onclick = () => { toggleMoreMenu(false); window.myagent.windowAction('openSearch'); };
+  $('#nav-market').onclick = () => { toggleMoreMenu(false); window.myagent.windowAction('openSettings', { panel: 'market' }); };
+  $('#nav-connectors').onclick = () => { toggleMoreMenu(false); openHub('connectors'); };
+  $('#nav-memory').onclick = () => { toggleMoreMenu(false); window.myagent.windowAction('openSettings', { panel: 'memory' }); };
   $('#nav-assistant').onclick = () => window.myagent.windowAction('openSettings', { panel: 'presets' });
+  document.querySelectorAll('#hub .hub-tab').forEach((b) => {
+    b.onclick = () => { hub.tab = b.dataset.tab; renderHubTabs(); loadHubTab(); };
+  });
+  document.querySelectorAll('#hub-filters .hub-chip').forEach((c) => {
+    c.onclick = () => { hub.filter = c.dataset.filter; renderHubTabs(); renderHubSkills(); };
+  });
+  $('#hub-search').addEventListener('input', (e) => { hub.q = e.target.value; renderHubSkills(); });
+  $('#hub-manage-experts').onclick = () => window.myagent.windowAction('openSettings', { panel: 'presets' });
+  $('#hub-manage-connectors').onclick = () => window.myagent.windowAction('openSettings', { panel: 'connectors' });
   $('#nav-tasks').onclick = () => window.myagent.windowAction('openSettings', { panel: 'tasks' });
   $('#nav-library').onclick = () => window.myagent.windowAction('openSettings', { panel: 'library' });
   document.querySelectorAll('#band .menu-label').forEach((el) => {
@@ -562,14 +810,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#win-min').onclick = () => window.myagent.windowAction('win-minimize');
   $('#win-max').onclick = () => window.myagent.windowAction('win-maximize');
   $('#win-close').onclick = () => window.myagent.windowAction('win-close');
-  $('#btn-plus').onclick = () => $('#input').focus();
+  $('#btn-plus').onclick = (e) => { e.stopPropagation(); $('#plus-menu').classList.toggle('hidden'); };
+  document.addEventListener('click', (e) => { if (!e.target.closest('#plus-menu')) $('#plus-menu').classList.add('hidden'); });
   $('#composer-model').onclick = () => window.myagent.windowAction('openSettings', { panel: 'model' });
   // F43: @ file context + / skill invocation (design/34)
   $('#btn-context').onclick = async () => {
+    $('#plus-menu').classList.add('hidden');
     const file = await window.myagent.windowAction('pickFile');
     if (file) { const i = $('#input'); i.value = i.value.replace(/\s*$/, '') + ` @"${file}" `; i.focus(); }
   };
   $('#btn-slash').onclick = async () => {
+    $('#plus-menu').classList.add('hidden');
     // Electron 渲染层没有 prompt()：插入 / 并弹出技能内联菜单
     const input = $('#input');
     input.value = '/ ' + input.value;
@@ -614,7 +865,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     $('#composer-sub').appendChild(menuEl);
   };
-  rpc('app.version').then((v) => { $('#app-version').textContent = 'V' + v.version; }).catch(() => {});
+  rpc('app.version').then((v) => {
+    $('#app-version').textContent = 'V' + v.version;
+    if (v.home && v.home !== homeDir) { homeDir = v.home; refreshSessions().catch(() => {}); }
+  }).catch(() => {});
   rpc('settings.get', { key: 'llm.model' }).then((m) => {
     $('#composer-model').textContent = m || 'local-model';
   }).catch(() => {});

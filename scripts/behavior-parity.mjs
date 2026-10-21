@@ -251,7 +251,8 @@ async function runMy() {
     });
     // 4 open-search
     await step('open-search', async () => {
-      await main.click('#nav-search');
+      // wb six-row nav: 全局搜索 lives under 更多 (band search icon also works)
+      await main.click('#band-search');
       await new Promise((r) => setTimeout(r, 900));
       const s = ctx.pages().find((p) => /search\.html/.test(p.url()));
       const pass = !!s;

@@ -2,7 +2,7 @@
 // Electron main entry (F01/F02/F16). Narrow IPC surface: one 'rpc' handle +
 // event broadcast, window controls, deeplink queue, smoke-test hook.
 
-const { app, ipcMain, dialog, BrowserWindow, Menu } = require('electron');
+const { app, ipcMain, dialog, BrowserWindow, Menu, shell } = require('electron');
 const { DaemonClient } = require('./daemon-client');
 const windows = require('./windows');
 const { createTray, parseDeeplink } = require('./tray');
@@ -94,6 +94,14 @@ async function bootstrap() {
     if (req.action === 'openSettings') windows.createSettings(req.panel);
     if (req.action === 'openSearch') windows.createSearch();
     if (req.action === 'openPreview' && req.path) windows.createPreview(String(req.path));
+    // F54: catalog homepage links (view-only skills) — https only, OS browser
+    if (req.action === 'openExternal') {
+      let u = null;
+      try { u = new URL(String(req.url || '')); } catch (_) {}
+      if (!u || u.protocol !== 'https:') return false;
+      await shell.openExternal(u.href);
+      return true;
+    }
     if (req.action === 'pickFile') {
       return dialog.showOpenDialog({ properties: ['openFile'] }).then((r) => (r.canceled ? null : r.filePaths[0]));
     }
@@ -279,6 +287,55 @@ async function runSmoke() {
     })()`, true);
     step('ui-tool-surfaces', !surf.err && surf.art && surf.progOk && surf.rows === 2 && surf.doneRow
       && surf.merged && surf.progHidden && surf.usage, JSON.stringify(surf));
+    // F54 sidebar = wb v5.8.2 nav: six rows in a 202px block starting at
+    // y=96 (wb-live-tokens-main.json navNewTask), session rows carry a time
+    const nav = await mainWin.webContents.executeJavaScript(`(() => {
+      const nav = document.getElementById('sb-nav');
+      const labels = [...nav.querySelectorAll('.nav-item')].map((b) => b.childNodes[1] ? b.childNodes[1].textContent : b.textContent);
+      const row = document.querySelector('#session-list li, .session-list-nested li');
+      return { labels, h: nav.offsetHeight, top: Math.round(nav.getBoundingClientRect().top),
+        time: !!(row && row.querySelector('.sr-time') && row.querySelector('.sr-time').textContent),
+        rel: [window.__myagentTest.relTime(Date.now() - 30e3), window.__myagentTest.relTime(Date.now() - 5 * 3600e3)] };
+    })()`, true);
+    step('ui-nav', nav.labels.join('|') === '新建任务|助理|专家·技能·连接器|定时任务|资料库|更多'
+      && nav.h === 202 && nav.top === 96 && nav.time && nav.rel[0] === '刚刚' && nav.rel[1] === '5小时前', JSON.stringify(nav));
+    // F53/F54 hub: Claude catalog cards render in the main area and the
+    // install button really installs through the daemon
+    // smoke runs against the real data dir: click the first card that is not
+    // installed yet and uninstall it afterwards so user state is unchanged
+    const hubInfo = await mainWin.webContents.executeJavaScript(`(async () => {
+      await window.__myagentTest.openHub('skills', 'all');
+      const visible = !document.getElementById('hub').classList.contains('hidden')
+        && getComputedStyle(document.getElementById('messages')).display === 'none';
+      const cards = document.querySelectorAll('#hub-skill-grid .skill-card').length;
+      const banner = (document.querySelector('#hub-banner .hub-banner__title') || {}).textContent || '';
+      const view = document.querySelector('#hub-skill-grid .skill-card[data-name="pdf"] .sc-act');
+      const card = [...document.querySelectorAll('#hub-skill-grid .skill-card')]
+        .find((c) => c.querySelector('.sc-act').textContent === '安装');
+      if (!card) return { visible, cards, banner, viewOnly: view && view.textContent, picked: null };
+      const name = card.dataset.name;
+      const sel = '#hub-skill-grid .skill-card[data-name="' + name + '"] .sc-act';
+      card.querySelector('.sc-act').click();
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        const b = document.querySelector(sel);
+        if (b && b.textContent === '已安装') break;
+      }
+      const after = document.querySelector(sel).textContent;
+      document.querySelector('#hub-filters .hub-chip[data-filter="installed"]').click();
+      const installedView = [...document.querySelectorAll('#hub-skill-grid .skill-card')].map((c) => c.dataset.name);
+      document.querySelector('#hub-filters .hub-chip[data-filter="all"]').click();
+      return { visible, cards, banner, viewOnly: view && view.textContent, picked: name, after, installedView };
+    })()`, true);
+    const hubSkills = await daemon.request('skills.list');
+    const picked = hubInfo.picked;
+    const installedOk = !picked || (hubInfo.after === '已安装' && hubInfo.installedView.includes(picked)
+      && !hubInfo.installedView.includes('pdf') && hubSkills.ok && hubSkills.result.some((s) => s.name === picked));
+    if (picked) await daemon.request('skills.uninstall', { name: picked });
+    step('ui-hub', hubInfo.visible && hubInfo.cards >= 19 && hubInfo.banner === 'Claude 技能市场'
+      && hubInfo.viewOnly === '仅查看' && installedOk, JSON.stringify(hubInfo));
+    await mainWin.webContents.executeJavaScript(
+      'window.__myagentTest.openSession(' + JSON.stringify(s1.result.id) + ')', true);
     const stWin = windows.get('settings');
     const stNav = await stWin.webContents.executeJavaScript(
       'document.querySelector(".settings-modal__nav").offsetWidth', true).catch(() => null);

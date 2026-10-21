@@ -4,6 +4,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { spawn } = require('child_process');
 const { openStore } = require('./store');
 const { Sandbox, defaultRules } = require('./sandbox');
@@ -19,20 +20,15 @@ const { globalSearch } = require('./search');
 const { CredentialVault } = require('./crypto');
 const { ChannelManager } = require('./im');
 const { Market } = require('./market');
+const { extractZip } = require('./unzip');
 const { SyncService } = require('./sync');
 const { A2aServer } = require('./a2a');
 
 const APP_VERSION = require('../../package.json').version;
 
-/** Zip extraction via PowerShell Expand-Archive (personal-use default). */
+/** Zip extraction (F12/F25): pure-JS extractor, identical on every OS. */
 function defaultZipExtractor() {
-  return (zip, dest) => new Promise((resolve, reject) => {
-    const { execFile } = require('child_process');
-    if (process.platform !== 'win32') return reject(new Error('zip import only supported on windows (Phase: add unzip lib)'));
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      `Expand-Archive -LiteralPath '${zip}' -DestinationPath '${dest}' -Force`],
-    { timeout: 60000 }, (err) => (err ? reject(err) : resolve()));
-  });
+  return (zip, dest) => extractZip(zip, dest);
 }
 
 function homeDir() {
@@ -150,7 +146,14 @@ function createDaemon({ send }) {
     },
     daemonToolHandler: async (tool, args) => {
       if (tool === 'market') {
-        if (args.action === 'search') return { ok: true, summary: 'market search', data: { skills: await getMarket().search(args.keywords || []) } };
+        if (args.action === 'search') {
+          // evidence contract {skills:[{name, display_name, description}]} +
+          // install state so the model does not retry refused/installed ones
+          const skills = (await getMarket().search(args.keywords || [])).map((p) => ({
+            name: p.name, display_name: p.display_name, description: (p.description_zh || p.description).slice(0, 240),
+            installed: p.installed, installable: p.installable, ...(p.installable ? {} : { reason: p.reason }) }));
+          return { ok: true, summary: 'market search: ' + skills.length + ' hit(s)', data: { skills } };
+        }
         if (args.action === 'install') {
           const results = await getMarket().installMany(args.names || []);
           const failed = results.filter((r) => r.status === 'refused');
@@ -209,13 +212,17 @@ function createDaemon({ send }) {
   // ---- F25 cloud skill market (rebuilt when its settings change) ----
   let market = null;
   let marketSig = '';
+  const marketBuiltinDir = process.env.MYAGENT_MARKET_BUILTIN || path.join(__dirname, '..', '..', 'market', 'claude-skills');
   function getMarket() {
     const sources = String(store.getSetting('market.url') || '').split(',').map((s) => s.trim()).filter(Boolean);
     const allowInsecure = store.getSetting('market.allowInsecure') === true;
-    const sig = sources.join('|') + '#' + allowInsecure;
+    // F53: the vendored Claude skills catalog is on unless explicitly disabled
+    const builtin = store.getSetting('market.builtin') === false ? [] : [marketBuiltinDir];
+    const sig = sources.join('|') + '#' + allowInsecure + '#' + builtin.length;
     if (!market || marketSig !== sig) {
       market = new Market({
         sources,
+        builtin,
         skillsUser,
         installSkill,
         unzip: defaultZipExtractor(),
@@ -263,7 +270,7 @@ function createDaemon({ send }) {
   ensureA2a().catch((e) => store.log('warn', 'a2a', 'start failed: ' + e.message));
 
   const methods = {
-    'app.version': async () => ({ version: APP_VERSION, platform: process.platform, storeWarning: warning || null }),
+    'app.version': async () => ({ version: APP_VERSION, platform: process.platform, home: os.homedir(), storeWarning: warning || null }),
     'app.selfcheck': async () => ({
       version: APP_VERSION,
       store: store.health(),
@@ -367,6 +374,12 @@ function createDaemon({ send }) {
     'market.search': async (p) => getMarket().search(p.keywords || []),
     'market.install': async (p) => getMarket().installMany(p.names || []),
     'market.status': async () => getMarket().status(),
+    // F53: full catalog (builtin Claude skills + remote) for the hub page
+    'market.list': async (p) => {
+      const m = getMarket();
+      if (p && p.refresh && m.sources.length) await m.refresh();
+      return { catalogs: m.catalogs(), plugins: m.list() };
+    },
     // ---- F26 sync ----
     'sync.configure': async (p) => {
       const st = sync.configure(p.config);

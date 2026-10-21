@@ -7,15 +7,10 @@ const http = require('node:http');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFile } = require('child_process');
-const { makeTempHome, forkDaemon } = require('../helpers');
+const { makeTempHome, forkDaemon, zipDirSync } = require('../helpers');
 
 function zipDir(srcDir, outZip) {
-  return new Promise((resolve, reject) => {
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      `Compress-Archive -Path '${srcDir}\\*' -DestinationPath '${outZip}' -Force`],
-    { timeout: 120000 }, (err) => (err ? reject(err) : resolve()));
-  });
+  return Promise.resolve(zipDirSync(srcDir, outZip));
 }
 
 function makeZipWithSkill(tag, skillName) {

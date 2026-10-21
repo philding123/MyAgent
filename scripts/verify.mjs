@@ -77,7 +77,14 @@ let unitTests = [], intTests = [];
   if (!existsSync(electronJs)) {
     results.e2e = { code: 2, error: 'electron not installed' };
   } else {
-    run('e2e-smoke', process.execPath, [electronJs, '.'], {
+    // Linux CI/containers: no display → wrap in xvfb-run; root needs
+    // --no-sandbox (Chromium refuses to start otherwise)
+    const linuxArgs = process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0 ? ['--no-sandbox'] : [];
+    const headless = process.platform === 'linux' && !process.env.DISPLAY;
+    const [cmd, args] = headless
+      ? ['xvfb-run', ['-a', process.execPath, electronJs, '.', ...linuxArgs]]
+      : [process.execPath, [electronJs, '.', ...linuxArgs]];
+    run('e2e-smoke', cmd, args, {
       shell: true, log: false, timeout: 300000,
       env: { MYAGENT_SMOKE: '1', MYAGENT_SMOKE_OUT: out,
         MYAGENT_SMOKE_SHARE: path.join(ROOT, 'tests', 'fixtures', 'share-sample.txt') },
@@ -94,9 +101,11 @@ let unitTests = [], intTests = [];
     } else {
       results.e2e = { code: 1, error: 'no smoke result within 120s' };
     }
-    spawnSync('powershell', ['-NoProfile', '-Command',
-      "Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*myagent*' } | Stop-Process -Force"],
-      { timeout: 30000 });
+    if (process.platform === 'win32') {
+      spawnSync('powershell', ['-NoProfile', '-Command',
+        "Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*myagent*' } | Stop-Process -Force"],
+        { timeout: 30000 });
+    }
   }
 }
 
@@ -139,6 +148,8 @@ const e2eMap = {
   T43: [],
   T44: ['ui-tool-surfaces'],
   T46: [],
+  T47: [],
+  T48: ['ui-nav', 'ui-hub'],
 };
 
 const featureNames = {
@@ -155,6 +166,8 @@ const featureNames = {
   T41: 'F48/F49 计划卡与进度用量', T42: 'F50 上下文自动压缩', T43: 'F51 会话消息落库',
   T44: 'F44 产物卡片与运行反馈面（渲染层）',
   T46: 'F52 连接器（MCP 客户端）',
+  T47: 'F53 内置 Claude 技能市场',
+  T48: 'F54 wb 侧栏六项 + 专家·技能·连接器页',
 };
 
 let lines = [];
