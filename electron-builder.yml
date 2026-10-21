@@ -1,0 +1,76 @@
+# Installer build (design/37-packaging-release.md). `npm run dist` builds the
+# installers for the current OS into dist-installer/; CI runs it on Windows,
+# Linux and macOS runners (.github/workflows/release.yml).
+appId: com.myagent.desktop
+productName: MyAgent
+copyright: MyAgent — personal WorkBuddy-style agent workstation
+directories:
+  output: dist-installer
+  buildResources: build
+
+# The daemon loads the vendored Electron-ABI SQLite (scripts/setup-electron-
+# sqlite.mjs, run by `predist`); node_modules keeps the Node ABI build that the
+# test suite uses, so electron-builder must not rebuild native modules in place.
+npmRebuild: false
+
+files:
+  - package.json
+  - README.md
+  - app/**
+  - "!app/**/{AGENTS,CLAUDE,GEMINI}.md"
+  - "!app/renderer/src/**"
+  - skills/**
+  - market/**
+  - scripts/update/**
+  - vendor/better-sqlite3-electron/package.json
+  - vendor/better-sqlite3-electron/lib/**
+  - vendor/better-sqlite3-electron/build/Release/better_sqlite3.node
+  - "!**/*.{map,md.bak}"
+  # node_modules/better-sqlite3 is only kept for its `bindings` dependency
+  # (the vendored copy above is what Electron loads): drop the C sources
+  - "!node_modules/better-sqlite3/{deps,src}/**"
+
+# Real paths for anything copied (skill installs), executed (skill scripts,
+# update transition scripts via wscript) or dlopen'd (native addons) —
+# app/shared/asar-path.js maps app.asar → app.asar.unpacked for these.
+asarUnpack:
+  - "**/*.node"
+  - "node_modules/@lydell/node-pty*/**"
+  - skills/**
+  - market/**
+  - scripts/update/**
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+nsis:
+  # F21 updater runs the installer with /S: per-user, no elevation, silent ok
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: MyAgent
+  artifactName: MyAgent-Setup-${version}-${arch}.${ext}
+  deleteAppDataOnUninstall: false
+
+linux:
+  target: [AppImage, deb]
+  category: Utility
+  syncDesktopName: true
+  icon: build/icon.png
+  synopsis: Personal AI agent desktop workstation
+  maintainer: philding123 <philding123@users.noreply.github.com>
+  artifactName: MyAgent-${version}-${arch}.${ext}
+
+mac:
+  target: [dmg]
+  category: public.app-category.productivity
+  icon: build/icon-1024.png
+  # no Apple Developer ID in this repo: unsigned build (Gatekeeper: right-click → Open)
+  identity: null
+  artifactName: MyAgent-${version}-${arch}.${ext}
+
+publish: null

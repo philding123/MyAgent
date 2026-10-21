@@ -3,7 +3,9 @@
 // settings and search windows of the real app and assert the effect the
 // control exists for — daemon state, window state, bytes on disk, what the
 // LLM actually received. Presence checks do not count as a pass.
-//   node scripts/button-audit.mjs [--port 9333] [--out artifacts/button-audit]
+//   node scripts/button-audit.mjs [--port 9333] [--out artifacts/button-audit] [--exec <packaged binary>]
+// --exec audits an installed/unpacked build (e.g. dist-installer/linux-unpacked/myagent)
+// instead of the dev checkout.
 // Linux without DISPLAY: wraps Electron in xvfb-run; root adds --no-sandbox.
 // MYAGENT_TEST_SEAMS=1 answers OS file dialogs from a queue and records
 // external links instead of launching a browser (app/main/index.js).
@@ -42,8 +44,9 @@ fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '---\nname: audit-imported-ski
 // ---------- launch ----------
 const electronJs = path.join(ROOT, 'node_modules', 'electron', 'cli.js');
 const extra = process.platform === 'linux' && process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [];
-let cmd = process.execPath;
-let cmdArgs = [electronJs, '.', `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1', ...extra];
+const EXEC = opt('exec', null);
+let cmd = EXEC ? path.resolve(EXEC) : process.execPath;
+let cmdArgs = [...(EXEC ? [] : [electronJs, '.']), `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1', ...extra];
 if (process.platform === 'linux' && !process.env.DISPLAY) {
   // a window manager is required for maximize/minimize to mean anything
   cmdArgs = ['-a', '-s', '-screen 0 1600x1000x24', 'sh', '-c', '(command -v openbox >/dev/null && openbox >/dev/null 2>&1 &); sleep 0.5; exec "$0" "$@"', cmd, ...cmdArgs];

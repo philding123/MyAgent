@@ -1,0 +1,116 @@
+# Installer pipeline (design/37-packaging-release.md).
+#   push a tag vX.Y.Z  → build Windows/Linux/macOS installers, smoke-test the
+#                        packaged app on each OS, publish a GitHub Release with
+#                        the installers + SHA256SUMS.txt + latest.json (F21
+#                        updater manifest)
+#   Actions → Release → Run workflow → installers as workflow artifacts only
+#                        (tick "publish" to also create a draft release)
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Also create a draft GitHub Release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: installer (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            files: dist-installer/*.exe
+          - os: ubuntu-latest
+            files: |
+              dist-installer/*.AppImage
+              dist-installer/*.deb
+          - os: macos-latest
+            files: dist-installer/*.dmg
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux GUI deps (packaged smoke test)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb openbox
+
+      - run: npm ci
+
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+
+      - name: Build installers (npm run dist)
+        run: npm run dist
+        env:
+          # no code-signing certificates in this repo: unsigned builds
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Smoke-test the packaged app
+        run: node scripts/smoke-packaged.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ runner.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installer-*
+          path: dist-installer
+          merge-multiple: true
+
+      - name: SHA256SUMS + updater manifest
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          node scripts/release-manifest.mjs --dir dist-installer \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}" \
+            --notes "MyAgent v${VERSION}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DRAFT=""
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then DRAFT="--draft"; fi
+          gh release create "v${VERSION}" $DRAFT \
+            --title "MyAgent v${VERSION}" \
+            --target "${GITHUB_SHA}" \
+            --notes "Installers: Windows (NSIS .exe), Linux (.AppImage / .deb), macOS (.dmg, unsigned). Verify downloads with SHA256SUMS.txt." \
+            dist-installer/*.exe dist-installer/*.AppImage dist-installer/*.deb dist-installer/*.dmg \
+            dist-installer/SHA256SUMS.txt dist-installer/latest.json
