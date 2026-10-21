@@ -48,7 +48,7 @@
 | 工作流 | 触发 | 内容 |
 |---|---|---|
 | `ci.yml` | 每次 push / PR / 手动 | ubuntu + windows：`npm ci` → `npm run verify`（含 91 项按钮审计）→ 上传验收报告 |
-| `release.yml` | 推 `v*.*.*` 标签；或手动（publish 勾选 → 草稿 Release） | windows/ubuntu/macos 三 runner：版本号取自标签 → `npm run dist` → `scripts/smoke-packaged.mjs`（对打包产物跑 E2E 冒烟）→ 上传安装包；publish 作业汇总 → `release-manifest.mjs` → `gh release create`（安装包 + SHA256SUMS + latest.json） |
+| `release.yml` | 推 `v*.*.*` 标签；或手动（publish 勾选 → 草稿 Release）；push 改动打包相关文件时只跑构建+打包冒烟（不发布） | windows/ubuntu/macos 三 runner：版本号取自标签 → `npm run dist` → `scripts/smoke-packaged.mjs`（对打包产物跑 E2E 冒烟）→ 上传安装包；publish 作业汇总 → `release-manifest.mjs` → `gh release create`（安装包 + SHA256SUMS + latest.json） |
 
 ## 验证
 

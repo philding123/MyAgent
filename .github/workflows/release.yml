@@ -5,11 +5,26 @@
 #                        updater manifest)
 #   Actions → Release → Run workflow → installers as workflow artifacts only
 #                        (tick "publish" to also create a draft release)
+#   push touching packaging files → build + packaged smoke only (never publishes),
+#                        so a broken installer is caught before the next tag
 name: Release
 
 on:
   push:
     tags: ['v*.*.*']
+    # branch pushes: only when packaging changed (path filters never apply to tags)
+    branches: ['**']
+    paths:
+      - electron-builder.yml
+      - package.json
+      - package-lock.json
+      - build/**
+      - app/shared/asar-path.js
+      - scripts/build.mjs
+      - scripts/setup-electron-sqlite.mjs
+      - scripts/smoke-packaged.mjs
+      - scripts/release-manifest.mjs
+      - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
       publish:
