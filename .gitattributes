@@ -2,3 +2,6 @@
 *.sh text eol=lf
 *.mjs text eol=lf
 package-lock.json -text
+# F53: vendored skill trees are verified by byte digest (tree_sha256) —
+# never let autocrlf rewrite them on checkout
+market/** -text

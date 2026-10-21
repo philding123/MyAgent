@@ -11,20 +11,26 @@ function expandEnv(p, extraEnv) {
   return String(p)
     .replace(/%([^%]+)%/g, (m, name) => {
       if (name.toUpperCase() === 'USERPROFILE') return os.homedir();
+      // wb rule files are written for Windows; %TEMP%/%TMP% = the OS temp dir
+      // everywhere (on posix these vars are usually unset)
+      if (/^(TEMP|TMP)$/i.test(name) && env[name] === undefined) return os.tmpdir();
       if (name.toUpperCase() === 'WORKSPACE') return (extraEnv && extraEnv.WORKSPACE) || '';
       return env[name] !== undefined ? env[name] : m;
     })
     .replace(/^~/, os.homedir());
 }
 
+// Separators are OS-agnostic: `/` and `\` in a rule both match either, so a
+// wb-format rule (`%USERPROFILE%\.ssh\**`) protects ~/.ssh on posix too.
 function globToRegExp(glob) {
   let re = '';
   for (let i = 0; i < glob.length; i++) {
     const c = glob[i];
     if (c === '*') {
-      if (glob[i + 1] === '*') { re += '[\\s\\S]*'; i++; if (glob[i + 1] === '/') i++; }
+      if (glob[i + 1] === '*') { re += '[\\s\\S]*'; i++; if (glob[i + 1] === '/' || glob[i + 1] === '\\') i++; }
       else re += '[^/\\\\]*';
     } else if (c === '?') re += '[^/\\\\]';
+    else if (c === '/' || c === '\\') re += '[/\\\\]';
     else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
   }
   return new RegExp('^' + re + '$', 'i');

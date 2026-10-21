@@ -14,7 +14,23 @@ function parseFrontmatter(text) {
   if (m) {
     body = text.slice(m[0].length);
     let lastKey = null;
+    let block = null; // YAML block scalar in progress: {key, fold, lines}
+    const endBlock = () => {
+      if (!block) return;
+      const lines = block.lines;
+      while (lines.length && lines[lines.length - 1] === '') lines.pop();
+      const indent = Math.min(...lines.filter(Boolean).map((l) => /^ */.exec(l)[0].length));
+      const raw = lines.map((l) => l.slice(Number.isFinite(indent) ? indent : 0));
+      meta[block.key] = block.fold
+        ? raw.join('\n').replace(/([^\n])\n(?=[^\n])/g, '$1 ').trim()
+        : raw.join('\n').trim();
+      block = null;
+    };
     for (const line of m[1].split(/\r?\n/)) {
+      if (block) {
+        if (line === '' || /^\s/.test(line)) { block.lines.push(line.trimEnd()); continue; }
+        endBlock();
+      }
       const listItem = /^\s+-\s?(.*)$/.exec(line);
       if (listItem && lastKey) {
         if (!Array.isArray(meta[lastKey])) meta[lastKey] = [];
@@ -26,11 +42,18 @@ function parseFrontmatter(text) {
       const [, k, raw] = kv;
       lastKey = k;
       if (raw === '') { meta[k] = raw; continue; }
+      if (/^[|>][+-]?\s*$/.test(raw)) { block = { key: k, fold: raw[0] === '>', lines: [] }; continue; }
+      if (/^"[\s\S]*"\s*$/.test(raw)) {
+        try { meta[k] = JSON.parse(raw.trim()); } catch (_) { meta[k] = raw.trim().slice(1, -1); }
+        continue;
+      }
+      if (/^'[\s\S]*'\s*$/.test(raw)) { meta[k] = raw.trim().slice(1, -1).replace(/''/g, "'"); continue; }
       if (raw.startsWith('[')) {
         try { meta[k] = JSON.parse(raw); } catch (_) { meta[k] = raw; }
       } else if (/^(true|false)$/i.test(raw)) meta[k] = /^true$/i.test(raw);
       else meta[k] = raw;
     }
+    endBlock();
   }
   return { meta, body };
 }

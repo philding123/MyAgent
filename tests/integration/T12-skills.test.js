@@ -5,9 +5,8 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { startMockLlm } = require('../../scripts/mock-llm.mjs');
-const { makeTempHome, forkDaemon } = require('../helpers');
+const { makeTempHome, forkDaemon, zipDirSync } = require('../helpers');
 
 function makeSkillDir(root, name, description) {
   const dir = path.join(root, name);
@@ -49,16 +48,14 @@ test('T12a install from directory, list, uninstall', { timeout: 30000 }, async (
   assert.ok(!after.result.some((s) => s.name === 'imported-skill'));
 });
 
-test('T12b install from zip (PowerShell Expand-Archive)', { timeout: 60000 }, async (t) => {
-  if (process.platform !== 'win32') t.skip('zip path is windows-only in this build');
+test('T12b install from zip (pure-JS extractor, every OS)', { timeout: 60000 }, async (t) => {
   const home = makeTempHome('t12z');
   const d = forkDaemon(home);
   t.after(() => d.child.kill());
   const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'myagent-t12-zip-'));
   makeSkillDir(path.join(stage, 'payload'), 'zipped-skill', 'came from a zip');
   const zip = path.join(stage, 'zipped-skill.zip');
-  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-    `Compress-Archive -LiteralPath '${path.join(stage, 'payload')}' -DestinationPath '${zip}' -Force`]);
+  zipDirSync(path.join(stage, 'payload'), zip, { prefix: 'payload/' });
   const r = await d.request('skills.install', { source: zip });
   assert.strictEqual(r.result.name, 'zipped-skill');
   const list = await d.request('skills.list');

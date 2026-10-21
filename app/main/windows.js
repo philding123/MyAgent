@@ -57,7 +57,13 @@ function createMain(deps) {
 }
 
 function createSettings(panel) {
-  if (windows.has('settings')) { windows.get('settings').focus(); return windows.get('settings'); }
+  if (windows.has('settings')) {
+    // already open: switch to the requested panel too, not just focus it
+    const w = windows.get('settings');
+    if (panel) w.webContents.send('rpc:event', { topic: 'settings:panel', payload: { panel } });
+    w.focus();
+    return w;
+  }
   // 900×680 = WorkBuddy settings window size (window-apps.js, design/27 F31);
   // frameless like wb v5.8.2 — the in-DOM chrome owns the close button
   const win = new BrowserWindow({ ...baseOpts('MyAgent Settings', [900, 680]), autoHideMenuBar: true, frame: false });

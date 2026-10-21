@@ -41,6 +41,11 @@
 | T42 | F50 上下文压缩 | unit+int | 组完整性（tool 不孤儿）/预算/标记；真实 daemon 下 tool-heavy 任务后续请求有界且带 `[context compacted]` |
 | T43 | F51 消息落库 | int | 会话轮后 sessions.get 回放 user→tool(带 tool_name/tool_json)→assistant 全序 |
 | T44 | F44/F45/F47-F49 渲染反馈面 | e2e | 注入引擎事件断言：write_file 产物卡、todo 计划卡（勾选/划线）、进度行（第N/M步·工具·耗时）、tool_result 原地合并+failed 徽标+detail、done 后进度行隐藏+用量行；present_file 自动开预览（wb present_files 语义） |
+| T47 | F53 内置 Claude 技能市场 | unit+int | T12d 纯 JS 解压（zip-slip 拒绝）；T47a 块标量 frontmatter、目录完整性（tree_sha256 逐技能）、四个文档技能 view-only、篡改 → hash_mismatch；T47b daemon market.list/install + 引擎 market 工具 search→install |
+| T48 | F54 侧栏六项 + 技能页 | e2e | ui-nav（六行文案、202px、y=96、会话时间列）；ui-hub（Claude 卡片渲染、仅查看、真实点击首个未装卡片安装 → 已安装 + skills.list 可见，随后卸载复原） |
+| T49 | 逐按钮结果审计 | e2e | `scripts/button-audit.mjs` 91 项：主窗/设置窗/搜索窗全部控件按效果断言（daemon 状态、窗口状态、磁盘、LLM 实收内容），见 design/36 |
+| T10c | 凭证键进 vault | int | llm.apiKey / sandbox.cloud.apiKey 经 settings.set 只进 vault；settings:changed 不回显值；旧明文迁移 |
+| T37b | / 技能调用 | unit | `/技能名` 附带 SKILL.md 正文；未知名/文中斜杠/路径不触发 |
 | T46 | F52 连接器 | int | mock MCP stdio server：add→connected→tools 经 RPC 列出、重名拒装、toggle 停启；连接器工具进引擎（exec 类）并经 daemon 桥完成 tools/call 往返（结果回喂 LLM） |
 
 **验收门槛**：全部 T 通过；`artifacts/acceptance-report.md` 逐项记录 PASS/DEGRADED（降级需注明原因）

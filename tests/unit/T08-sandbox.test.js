@@ -66,3 +66,14 @@ test('T08 default rules protect .ssh and keystore', () => {
   const appdata = process.env.APPDATA || path.join(home, '.config');
   assert.strictEqual(sb3.checkFile(path.join(appdata, 'myagent', 'keystore', 'vault.bin'), 'read').ok, false);
 });
+
+test('T08 rule separators are OS-agnostic (wb backslash rules hold on posix)', () => {
+  const re = globToRegExp('C:\\Users\\me\\.ssh\\**');
+  assert.ok(re.test('C:\\Users\\me\\.ssh\\id_rsa'));
+  assert.ok(re.test('C:/Users/me/.ssh/id_rsa'));
+  const posix = globToRegExp('/home/me/.ssh/**');
+  assert.ok(posix.test('/home/me/.ssh/id_rsa'));
+  assert.ok(!posix.test('/home/me/.sshx/id_rsa'), 'still anchored on the segment');
+  // deny from a wb-format file applies to the native path on every OS
+  assert.strictEqual(sb.checkFile(path.join(home, '.ssh', 'config'), 'read').ok, false);
+});

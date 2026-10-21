@@ -24,16 +24,26 @@ test('T24a AppxManifest.xml is well-formed with ShareTarget extension', () => {
   assert.ok(fs.existsSync(path.join(SHT, 'register.ps1')) && fs.existsSync(path.join(SHT, 'unregister.ps1')));
 });
 
+// Windows PowerShell, or PowerShell 7 elsewhere; null when neither exists
+function psExe() {
+  if (process.platform === 'win32') return 'powershell.exe';
+  for (const d of (process.env.PATH || '').split(path.delimiter)) {
+    if (d && fs.existsSync(path.join(d, 'pwsh'))) return 'pwsh';
+  }
+  return null;
+}
+
 function psParse(file) {
   return new Promise((resolve) => {
     const script = `[System.Management.Automation.Language.Parser]::ParseFile('${file.replace(/'/g, "''")}', [ref]$null, [ref]$err) | Out-Null; if ($err.Count) { 'PARSE_ERR ' + ($err[0].Message) } else { 'PARSE_OK' }`;
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { timeout: 60000 }, (err, stdout) => {
+    execFile(psExe(), ['-NoProfile', '-NonInteractive', '-Command', script], { timeout: 60000 }, (err, stdout) => {
       resolve({ err, out: String(stdout || '').trim() });
     });
   });
 }
 
-test('T24a register/unregister ps1 parse cleanly', { timeout: 90000 }, async () => {
+test('T24a register/unregister ps1 parse cleanly', { timeout: 90000 }, async (t) => {
+  if (!psExe()) return t.skip('no PowerShell on this host (Windows-only scripts; parsed on win32 / pwsh hosts)');
   for (const f of ['register.ps1', 'unregister.ps1']) {
     const r = await psParse(path.join(SHT, f));
     assert.strictEqual(r.out, 'PARSE_OK', f + ' parses: ' + r.out + (r.err ? ' / ' + r.err.message : ''));

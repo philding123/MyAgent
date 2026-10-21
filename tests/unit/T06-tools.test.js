@@ -46,7 +46,7 @@ test('T06 run_command executes and reports exit code', async () => {
   const t = setup();
   const r = await t.tools.run_command.run({ command: 'echo __T06__', timeout_ms: 10000 });
   assert.ok(r.data.stdout.includes('__T06__') || r.data.stdout.includes('__T06__'.toUpperCase()) || process.platform !== 'win32');
-  const bad = await t.tools.run_command.run({ command: process.platform === 'win32' ? 'cmd /c exit 3' : 'false', timeout_ms: 10000 });
+  const bad = await t.tools.run_command.run({ command: process.platform === 'win32' ? 'cmd /c exit 3' : 'exit 3', timeout_ms: 10000 });
   assert.strictEqual(bad.ok, false);
   assert.strictEqual(bad.data.code, 3);
 });

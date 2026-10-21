@@ -4,6 +4,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { spawn } = require('child_process');
 const { openStore } = require('./store');
 const { Sandbox, defaultRules } = require('./sandbox');
@@ -11,7 +12,7 @@ const { MAX_PREVIEW_BYTES } = require('../shared/preview-kind');
 const { SkillRegistry, installSkill, uninstallSkill } = require('./skills');
 const { createPresetStore } = require('./presets');
 const { createScheduler } = require('./tasks');
-const { augmentContext } = require('./context');
+const { augmentContext, augmentSkill } = require('./context');
 const { EngineHost } = require('./engine-host');
 const { McpConnectorManager } = require('./mcp-client');
 const { TerminalHost } = require('./terminal');
@@ -19,20 +20,15 @@ const { globalSearch } = require('./search');
 const { CredentialVault } = require('./crypto');
 const { ChannelManager } = require('./im');
 const { Market } = require('./market');
+const { extractZip } = require('./unzip');
 const { SyncService } = require('./sync');
 const { A2aServer } = require('./a2a');
 
 const APP_VERSION = require('../../package.json').version;
 
-/** Zip extraction via PowerShell Expand-Archive (personal-use default). */
+/** Zip extraction (F12/F25): pure-JS extractor, identical on every OS. */
 function defaultZipExtractor() {
-  return (zip, dest) => new Promise((resolve, reject) => {
-    const { execFile } = require('child_process');
-    if (process.platform !== 'win32') return reject(new Error('zip import only supported on windows (Phase: add unzip lib)'));
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      `Expand-Archive -LiteralPath '${zip}' -DestinationPath '${dest}' -Force`],
-    { timeout: 60000 }, (err) => (err ? reject(err) : resolve()));
-  });
+  return (zip, dest) => extractZip(zip, dest);
 }
 
 function homeDir() {
@@ -47,6 +43,17 @@ function createDaemon({ send }) {
 
   const { store, warning } = openStore(dataDir);
   const vault = new CredentialVault(path.join(home, 'keystore'), null);
+  // every secret a settings panel can submit; older builds stored the cloud
+  // sandbox key in plain settings — move any such value into the vault
+  const VAULT_KEYS = new Set(['llm.apiKey', 'sandbox.cloud.apiKey']);
+  for (const k of VAULT_KEYS) {
+    const plain = store.getSetting(k);
+    if (typeof plain === 'string' && plain) {
+      if (!vault.get(k)) vault.set(k, plain);
+      store.setSetting(k, null);
+      store.setSetting(k + '.set', true);
+    }
+  }
   const registry = new SkillRegistry([skillsBuiltin, skillsUser]);
   const presetsStore = createPresetStore(path.join(home, 'presets'));
   const libraryDir = path.join(home, 'library');
@@ -105,6 +112,7 @@ function createDaemon({ send }) {
       await methods['engine.start']({ sessionId: sid });
       await methods['engine.userMessage']({ sessionId: sid, text: t.prompt });
       emit('app:sync', { kind: 'schedule-fired', id: t.id, sessionId: sid });
+      emit('sessions:changed', { method: 'tasks.fire' });
     },
   });
   scheduler.start();
@@ -150,7 +158,14 @@ function createDaemon({ send }) {
     },
     daemonToolHandler: async (tool, args) => {
       if (tool === 'market') {
-        if (args.action === 'search') return { ok: true, summary: 'market search', data: { skills: await getMarket().search(args.keywords || []) } };
+        if (args.action === 'search') {
+          // evidence contract {skills:[{name, display_name, description}]} +
+          // install state so the model does not retry refused/installed ones
+          const skills = (await getMarket().search(args.keywords || [])).map((p) => ({
+            name: p.name, display_name: p.display_name, description: (p.description_zh || p.description).slice(0, 240),
+            installed: p.installed, installable: p.installable, ...(p.installable ? {} : { reason: p.reason }) }));
+          return { ok: true, summary: 'market search: ' + skills.length + ' hit(s)', data: { skills } };
+        }
         if (args.action === 'install') {
           const results = await getMarket().installMany(args.names || []);
           const failed = results.filter((r) => r.status === 'refused');
@@ -209,13 +224,17 @@ function createDaemon({ send }) {
   // ---- F25 cloud skill market (rebuilt when its settings change) ----
   let market = null;
   let marketSig = '';
+  const marketBuiltinDir = process.env.MYAGENT_MARKET_BUILTIN || path.join(__dirname, '..', '..', 'market', 'claude-skills');
   function getMarket() {
     const sources = String(store.getSetting('market.url') || '').split(',').map((s) => s.trim()).filter(Boolean);
     const allowInsecure = store.getSetting('market.allowInsecure') === true;
-    const sig = sources.join('|') + '#' + allowInsecure;
+    // F53: the vendored Claude skills catalog is on unless explicitly disabled
+    const builtin = store.getSetting('market.builtin') === false ? [] : [marketBuiltinDir];
+    const sig = sources.join('|') + '#' + allowInsecure + '#' + builtin.length;
     if (!market || marketSig !== sig) {
       market = new Market({
         sources,
+        builtin,
         skillsUser,
         installSkill,
         unzip: defaultZipExtractor(),
@@ -263,7 +282,7 @@ function createDaemon({ send }) {
   ensureA2a().catch((e) => store.log('warn', 'a2a', 'start failed: ' + e.message));
 
   const methods = {
-    'app.version': async () => ({ version: APP_VERSION, platform: process.platform, storeWarning: warning || null }),
+    'app.version': async () => ({ version: APP_VERSION, platform: process.platform, home: os.homedir(), storeWarning: warning || null }),
     'app.selfcheck': async () => ({
       version: APP_VERSION,
       store: store.health(),
@@ -301,7 +320,8 @@ function createDaemon({ send }) {
     'settings.all': async () => store.allSettings(),
     'settings.get': async (p) => store.getSetting(p.key),
     'settings.set': async (p) => {
-      if (p.key === 'llm.apiKey') { vault.set('llm.apiKey', String(p.value)); store.setSetting('llm.apiKey.set', true); return true; }
+      // credentials never touch the settings table (T10 red line)
+      if (VAULT_KEYS.has(p.key)) { vault.set(p.key, String(p.value)); store.setSetting(p.key + '.set', true); return true; }
       if (p.key === 'engine.prewarm') { prewarmOn = !!p.value; engineHost.opts.prewarm = prewarmOn; if (prewarmOn) engineHost.replenish(); else engineHost.stopPool(); }
       return store.setSetting(p.key, p.value);
     },
@@ -311,6 +331,13 @@ function createDaemon({ send }) {
     // F39 spaces / F41 presets (design/34)
     'sessions.setSpace': async (p) => (store.updateSession(p.id, { space: p.space || '' }), { ok: true }),
     'sessions.setPreset': async (p) => (store.updateSession(p.id, { preset: p.preset || '' }), { ok: true }),
+    // composer 「选择工作空间」 on an existing session (draft passes cwd to create)
+    'sessions.setCwd': async (p) => {
+      if (!p.cwd || !fs.existsSync(p.cwd) || !fs.statSync(p.cwd).isDirectory()) throw new Error('not a directory: ' + p.cwd);
+      store.updateSession(p.id, { cwd: p.cwd });
+      engineHost.stop(p.id); // next start runs in the new workspace
+      return { ok: true };
+    },
     'presets.list': async () => presetsStore.list(),
     'presets.create': async (p) => presetsStore.create(p),
     'presets.remove': async (p) => presetsStore.remove(p.id),
@@ -367,13 +394,20 @@ function createDaemon({ send }) {
     'market.search': async (p) => getMarket().search(p.keywords || []),
     'market.install': async (p) => getMarket().installMany(p.names || []),
     'market.status': async () => getMarket().status(),
+    // F53: full catalog (builtin Claude skills + remote) for the hub page
+    'market.list': async (p) => {
+      const m = getMarket();
+      if (p && p.refresh && m.sources.length) await m.refresh();
+      return { catalogs: m.catalogs(), plugins: m.list() };
+    },
     // ---- F26 sync ----
     'sync.configure': async (p) => {
       const st = sync.configure(p.config);
       if (p.config) store.setSetting('sync.config', p.config);
       return st;
     },
-    'sync.push': async () => sync.push(),
+    // 立即推送 is an explicit user action: push every session, not just dirty ones
+    'sync.push': async (p) => sync.push({ all: !(p && p.dirtyOnly) }),
     'sync.pull': async () => sync.pull(),
     'sync.status': async () => sync.status(),
     // ---- F28 A2A ----
@@ -394,9 +428,12 @@ function createDaemon({ send }) {
       // F43: @"path" tokens / explicit context files are inlined for the
       // engine; the stored user message keeps the original text
       const aug = augmentContext(p.text, p.context || []);
+      // F43 「/技能名」: the named enabled skill is really invoked — its SKILL.md
+      // body rides along with the message instead of hoping the model reads it
+      const sk = augmentSkill(aug.text, (name) => registry.enabled().find((x) => x.name === name));
       store.appendMessage({ session_id: p.sessionId, role: 'user', content: p.text });
-      await engineHost.userMessage(p.sessionId, aug.text);
-      return { ok: true, contextUsed: aug.used };
+      await engineHost.userMessage(p.sessionId, sk.text);
+      return { ok: true, contextUsed: aug.used, skill: sk.skill };
     },
     'engine.confirm': async (p) => engineHost.confirm(p.id, p.approved),
     'engine.mode': async (p) => methods['sessions.setMode'](p),
@@ -406,8 +443,19 @@ function createDaemon({ send }) {
     'terminal.resize': async (p) => terminalHost.resize(p.id, p.cols, p.rows),
     'terminal.kill': async (p) => terminalHost.kill(p.id),
     'search.query': async (p) => {
-      const s = store.getSession(p.sessionId);
-      return globalSearch(store, p.q, (s && s.cwd) || null);
+      // the search window has no current session: scan the workspaces of the
+      // most recent sessions (home dir excluded — that is "no workspace")
+      const s = p.sessionId && store.getSession(p.sessionId);
+      const spaces = s && s.cwd ? [s.cwd] : [...new Set(store.listSessions().map((x) => x.cwd)
+        .filter((c) => c && path.resolve(c) !== path.resolve(os.homedir())))].slice(0, 3);
+      const merged = [];
+      for (const w of spaces.length ? spaces : [null]) {
+        for (const r of globalSearch(store, p.q, w)) {
+          if (r.type === 'message' && merged.some((m) => m.type === 'message' && m.session_id === r.session_id && m.content === r.content)) continue;
+          merged.push(r.type === 'file' ? { ...r, workspace: w } : r);
+        }
+      }
+      return merged.slice(0, 80);
     },
     // F20 preview source: sandbox-checked binary read (credential dirs stay
     // denied by defaultRules; size capped). Returns base64 for the renderer.
@@ -440,11 +488,24 @@ function createDaemon({ send }) {
     },
   };
 
+  // every window mirrors these (sidebar, composer chips) — a change made in
+  // the settings window or by a scheduled task must show up in the main window
+  const SESSION_MUTATIONS = new Set(['sessions.create', 'sessions.delete', 'sessions.rename', 'sessions.setMode',
+    'sessions.setSpace', 'sessions.setCwd', 'sessions.setPreset', 'data.clear', 'sync.pull']);
   function handle(msg, cb) {
     const fn = methods[msg.method];
     if (!fn) return cb({ id: msg.id, ok: false, error: { code: 'no_method', message: 'unknown method: ' + msg.method } });
     Promise.resolve()
       .then(() => fn(msg.params || {}))
+      .then((result) => {
+        if (SESSION_MUTATIONS.has(msg.method)) emit('sessions:changed', { method: msg.method });
+        if (msg.method === 'settings.set') {
+          const k = String((msg.params || {}).key || '');
+          // never echo secrets: key name only for credential-ish settings
+          emit('settings:changed', /key|token|secret|password/i.test(k) ? { key: k } : { key: k, value: msg.params.value });
+        }
+        return result;
+      })
       .then((result) => cb({ id: msg.id, ok: true, result }))
       .catch((e) => cb({ id: msg.id, ok: false, error: { code: 'handler_error', message: e.message } }));
   }

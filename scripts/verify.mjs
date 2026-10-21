@@ -77,7 +77,14 @@ let unitTests = [], intTests = [];
   if (!existsSync(electronJs)) {
     results.e2e = { code: 2, error: 'electron not installed' };
   } else {
-    run('e2e-smoke', process.execPath, [electronJs, '.'], {
+    // Linux CI/containers: no display → wrap in xvfb-run; root needs
+    // --no-sandbox (Chromium refuses to start otherwise)
+    const linuxArgs = process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0 ? ['--no-sandbox'] : [];
+    const headless = process.platform === 'linux' && !process.env.DISPLAY;
+    const [cmd, args] = headless
+      ? ['xvfb-run', ['-a', process.execPath, electronJs, '.', ...linuxArgs]]
+      : [process.execPath, [electronJs, '.', ...linuxArgs]];
+    run('e2e-smoke', cmd, args, {
       shell: true, log: false, timeout: 300000,
       env: { MYAGENT_SMOKE: '1', MYAGENT_SMOKE_OUT: out,
         MYAGENT_SMOKE_SHARE: path.join(ROOT, 'tests', 'fixtures', 'share-sample.txt') },
@@ -94,10 +101,23 @@ let unitTests = [], intTests = [];
     } else {
       results.e2e = { code: 1, error: 'no smoke result within 120s' };
     }
-    spawnSync('powershell', ['-NoProfile', '-Command',
-      "Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*myagent*' } | Stop-Process -Force"],
-      { timeout: 30000 });
+    if (process.platform === 'win32') {
+      spawnSync('powershell', ['-NoProfile', '-Command',
+        "Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*myagent*' } | Stop-Process -Force"],
+        { timeout: 30000 });
+    }
   }
+}
+
+// 3b) outcome-based button audit (T49): every clickable control in the main /
+// settings / search windows driven for real and asserted by its effect
+{
+  const auditOut = path.join(ART, 'button-audit');
+  const r = run('button-audit', process.execPath, ['scripts/button-audit.mjs', '--out', auditOut], { log: false, timeout: 900000 });
+  let list = [];
+  try { list = JSON.parse(readFileSync(path.join(auditOut, 'results.json'), 'utf8')); } catch (_) {}
+  results.audit = { code: r.code, results: list };
+  console.log(r.out.split('\n').filter((l) => /^(FAIL|button audit)/.test(l)).join('\n'));
 }
 
 // 4) acceptance report
@@ -139,6 +159,9 @@ const e2eMap = {
   T43: [],
   T44: ['ui-tool-surfaces'],
   T46: [],
+  T47: [],
+  T48: ['ui-nav', 'ui-hub'],
+  T49: [],
 };
 
 const featureNames = {
@@ -155,6 +178,9 @@ const featureNames = {
   T41: 'F48/F49 计划卡与进度用量', T42: 'F50 上下文自动压缩', T43: 'F51 会话消息落库',
   T44: 'F44 产物卡片与运行反馈面（渲染层）',
   T46: 'F52 连接器（MCP 客户端）',
+  T47: 'F53 内置 Claude 技能市场',
+  T48: 'F54 wb 侧栏六项 + 专家·技能·连接器页',
+  T49: '逐按钮结果审计（主窗/设置窗/搜索窗全部控件）',
 };
 
 let lines = [];
@@ -166,19 +192,27 @@ lines.push('- 单元测试: ' + (results.unit ? (results.unit.code === 0 ? 'PASS
 lines.push('- 集成测试: ' + (results.integration ? (results.integration.code === 0 ? 'PASS' : 'FAIL') : 'n/a')
   + ` (${(results.integration?.tests || []).length} cases)`);
 lines.push('- E2E 冒烟: ' + (results.e2e ? (results.e2e.code === 0 ? 'PASS' : 'FAIL') : 'n/a'));
+const auditList = results.audit?.results || [];
+lines.push('- 按钮审计: ' + (results.audit ? (results.audit.code === 0 && auditList.length ? 'PASS' : 'FAIL') : 'n/a')
+  + ` (${auditList.filter((a) => a.pass).length}/${auditList.length}，明细 artifacts/button-audit/button-audit.md)`);
 lines.push('');
 lines.push('| T | 功能点 | 结果 | 明细 |');
 lines.push('|---|---|---|---|');
 for (const tid of Object.keys(featureNames)) {
-  const subs = tIndex[tid] || [];
+  const subs = tid === 'T49'
+    ? (auditList.length ? auditList.map((a) => ({ ok: a.pass, name: a.id })) : [{ ok: false, name: 'button audit produced no results' }])
+    : (tIndex[tid] || []);
   const e2eNames = e2eMap[tid] || [];
   const e2eSteps = (results.e2e?.steps || []).filter((s) => e2eNames.includes(s.name));
   const allOk = subs.every((s) => s.ok) && e2eSteps.every((s) => s.ok)
     && (subs.length + e2eSteps.length > 0);
-  const detail = [
-    ...subs.map((s) => (s.ok ? '✓' : '✗') + ' ' + s.name),
-    ...e2eSteps.map((s) => (s.ok ? '✓' : '✗') + ' e2e:' + s.name + (s.detail ? ' (' + s.detail + ')' : '')),
-  ].join('<br>');
+  // T49 has ~90 rows: summarise, list only the failures
+  const detail = tid === 'T49'
+    ? `${subs.filter((s) => s.ok).length}/${subs.length} 控件按效果断言通过` + subs.filter((s) => !s.ok).map((s) => '<br>✗ ' + s.name).join('')
+    : [
+      ...subs.map((s) => (s.ok ? '✓' : '✗') + ' ' + s.name),
+      ...e2eSteps.map((s) => (s.ok ? '✓' : '✗') + ' e2e:' + s.name + (s.detail ? ' (' + s.detail + ')' : '')),
+    ].join('<br>');
   lines.push(`| ${tid} | ${featureNames[tid] || ''} | ${allOk ? 'PASS' : 'FAIL'} | ${detail} |`);
 }
 lines.push('');
@@ -192,6 +226,7 @@ const report = lines.join('\n');
 writeFileSync(path.join(ART, 'acceptance-report.md'), report);
 writeFileSync(path.join(ART, 'verify-raw.json'), JSON.stringify(results, null, 2));
 console.log('\n' + report);
-const allGreen = results.unit?.code === 0 && results.integration?.code === 0 && results.e2e?.code === 0;
+const allGreen = results.unit?.code === 0 && results.integration?.code === 0 && results.e2e?.code === 0
+  && results.audit?.code === 0 && auditList.length > 0;
 console.log(allGreen ? '\nALL GREEN' : '\nHAS FAILURES');
 process.exit(allGreen ? 0 : 1);

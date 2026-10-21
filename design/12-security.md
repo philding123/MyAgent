@@ -11,6 +11,8 @@
 - 环境变量展开（`%USERPROFILE%`），`**` 递归通配。
 
 **复现设计**（daemon/sandbox.js，纯 JS 规则引擎，规则文件格式**与 tsbx_rules.json 同构**）：
+
+> 2026-10-21：规则 glob 的路径分隔符改为 OS 无关（`/` 与 `\` 互相匹配），`%TEMP%`/`%TMP%` 未设置时取 `os.tmpdir()`——wb 格式规则文件（`%USERPROFILE%\.ssh\**`）在 posix 上此前**不匹配**，deny 被静默丢失；默认规则（`defaultRules`，按 `path.sep` 生成）不受影响。T08 新增分隔符用例。
 ```json
 { "version": 1,
   "file_rules": [
