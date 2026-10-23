@@ -25,7 +25,8 @@ node scripts/smoke-packaged.mjs   # 对打包后的应用跑 E2E 冒烟（--audi
 
 推送 `vX.Y.Z` 标签即触发 `.github/workflows/release.yml`：Windows/Linux/macOS 三个 runner 各自构建安装包、
 对打包产物跑冒烟，再发布 GitHub Release（安装包 + `SHA256SUMS.txt` + `latest.json`）。
-也可在 Actions → Release → Run workflow 手动触发（只出构建产物；勾选 publish 则建草稿 Release）。
+也可在 Actions → Release → Run workflow 手动发版：填 version（如 `0.2.0`）即构建、冒烟并正式发布 v0.2.0
+（工作流自己在所选分支的提交上建标签，适合无法直接推标签的环境）；不填 version 只出构建产物（勾选 publish 则建草稿 Release）。
 每次 push / PR 由 `.github/workflows/ci.yml` 在 Linux + Windows 上跑 `npm run verify`。详见
 [design/37-packaging-release.md](design/37-packaging-release.md)。
 

@@ -3,8 +3,13 @@
 #                        packaged app on each OS, publish a GitHub Release with
 #                        the installers + SHA256SUMS.txt + latest.json (F21
 #                        updater manifest)
-#   Actions → Release → Run workflow → installers as workflow artifacts only
-#                        (tick "publish" to also create a draft release)
+#   Actions → Release → Run workflow, version "0.2.0"
+#                      → same build + smoke, then publish release v0.2.0 and
+#                        create its tag on the chosen branch's commit (for
+#                        when a tag cannot be pushed from where you are)
+#   Actions → Release → Run workflow, no version
+#                      → installers as workflow artifacts only (tick
+#                        "publish" to also create a draft release)
 #   push touching packaging files → build + packaged smoke only (never publishes),
 #                        so a broken installer is caught before the next tag
 name: Release
@@ -27,8 +32,12 @@ on:
       - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Publish this version as a release, e.g. 0.2.0 (creates tag v0.2.0 on this commit). Empty = build only'
+        type: string
+        default: ''
       publish:
-        description: Also create a draft GitHub Release
+        description: 'No version given: also create a draft GitHub Release'
         type: boolean
         default: false
 
@@ -36,7 +45,38 @@ permissions:
   contents: read
 
 jobs:
+  # resolve the version once and refuse a release that already exists before
+  # spending ~20 min of runner time on builds
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        name: Resolve and check version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then V="${GITHUB_REF_NAME#v}"
+          elif [ -n "${INPUT_VERSION}" ]; then V="${INPUT_VERSION#v}"
+          else echo "no release version: build only"; exit 0; fi
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version must look like 1.2.3, got '$V'"; exit 1
+          fi
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::release v$V already exists"; exit 1
+          fi
+          # a manual run creates the tag itself — an existing tag means this
+          # version was already cut elsewhere
+          if [ "${GITHUB_REF_TYPE}" != "tag" ] && gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$V" >/dev/null 2>&1; then
+            echo "::error::tag v$V already exists; push that tag or pick a new version"; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "release version: $V"
+
   build:
+    needs: preflight
     name: installer (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -66,10 +106,10 @@ jobs:
 
       - run: npm ci
 
-      - name: Version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Set release version
+        if: needs.preflight.outputs.version != ''
         shell: bash
-        run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+        run: npm version --no-git-tag-version --allow-same-version "${{ needs.preflight.outputs.version }}"
 
       - name: Build installers (npm run dist)
         run: npm run dist
@@ -87,8 +127,8 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+    needs: [preflight, build]
+    if: needs.preflight.outputs.version != '' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,9 +139,9 @@ jobs:
         with:
           node-version: 22
 
-      - name: Version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+      - name: Set release version
+        if: needs.preflight.outputs.version != ''
+        run: npm version --no-git-tag-version --allow-same-version "${{ needs.preflight.outputs.version }}"
 
       - uses: actions/download-artifact@v4
         with:
@@ -121,8 +161,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # a release version (tag push or the version input) publishes for
+          # real and creates the tag at --target; "publish" alone → draft
           DRAFT=""
-          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then DRAFT="--draft"; fi
+          if [ -z "${{ needs.preflight.outputs.version }}" ]; then DRAFT="--draft"; fi
           gh release create "v${VERSION}" $DRAFT \
             --title "MyAgent v${VERSION}" \
             --target "${GITHUB_SHA}" \
