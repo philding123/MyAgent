@@ -3,7 +3,9 @@
 // settings and search windows of the real app and assert the effect the
 // control exists for — daemon state, window state, bytes on disk, what the
 // LLM actually received. Presence checks do not count as a pass.
-//   node scripts/button-audit.mjs [--port 9333] [--out artifacts/button-audit]
+//   node scripts/button-audit.mjs [--port 9333] [--out artifacts/button-audit] [--exec <packaged binary>]
+// --exec audits an installed/unpacked build (e.g. dist-installer/linux-unpacked/myagent)
+// instead of the dev checkout.
 // Linux without DISPLAY: wraps Electron in xvfb-run; root adds --no-sandbox.
 // MYAGENT_TEST_SEAMS=1 answers OS file dialogs from a queue and records
 // external links instead of launching a browser (app/main/index.js).
@@ -41,9 +43,12 @@ fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '---\nname: audit-imported-ski
 
 // ---------- launch ----------
 const electronJs = path.join(ROOT, 'node_modules', 'electron', 'cli.js');
-const extra = process.platform === 'linux' && process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [];
-let cmd = process.execPath;
-let cmdArgs = [electronJs, '.', `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1', ...extra];
+// Linux: dev Electron needs --no-sandbox on the command line (sandbox check runs
+// before app JS); a packaged build's launcher adds it itself (build/after-pack.cjs)
+const extra = process.platform === 'linux' && !opt('exec', null) ? ['--no-sandbox'] : [];
+const EXEC = opt('exec', null);
+let cmd = EXEC ? path.resolve(EXEC) : process.execPath;
+let cmdArgs = [...(EXEC ? [] : [electronJs, '.']), `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1', ...extra];
 if (process.platform === 'linux' && !process.env.DISPLAY) {
   // a window manager is required for maximize/minimize to mean anything
   cmdArgs = ['-a', '-s', '-screen 0 1600x1000x24', 'sh', '-c', '(command -v openbox >/dev/null && openbox >/dev/null 2>&1 &); sleep 0.5; exec "$0" "$@"', cmd, ...cmdArgs];
@@ -285,17 +290,19 @@ await audit('btn-settings', '设置 → 设置窗', async () => {
 await audit('session-row', '点击会话行 → 打开该会话并加载其消息', async () => {
   await main.evaluate(() => window.__myagentTest.refresh());
   await main.click(`#session-list li[data-id="${seedA.id}"]`);
-  const st = await until(() => main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
+  // wait for THIS session (a snapshot taken before openSession resolves is racy)
+  const st = await until(async () => { const x = await main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
     msgs: [...document.querySelectorAll('#messages .msg.user')].map((m) => m.textContent).join('|'),
-    active: (document.querySelector('#session-list li.active') || {}).dataset })), 3000, 'session opened');
-  expect(st.title === '审计-会话甲' && st.msgs.includes('AUDIT_SEED_MESSAGE_ALPHA'), JSON.stringify(st));
-  return st.title;
+    space: document.getElementById('crumb-space').classList.contains('hidden') ? '' : document.getElementById('crumb-space').textContent })); return x.title === '审计-会话甲' ? x : null; }, 4000, 'session 甲 opened');
+  expect(st.msgs.includes('AUDIT_SEED_MESSAGE_ALPHA'), JSON.stringify(st));
+  expect(st.space === '', 'a task without a workspace shows a space crumb: ' + st.space);
+  return st.title + ' (no space crumb)';
 });
 await audit('space-row-session', '空间分组下的会话行 → 打开且面包屑显示空间', async () => {
   await main.click(`.session-list-nested li[data-id="${seedB.id}"]`);
-  const st = await until(() => main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
-    space: document.getElementById('crumb-space').textContent })), 3000, 'opened');
-  expect(st.title === '审计-会话乙' && st.space === '审计空间', JSON.stringify(st));
+  const st = await until(async () => { const x = await main.evaluate(() => ({ title: document.getElementById('session-title').textContent,
+    space: document.getElementById('crumb-space').textContent })); return x.title === '审计-会话乙' ? x : null; }, 4000, 'session 乙 opened');
+  expect(st.space === '审计空间', JSON.stringify(st));
   return JSON.stringify(st);
 });
 

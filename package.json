@@ -10,19 +10,13 @@
     "verify": "node scripts/verify.mjs",
     "test:unit": "node --test tests/unit/",
     "test:int": "node --test tests/integration/",
-    "setup:electron-sqlite": "node scripts/setup-electron-sqlite.mjs"
+    "setup:electron-sqlite": "node scripts/setup-electron-sqlite.mjs",
+    "predist": "npm run build && node scripts/setup-electron-sqlite.mjs",
+    "dist": "electron-builder --publish never",
+    "release:manifest": "node scripts/release-manifest.mjs"
   },
   "dependencies": {
-    "docx-preview": "^0.4.1",
-    "dompurify": "^3.1.7",
-    "highlight.js": "^11.10.0",
-    "katex": "^0.16.11",
-    "marked": "^14.1.2",
-    "mermaid": "^12.2.0",
-    "pdfjs-dist": "^6.4.299",
-    "pptx-preview": "^1.0.7",
-    "ws": "^8.22.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "playwright-core": "^1.64.0"
   },
   "optionalDependencies": {
     "@lydell/node-pty": "^1.2.0-beta.14",
@@ -30,10 +24,30 @@
   },
   "devDependencies": {
     "@xterm/xterm": "^5.5.0",
+    "docx-preview": "^0.4.1",
+    "dompurify": "^3.1.7",
     "electron": "^37.2.0",
+    "electron-builder": "26.15.3",
     "esbuild": "^0.24.0",
+    "highlight.js": "^11.10.0",
+    "katex": "^0.16.11",
+    "marked": "^14.1.2",
+    "mermaid": "^12.2.0",
+    "pdfjs-dist": "^6.4.299",
     "pixelmatch": "^8.0.0",
-    "playwright-core": "^1.64.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "pptx-preview": "^1.0.7",
+    "ws": "^8.22.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "author": "philding123 <philding123@users.noreply.github.com>",
+  "homepage": "https://github.com/philding123/MyAgent",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/philding123/MyAgent.git"
+  },
+  "desktopName": "myagent.desktop",
+  "myagent": {
+    "updateManifestUrl": "https://github.com/philding123/MyAgent/releases/latest/download/latest.json"
   }
 }

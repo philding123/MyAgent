@@ -1,6 +1,6 @@
 # MyAgent 逐按钮行为审计（结果断言，非存在性）
 
-- 时间：2026-10-21T09:49:54.006Z；平台：linux；91/91 PASS
+- 时间：2026-10-21T11:06:50.838Z；平台：linux；91/91 PASS
 - 每项断言按钮存在的「目的」：daemon 状态、窗口状态、磁盘文件、LLM 实际收到的内容；OS 对话框由 MYAGENT_TEST_SEAMS 队列应答。
 
 | 区域 | 控件 | 预期效果 | 结果 | 实测 |
@@ -29,7 +29,7 @@
 | 主窗 · 侧栏 | nav-connectors | 更多 → nav-connectors | PASS | hub/连接器 |
 | 主窗 · 侧栏 | nav-market | 更多 → nav-market | PASS | settings/market |
 | 主窗 · 侧栏 | btn-settings | 设置 → 设置窗 | PASS | opened |
-| 主窗 · 侧栏 | session-row | 点击会话行 → 打开该会话并加载其消息 | PASS | 审计-会话甲 |
+| 主窗 · 侧栏 | session-row | 点击会话行 → 打开该会话并加载其消息 | PASS | 审计-会话甲 (no space crumb) |
 | 主窗 · 侧栏 | space-row-session | 空间分组下的会话行 → 打开且面包屑显示空间 | PASS | {"title":"审计-会话乙","space":"审计空间"} |
 | 主窗 · 顶栏 | mode-ask | 模式按钮 ask → daemon 持久化 + chip 同步 | PASS | session.mode=ask |
 | 主窗 · 顶栏 | mode-plan | 模式按钮 plan → daemon 持久化 + chip 同步 | PASS | session.mode=plan |
@@ -56,7 +56,7 @@
 | 主窗 · 首页与输入区 | hero-chip | chip → 填入输入框并聚焦 | PASS | 创作文档 |
 | 主窗 · 首页与输入区 | suggestion | 建议条 → 填入输入框 | PASS | 做一张应收、应付和开票查询表 |
 | 主窗 · 首页与输入区 | btn-plus | ＋ → 弹出 @/技能 菜单，点外部关闭 | PASS | ok |
-| 主窗 · 首页与输入区 | sub-workspace | 选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间 | PASS | cwd=/tmp/myagent-audit-fx-zIYwft/audit_workspace |
+| 主窗 · 首页与输入区 | sub-workspace | 选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间 | PASS | cwd=/tmp/myagent-audit-fx-4X24ww/audit_workspace |
 | 主窗 · 首页与输入区 | sub-mode-draft | 草稿态选「只读问答」 → 首条消息建的会话 mode=ask（引擎按 ask 跑） | PASS | mode=ask |
 | 主窗 · 首页与输入区 | sub-mode-session | 会话中 chip 菜单切到「计划模式」 → daemon 持久化 | PASS | topbar (chip hidden in task view) |
 | 主窗 · 首页与输入区 | btn-context | ＋ → @ 添加上下文 → 选文件 → 发送后 LLM 收到文件内容 | PASS | LLM user message carries the file content |
@@ -65,7 +65,7 @@
 | 主窗 · 首页与输入区 | btn-send | 发送（Enter 与按钮）→ 草稿物化为会话 + 回复渲染 + 消息落库 | PASS | two turns rendered + persisted |
 | 主窗 · 首页与输入区 | btn-send-empty | 空输入点发送 → 不建会话、不请求 LLM | PASS | no-op |
 | 主窗 · 运行中控件 | confirm-approve | plan 模式写文件 → 批准条「Approve」→ 文件真的写入 | PASS | approved.txt written |
-| 主窗 · 运行中控件 | confirm-deny | 批准条「Deny」→ 文件不写入，模型收到拒绝 | PASS | denied, not written; s=c6c3c9 |
+| 主窗 · 运行中控件 | confirm-deny | 批准条「Deny」→ 文件不写入，模型收到拒绝 | PASS | denied, not written; s=d68185 |
 | 主窗 · 运行中控件 | artifact-card | 产物卡片 → 预览窗打开该文件 | PASS | preview of approved.txt |
 | 主窗 · 运行中控件 | continue | 步数上限 → 「继续」按钮 → 同一引擎继续并完成 | PASS | continued |
 | 设置窗 | settings-nav | 左侧 17 个导航 → 各自面板显示、其余隐藏 | PASS | appearance,model,engine,update,presets,tasks,library,market,skills,connectors,memory,im,a2a,sync,sandbox,selfcheck,data |

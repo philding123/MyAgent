@@ -10,6 +10,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
+const { unpacked } = require('../shared/asar-path');
 
 function compareSemver(a, b) {
   const pa = String(a || '').split('.').map((x) => parseInt(x, 10) || 0);
@@ -127,7 +128,7 @@ class Updater {
   /** WorkBuddy evidence mechanism: wscript VBS relay → hidden PowerShell WinForms. */
   spawnTransitionWindow(opts) {
     try {
-      const dir = (opts && opts.scriptDir) || path.join(__dirname, '..', '..', 'scripts', 'update');
+      const dir = (opts && opts.scriptDir) || unpacked(path.join(__dirname, '..', '..', 'scripts', 'update'));
       const vbs = path.join(dir, 'update-transition.vbs');
       const ps1 = path.join(dir, 'update-transition.ps1');
       if (!fs.existsSync(vbs) || !fs.existsSync(ps1)) return false;

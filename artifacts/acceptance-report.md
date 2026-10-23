@@ -1,7 +1,7 @@
 # MyAgent 验收报告
 
-- 生成时间: 2026-10-21T09:49:54.026Z
-- 单元测试: PASS (72 cases)
+- 生成时间: 2026-10-21T11:06:50.860Z
+- 单元测试: PASS (73 cases)
 - 集成测试: PASS (68 cases)
 - E2E 冒烟: PASS
 - 按钮审计: PASS (91/91，明细 artifacts/button-audit/button-audit.md)
@@ -23,12 +23,12 @@
 | T13 | F13 记忆 | PASS | ✓ T13 preference reaches the LLM system message and deletion removes it<br>✓ T13 fact kind also injects |
 | T14 | F14 终端 | PASS | ✓ T14 terminal echo roundtrip |
 | T15 | F15 全局搜索 | PASS | ✓ T15 message + file hits with locators |
-| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"2871594b-c5d7-4ee1-b0d2-2aa94a25395d"}])<br>✓ e2e:tray |
+| T16 | F16 托盘/Deeplink | PASS | ✓ e2e:deeplink-consumed ([{"action":"session","id":"68933c60-a2b0-40fc-af8c-63c1047142ba"}])<br>✓ e2e:tray |
 | T17 | F17 渲染管线 | PASS | ✓ e2e:render-sanitize ({"pwned":false,"html":"<p>&lt;img src=x onerror=window.__pwned=1&gt;</p>\n"}) |
 | T18 | F18 设置/自检 | PASS | ✓ T18a selfcheck reports capability matrix<br>✓ e2e:selfcheck (sqlite)<br>✓ e2e:preload-bridge (pong) |
 | T19 | F19 mermaid 渲染 | PASS | ✓ e2e:mermaid-render ({"svg":true,"errors":0}) |
 | T20 | F20 文档预览 | PASS | ✓ T20a extractMermaidBlocks finds mermaid fences only<br>✓ T20a pickPreviewKind maps office/image/text families<br>✓ e2e:preview-readbinary (text/plain)<br>✓ e2e:preview-window ({"path":"/home/user/MyAgent/tests/fixtures/share-sample.txt","kind":"text","ok":true,"error":null,"bytes":20}) |
-| T21 | F21 自动更新器 | PASS | ✓ T21a compareSemver ordering<br>✓ T21a updater: malformed manifest -> error not throw<br>✓ T21a updater: missing manifest fields rejected<br>✓ T21a updater: sha256 mismatch deletes the artifact<br>✓ T21a updater: apply refuses when nothing ready<br>✓ T21b check→download→verify→ready with progress stages<br>✓ T21b corrupt artifact is refused and cleaned<br>✓ T21b unavailable source -> disabled/error states<br>✓ e2e:updater-status ({"enabled":false,"stage":"idle","v":"0.1.0"}) |
+| T21 | F21 自动更新器 | PASS | ✓ T21a compareSemver ordering<br>✓ T21a updater: malformed manifest -> error not throw<br>✓ T21a updater: missing manifest fields rejected<br>✓ T21a updater: sha256 mismatch deletes the artifact<br>✓ T21a updater: apply refuses when nothing ready<br>✓ T21c release-manifest output drives the updater end to end<br>✓ T21b check→download→verify→ready with progress stages<br>✓ T21b corrupt artifact is refused and cleaned<br>✓ T21b unavailable source -> disabled/error states<br>✓ e2e:updater-status ({"enabled":false,"stage":"idle","v":"0.1.0"}) |
 | T22 | F22 Browser-use | PASS | ✓ T22a action kinds: read vs exec split is design-true<br>✓ T22a foreign ref rejected before any browser launch<br>✓ T22b navigate→content→snapshot→click→screenshot flow # SKIP no system browser or playwright-core (DEGRADED: browser tool off)<br>✓ T22b unknown action and stale ref are value-errors, not throws # SKIP browser unavailable<br>✓ e2e:browser-tool (null/false) |
 | T23 | F23 IM 通道 | PASS | ✓ T23a RingDedup keeps newest 500, drops duplicates<br>✓ T23a telegram token validation<br>✓ T23a markdown -> telegram html covers headings/bold/code/links<br>✓ T23a splitHtml chunks without cutting tags and stays under limit<br>✓ T23b full loop: valid token -> inbound -> dedup -> outbound reply<br>✓ T23b oversized reply is chunked into multiple sendMessage calls<br>✓ T23b invalid token -> AUTH_FAILED nonRecoverable<br>✓ T23b getMe 401 -> AUTH_FAILED; 5 network failures -> RECONNECT_EXHAUSTED<br>✓ T23c ChannelManager states: needs_credentials -> configured; status table<br>✓ e2e:im-status (telegram,webhook,slack,discord,dingtalk,feishu) |
 | T24 | F24 分享目标 | PASS | ✓ T24a AppxManifest.xml is well-formed with ShareTarget extension<br>✓ T24a register/unregister ps1 parse cleanly # SKIP no PowerShell on this host (Windows-only scripts; parsed on win32 / pwsh hosts)<br>✓ T24a register.ps1 keeps the evidence-grade engineering details<br>✓ e2e:share-argv (Shared: share-sample.txt) |
@@ -37,8 +37,8 @@
 | T27 | F27 云沙箱 | PASS | ✓ T27 fs/exec roundtrip on the cloud backend<br>✓ T27 401 triggers exactly one shared reconnect then succeeds<br>✓ T27 concurrent auth failures share one reconnect attempt<br>✓ T27 reconnect throttle: second auth error within 10s fails closed<br>✓ T27 tool layer routes through the cloud backend<br>✓ e2e:phase4-fields |
 | T28 | F28 A2A 协作 | PASS | ✓ T28 agentCard has A2A-required fields<br>✓ T28 message/send roundtrip + delegate client + card shape<br>✓ T28 delegate reports unreachable agent as a value error<br>✓ e2e:a2a-card (MyAgent) |
 | T29 | F29-F33 像素级 UI（WorkBuddy 复刻，排除支付） | PASS | ✓ e2e:ui-token ({"brand":"#00c29a","side":360,"band":30})<br>✓ e2e:ui-shell ({"brand":"#00c29a","side":360,"band":30})<br>✓ e2e:ui-main ({"top":64,"heroOk":true})<br>✓ e2e:ui-settings (224)<br>✓ e2e:ui-search ([800,640,42])<br>✓ e2e:ui-preview ([980,720,32,"rgb(242, 242, 242)"])<br>✓ e2e:ui-token-dark ({"attr":"dark","brand":"#4ecba0","content":"#1a1a1a","side":"#1f1f1f","gray2":"#292929"})<br>✓ e2e:ui-paywall-zero |
-| T30 | F34 MCP 服务面 | PASS | ✓ T30 initialize handshake returns protocol version + server info<br>✓ T30 notifications return null (no response frame)<br>✓ T30 tools/list exposes the four minimal tools<br>✓ T30 tools/call sessions_list returns the seeded session<br>✓ T30 tools/call search_query finds the seeded message<br>✓ T30 tools/call with unknown tool fails -32602<br>✓ T30 resources/read round-trips the seeded session<br>✓ T30 unknown method fails -32601; invalid request fails -32600<br>✓ e2e:mcp-status ({"start":{"running":true,"pid":6638},"run":{"running":true,"pid":6638}}) |
-| T31 | F35 原生菜单最小面 | PASS | ✓ e2e:menu ({"accelerator":"CmdOrCtrl+N","menuState":{"home":true,"count":0},"before":13,"after":13}) |
+| T30 | F34 MCP 服务面 | PASS | ✓ T30 initialize handshake returns protocol version + server info<br>✓ T30 notifications return null (no response frame)<br>✓ T30 tools/list exposes the four minimal tools<br>✓ T30 tools/call sessions_list returns the seeded session<br>✓ T30 tools/call search_query finds the seeded message<br>✓ T30 tools/call with unknown tool fails -32602<br>✓ T30 resources/read round-trips the seeded session<br>✓ T30 unknown method fails -32601; invalid request fails -32600<br>✓ e2e:mcp-status ({"start":{"running":true,"pid":10516},"run":{"running":true,"pid":10516}}) |
+| T31 | F35 原生菜单最小面 | PASS | ✓ e2e:menu ({"accelerator":"CmdOrCtrl+N","menuState":{"home":true,"count":0},"before":21,"after":21}) |
 | T32 | F36 启动画面 splash | PASS | ✓ e2e:splash-handoff ({"created":true,"closed":true}) |
 | T33 | F39 空间 | PASS | ✓ T33 space field persists and groups sessions |
 | T34 | F40 定时任务 | PASS | ✓ T34 scheduler fires on interval and honors remove<br>✓ T34 scheduler disabled schedule does not fire |

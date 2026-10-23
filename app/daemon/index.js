@@ -21,6 +21,7 @@ const { CredentialVault } = require('./crypto');
 const { ChannelManager } = require('./im');
 const { Market } = require('./market');
 const { extractZip } = require('./unzip');
+const { unpacked } = require('../shared/asar-path');
 const { SyncService } = require('./sync');
 const { A2aServer } = require('./a2a');
 
@@ -38,7 +39,7 @@ function homeDir() {
 function createDaemon({ send }) {
   const home = homeDir();
   const dataDir = path.join(home, 'data');
-  const skillsBuiltin = path.join(__dirname, '..', '..', 'skills');
+  const skillsBuiltin = unpacked(path.join(__dirname, '..', '..', 'skills'));
   const skillsUser = path.join(home, 'skills');
 
   const { store, warning } = openStore(dataDir);
@@ -224,7 +225,7 @@ function createDaemon({ send }) {
   // ---- F25 cloud skill market (rebuilt when its settings change) ----
   let market = null;
   let marketSig = '';
-  const marketBuiltinDir = process.env.MYAGENT_MARKET_BUILTIN || path.join(__dirname, '..', '..', 'market', 'claude-skills');
+  const marketBuiltinDir = process.env.MYAGENT_MARKET_BUILTIN || unpacked(path.join(__dirname, '..', '..', 'market', 'claude-skills'));
   function getMarket() {
     const sources = String(store.getSetting('market.url') || '').split(',').map((s) => s.trim()).filter(Boolean);
     const allowInsecure = store.getSetting('market.allowInsecure') === true;

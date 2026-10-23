@@ -11,7 +11,9 @@ Electron 37 + Node.js：主进程窄 IPC → 常驻守护进程（RPC 总线/存
 npm install            # 安装依赖（Electron 下载慢可设 ELECTRON_MIRROR）
 npm run build          # esbuild 打包 renderer（改渲染层后必须执行）
 npm start              # 启动应用（正常 GUI 模式）
-npm run verify         # 全量验收：build + 单测 + 集成 + E2E 冒烟 → artifacts/acceptance-report.md
+npm run verify         # 全量验收：build + 单测 + 集成 + E2E 冒烟 + 按钮审计 → artifacts/acceptance-report.md
+npm run dist           # 当前系统安装包 → dist-installer/（electron-builder.yml；CI 见 .github/workflows）
+node scripts/smoke-packaged.mjs  # 对打包产物跑 E2E 冒烟（--audit 加按钮审计）
 npm run test:unit      # 仅单元测试（node --test tests/unit/*.test.js）
 npm run test:int       # 仅集成测试
 node scripts/real-llm-check.js   # 真实 LLM 检查（读 ~/.codex 配置，模型 gpt-6.1-sol）

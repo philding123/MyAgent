@@ -79,12 +79,16 @@ let unitTests = [], intTests = [];
   } else {
     // Linux CI/containers: no display → wrap in xvfb-run; root needs
     // --no-sandbox (Chromium refuses to start otherwise)
-    const linuxArgs = process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0 ? ['--no-sandbox'] : [];
+    // Linux: the sandbox helper check runs before app JS (where the app adds
+    // --no-sandbox itself), so pass it on the command line — Ubuntu 24.04+
+    // aborts otherwise (non-root too)
+    const linuxArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
     const headless = process.platform === 'linux' && !process.env.DISPLAY;
+    // explicit 24-bit screen: xvfb-run's default is 640×480×8
     const [cmd, args] = headless
-      ? ['xvfb-run', ['-a', process.execPath, electronJs, '.', ...linuxArgs]]
+      ? ['xvfb-run', ['-a', '-s', '-screen 0 1600x1000x24', process.execPath, electronJs, '.', ...linuxArgs]]
       : [process.execPath, [electronJs, '.', ...linuxArgs]];
-    run('e2e-smoke', cmd, args, {
+    const smokeRun = run('e2e-smoke', cmd, args, {
       shell: true, log: false, timeout: 300000,
       env: { MYAGENT_SMOKE: '1', MYAGENT_SMOKE_OUT: out,
         MYAGENT_SMOKE_SHARE: path.join(ROOT, 'tests', 'fixtures', 'share-sample.txt') },
@@ -100,6 +104,8 @@ let unitTests = [], intTests = [];
       results.e2e = { code: parsed.exitCode, steps: parsed.steps, ok: parsed.ok };
     } else {
       results.e2e = { code: 1, error: 'no smoke result within 120s' };
+      // show why: the app's own output (normally suppressed)
+      console.log('[e2e-smoke] no result — app output tail:\n' + String(smokeRun.out || '').split('\n').slice(-60).join('\n'));
     }
     if (process.platform === 'win32') {
       spawnSync('powershell', ['-NoProfile', '-Command',

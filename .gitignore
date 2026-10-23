@@ -10,3 +10,4 @@ artifacts/smoke-debug.json
 vendor/
 share-target/MyAgentShareTarget.exe
 share-target/MyAgentShare.pfx
+dist-installer/

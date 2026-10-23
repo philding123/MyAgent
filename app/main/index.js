@@ -14,6 +14,11 @@ const path = require('path');
 
 let daemon;
 let tray = null;
+// installed Windows builds check the GitHub release manifest the pipeline
+// publishes (scripts/release-manifest.mjs); a user-set update.manifestUrl
+// wins. Dev checkouts and non-Windows builds have no default.
+const defaultManifest = app.isPackaged && process.platform === 'win32'
+  ? ((require('../../package.json').myagent || {}).updateManifestUrl || '') : '';
 let updater = null;
 let smokeResult = { steps: [], ok: true };
 const pendingUrls = [];
@@ -126,7 +131,7 @@ async function bootstrap() {
     if (req.action === 'theme') return windows.theme();
     if (req.action === 'updateCheck') {
       const v = await daemon.request('settings.get', { key: 'update.manifestUrl' }).catch(() => null);
-      updater.manifestUrl = (v && v.result) || '';
+      updater.manifestUrl = (v && v.result) || defaultManifest;
       return updater.check();
     }
     if (req.action === 'updateApply') {
@@ -177,7 +182,7 @@ async function bootstrap() {
   // F21 updater: shell-level concern (mirrors WorkBuddy updater outside the
   // app-server). Manifest URL lives in daemon settings; progress broadcasts.
   updater = new Updater({
-    manifestUrl: '',
+    manifestUrl: defaultManifest,
     currentVersion: app.getVersion(),
     emit: (_stage, payload) => windows.broadcast('rpc:event', { topic: 'app:update', payload }),
   });
@@ -216,6 +221,17 @@ async function bootstrap() {
   });
 
   if (process.env.MYAGENT_SMOKE) runSmoke();
+}
+
+// the repo fixture in a checkout; a packaged build has no tests/ (and app.asar
+// is read-only), so the smoke writes an equivalent one to the temp dir
+function smokeFixture() {
+  const repo = path.join(__dirname, '..', '..', 'tests', 'fixtures', 'share-sample.txt');
+  if (fs.existsSync(repo)) return repo;
+  const tmp = path.join(require('os').tmpdir(), 'myagent-smoke', 'share-sample.txt');
+  fs.mkdirSync(path.dirname(tmp), { recursive: true });
+  fs.writeFileSync(tmp, 'T20 fixture content — share target sample\n');
+  return tmp;
 }
 
 /** E2E smoke (T01/T16/T17/T18 core): run assertions headless-ish, write JSON, exit. */
@@ -371,13 +387,18 @@ async function runSmoke() {
     const payHits = [];
     // design/27: the exclusion scan covers all four pages — open the preview
     // window on the shared fixture so it is scanned too
-    const pvWin = windows.createPreview(path.join(__dirname, '..', '..', 'tests', 'fixtures', 'share-sample.txt'));
+    const pvWin = windows.createPreview(smokeFixture());
     await new Promise((r) => setTimeout(r, 600));
     // F33 geometry: 980×720 window, 32px bar on the #f2f2f2 backdrop
     const pvInfo = await pvWin.webContents.executeJavaScript(
       '[window.innerWidth, window.innerHeight, document.getElementById("preview-bar").offsetHeight, getComputedStyle(document.body).backgroundColor]', true).catch(() => null);
-    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvInfo[1] === 720 && pvInfo[2] === 32
-      && /242,\s*242,\s*242/.test(pvInfo[3]), JSON.stringify(pvInfo));
+    // a work area shorter than 720 + frame (CI runners run 1024×768) makes the
+    // OS clamp the window: then the content must fill what the screen allows
+    const wa = require('electron').screen.getPrimaryDisplay().workAreaSize;
+    const fits = wa.height >= 720 + 48;
+    const pvH = !!pvInfo && (fits ? pvInfo[1] === 720 : pvInfo[1] >= wa.height - 120 && pvInfo[1] <= 720);
+    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvH && pvInfo[2] === 32
+      && /242,\s*242,\s*242/.test(pvInfo[3]), JSON.stringify(pvInfo) + (fits ? '' : ' clamped by work area ' + wa.width + '×' + wa.height));
     // F29 dark tokens end-to-end: setTheme over the real chain (persist +
     // rpc:event app:theme broadcast → renderer applies data-theme)
     await mainWin.webContents.executeJavaScript(
@@ -458,9 +479,7 @@ async function runSmoke() {
     step('mermaid-render', mmd && mmd.svg === true && mmd.errors === 0, JSON.stringify(mmd));
 
     // T20 preview: sandbox-checked binary read + preview window decode (F20)
-    const fx = path.join(__dirname, '..', '..', 'tests', 'fixtures', 'share-sample.txt');
-    fs.mkdirSync(path.dirname(fx), { recursive: true });
-    if (!fs.existsSync(fx)) fs.writeFileSync(fx, 'T20 fixture content\n');
+    const fx = smokeFixture();
     const rb = await daemon.request('files.readBinary', { path: fx });
     step('preview-readbinary', rb.ok && !!rb.result.base64
       && Buffer.from(rb.result.base64, 'base64').toString('utf8').includes('T20 fixture'),
