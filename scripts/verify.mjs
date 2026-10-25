@@ -187,6 +187,8 @@ const featureNames = {
   T47: 'F53 内置 Claude 技能市场',
   T48: 'F54 wb 侧栏六项 + 专家·技能·连接器页',
   T49: '逐按钮结果审计（主窗/设置窗/搜索窗全部控件）',
+  T50: 'F55 会话产物中心、历史恢复及安全文件操作',
+  T51: 'F56 开源专家市场（agency-agents 精选 persona → 预设）',
 };
 
 let lines = [];

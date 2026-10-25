@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 
-function makePresentTool({ sandbox, getDestDir } = {}) {
+function makePresentTool({ sandbox, getDestDir, cloud } = {}) {
   const os = require('os');
   const root = () => path.join(os.homedir(), 'MyAgent');
   let dir = null;
@@ -29,6 +29,9 @@ function makePresentTool({ sandbox, getDestDir } = {}) {
       required: ['path'],
     },
     run: async (args) => {
+      // No cloud download/materialization protocol yet: never interpret a
+      // remote path as a coincidentally existing local file.
+      if (cloud) return { ok: false, summary: 'remote file delivery is not supported; download it explicitly first' };
       const chk = sandbox.checkFile(args.path, 'read');
       if (!chk.ok) return { ok: false, summary: 'sandbox denied: ' + chk.path };
       let st;

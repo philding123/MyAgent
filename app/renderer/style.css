@@ -656,6 +656,37 @@ body[data-theme="dark"] .gs-spinner {
 .hub-banner__title { font-weight: 600; font-size: var(--fs-body); color: var(--brand-deep); }
 body[data-theme="dark"] .hub-banner__title { color: var(--brand); }
 .hub-banner__meta { font-size: 12px; color: var(--text-2); }
+/* F56 expert pane: second toolbar row + persona preview modal */
+.expert-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+#expert-mine-label, #expert-catalog-label { margin: 14px 0 10px; }
+/* persona prompt is plain text — pre + mono, no markdown rendering */
+#expert-modal {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.expert-modal-card {
+  width: min(720px, calc(100vw - 48px)); height: min(640px, calc(100vh - 64px));
+  display: flex; flex-direction: column; background: var(--card);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-2xl);
+  box-shadow: var(--mode-shadow); overflow: hidden;
+}
+.expert-modal-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.expert-modal-head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#expert-modal-meta { font-size: 12px; flex-shrink: 0; }
+#expert-modal-prompt {
+  flex: 1; margin: 0; padding: 16px; overflow: auto;
+  font-family: Consolas, monospace; font-size: 12.5px; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word; color: var(--text-1);
+  background: var(--gray-1); user-select: text;
+}
+.expert-modal-foot {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+#expert-modal-status { flex: 1; font-size: 12.5px; color: var(--text-2); overflow-wrap: anywhere; }
 .hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .skill-card {
   display: flex; align-items: flex-start; gap: 12px; padding: 14px; min-height: 84px;

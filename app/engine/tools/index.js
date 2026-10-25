@@ -82,14 +82,16 @@ function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, libra
         if (cloud) {
           try {
             await cloud.write(args.path, args.content);
-            return { ok: true, summary: 'cloud:wrote ' + args.path + ' (' + Buffer.byteLength(args.content) + 'B)' };
+            return { ok: true, summary: 'cloud:wrote ' + args.path + ' (' + Buffer.byteLength(args.content) + 'B)',
+              data: { path: args.path, location: 'remote' } };
           } catch (e) { return { ok: false, summary: 'cloud write failed: ' + (e.message || e) }; }
         }
         const chk = sandbox.checkFile(args.path, 'write');
         if (!chk.ok) return { ok: false, summary: 'sandbox denied: ' + chk.path };
         if (args.create_dirs !== false) fs.mkdirSync(path.dirname(chk.path), { recursive: true });
         fs.writeFileSync(chk.path, args.content, 'utf8');
-        return { ok: true, summary: 'wrote ' + chk.path + ' (' + Buffer.byteLength(args.content) + 'B)' };
+        return { ok: true, summary: 'wrote ' + chk.path + ' (' + Buffer.byteLength(args.content) + 'B)',
+          data: { path: chk.path, location: 'local' } };
       },
     },
     run_command: {
@@ -183,7 +185,7 @@ function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, libra
 
   // F47 present_file (task-parity P0-3): user-visible delivery, wb
   // present_files semantics (engine forwards dest as tool_result.artifact).
-  tools.present_file = makePresentTool({ sandbox, getDestDir: getPresentDestDir });
+  tools.present_file = makePresentTool({ sandbox, getDestDir: getPresentDestDir, cloud });
 
   // F25 market tool: capabilities live in the daemon; bridge request/response.
   if (daemonBridge) {

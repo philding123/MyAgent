@@ -191,7 +191,7 @@ await audit('menu-help-manual', '帮助 → 使用手册 打开 README 预览', 
   await seam({ menuClick: { section: 'help', id: 'open-manual' } });
   const p = await waitPage(/preview\.html.*README/);
   await p.waitForLoadState('load');
-  const txt = await until(() => p.evaluate(() => document.getElementById('preview-container').textContent.length > 50 && document.getElementById('preview-title').textContent), 6000, 'README rendered');
+  const txt = await until(() => p.evaluate(() => window.__previewState?.ok && document.querySelector('#preview-container iframe')?.srcdoc.includes('MyAgent') && document.getElementById('preview-title').textContent), 6000, 'README rendered');
   await p.close();
   return 'preview title=' + txt;
 });
@@ -323,7 +323,7 @@ await audit('btn-terminal', '终端 → 面板打开，键入命令真的执行�
   await main.click('#terminal-view');
   // the typed text must NOT contain the expected output (a pty echoes input):
   // the shell has to compute 42 for the check to pass
-  await main.keyboard.type(process.platform === 'win32' ? 'set /a X=40+2 >nul & call echo AUDIT_TERM_%X%' : 'echo AUDIT_TERM_$((40+2))');
+  await main.keyboard.type(process.platform === 'win32' ? 'cmd /v:on /c "set /a X=40+2 >nul & echo AUDIT_TERM_!X!"' : 'echo AUDIT_TERM_$((40+2))');
   await main.keyboard.press('Enter');
   const txt = await until(() => main.evaluate(() => {
     const t = document.querySelector('#terminal-view .xterm-rows');
@@ -429,6 +429,47 @@ await audit('hub-manage-experts', '管理专家 → 设置窗「presets」', asy
   await main.click('#hub-manage-experts');
   const p = await settingsPanel(); expect(p === 'presets', p); await closePage(/settings\.html/);
   return 'settings/presets';
+});
+// F56 open-source expert catalog: real browse/preview/import round trip
+await audit('expert-catalog', '专家页显示开源目录并可搜索/筛选', async () => {
+  await main.click('#hub .hub-tab[data-tab="experts"]');
+  await until(() => main.evaluate(() => document.querySelectorAll('#hub-expert-catalog-grid .skill-card').length >= 20), 4000, 'catalog cards');
+  const label = await main.evaluate(() => document.getElementById('expert-catalog-label').textContent);
+  expect(/开源专家市场/.test(label) && /MIT/.test(label), label);
+  await main.fill('#expert-search', '后端');
+  await until(() => main.evaluate(() => document.querySelectorAll('#hub-expert-catalog-grid .skill-card').length === 1
+    && document.querySelector('#hub-expert-catalog-grid .sc-title').textContent.includes('后端')), 3000, 'search filter');
+  await main.fill('#expert-search', '');
+  await main.click('#expert-filters [data-efilter="security"]');
+  await until(() => main.evaluate(() => [...document.querySelectorAll('#hub-expert-catalog-grid .sc-tag')].every((t) => t.textContent === '安全')), 3000, 'division filter');
+  await main.click('#expert-filters [data-efilter="all"]');
+  return 'catalog ≥20 · 搜索“后端”命中 1 · 安全筛选';
+});
+await audit('expert-preview', '查看 → 完整提示词纯文本预览（含溯源），Esc 关闭', async () => {
+  await main.locator('#hub-expert-catalog-grid .skill-card', { hasText: '后端架构师' }).first().locator('button', { hasText: '查看' }).click();
+  await until(() => main.evaluate(() => !document.getElementById('expert-modal').classList.contains('hidden')
+    && document.getElementById('expert-modal-prompt').textContent.length > 400), 4000, 'modal prompt');
+  const meta = await main.evaluate(() => document.getElementById('expert-modal-meta').textContent);
+  expect(/MIT/.test(meta) && /上游/.test(meta), meta);
+  expect(await main.evaluate(() => document.getElementById('expert-modal-prompt').innerHTML.includes('&lt;') === false && !document.getElementById('expert-modal-prompt').querySelector('*')), 'prompt not plain text');
+  await main.keyboard.press('Escape');
+  await until(() => main.evaluate(() => document.getElementById('expert-modal').classList.contains('hidden')), 2000, 'esc close');
+  return 'persona preview + provenance, esc closed';
+});
+await audit('expert-import', '导入 → 成为我的专家（带来源标记），重复导入不重复建', async () => {
+  const before = (await rpc('presets.list')).length;
+  await main.locator('#hub-expert-catalog-grid .skill-card', { hasText: '后端架构师' }).first().locator('button', { hasText: '导入' }).click();
+  const want = `(${before + 1})`;
+  await until(() => main.evaluate((label) => document.getElementById('expert-mine-label').textContent.includes(label)
+    && document.querySelector('#hub-expert-grid').textContent.includes('Backend Architect')
+    && document.querySelector('#hub-expert-grid').textContent.includes('目录导入'), want), 5000, 'my experts + origin tag');
+  const presets = await rpc('presets.list');
+  const mine = presets.find((p) => p.meta && p.meta.source === 'builtin:agency-experts/engineering-backend-architect');
+  expect(mine && mine.prompt.length > 400, 'preset carries verbatim prompt');
+  expect(await main.locator('#hub-expert-catalog-grid .skill-card', { hasText: '后端架构师' }).first().locator('button', { hasText: '已导入' }).count() === 1, 'card flips to 已导入');
+  const again = await rpc('experts.import', { id: 'engineering-backend-architect' });
+  expect(again.status === 'already_installed' && (await rpc('presets.list')).length === before + 1, 're-import dedup');
+  return `imported 1 preset (${mine.id.slice(0, 8)}), re-import dedup`;
 });
 await rpc('connectors.add', { name: 'auditmcp', command: process.execPath, args: [path.join(ROOT, 'tests', 'fixtures', 'mock-mcp-server.js')] });
 await audit('hub-tab-connectors', 'Tab 连接器 → 显示连接器与连接状态', async () => {
@@ -636,14 +677,104 @@ await audit('confirm-deny', '批准条「Deny」→ 文件不写入，模型收�
   expect(tool && /deni|拒绝|refus/i.test(tool.content), 'model not told: ' + (tool && tool.content));
   return 'denied, not written; s=' + s.id.slice(0, 6);
 });
-await audit('artifact-card', '产物卡片 → 预览窗打开该文件', async () => {
-  await until(() => main.evaluate(() => document.querySelectorAll('.artifact-card').length > 0), 3000, 'artifact card');
+await audit('artifact-card', '成功产物卡片 → 右侧预览该文件，拒绝写入不出卡', async () => {
+  await until(() => main.evaluate(() => document.querySelectorAll('.artifact-card').length === 1), 3000, 'successful artifact only');
   await main.click('.artifact-card');
+  await until(() => main.locator('#artifact-preview').textContent().then((text) => text.includes('APPROVED')), 6000, 'inline content');
+  expect(!findPage(/preview\.html/), 'unexpected independent window');
+  return 'approved.txt inline; denied.txt absent';
+});
+await audit('artifact-fold', '产物面板折叠与重开保持选择', async () => {
+  await main.click('#artifact-close');
+  expect(await main.locator('#artifact-panel').isHidden(), 'not folded');
+  await main.click('#btn-artifacts');
+  await until(() => main.locator('#artifact-preview').textContent().then((text) => text.includes('APPROVED')), 6000, 'restored selection');
+  return 'fold/reopen keeps approved.txt';
+});
+await audit('artifact-copy-reveal', '复制路径与打开所在文件夹使用受检目标', async () => {
+  await main.click('#artifact-copy');
+  await until(() => main.locator('#artifact-status').textContent().then((text) => text.includes('已复制')), 6000, 'copy');
+  await main.click('#artifact-reveal');
+  await until(async () => (await seam({})).artifacts?.some((entry) => entry.operation === 'reveal' && entry.path === path.join(wsDir, 'approved.txt')), 6000, 'reveal recorded');
+  const entries = (await seam({})).artifacts;
+  expect(entries.some((entry) => entry.operation === 'copy'), 'copy missing');
+  return 'copy/reveal target=approved.txt (native seam)';
+});
+await audit('artifact-open', '默认应用打开每次批准；拒绝不执行', async () => {
+  const before = (await seam({})).artifacts.filter((entry) => entry.operation === 'open').length;
+  await seam({ responses: [false] });
+  await main.click('#artifact-open');
+  await until(() => main.locator('#artifact-status').textContent().then((text) => /拒绝|取消|denied|not approved/i.test(text)), 6000, 'denied open');
+  expect((await seam({})).artifacts.filter((entry) => entry.operation === 'open').length === before, 'opened despite deny');
+  await seam({ responses: [true] });
+  await main.click('#artifact-open');
+  await until(async () => (await seam({})).artifacts.filter((entry) => entry.operation === 'open').length === before + 1, 6000, 'approved open');
+  return 'deny then approve; no real external launch';
+});
+await audit('artifact-window', '产物独立窗口入口仍可用', async () => {
+  await main.click('#artifact-window');
   const p = await waitPage(/preview\.html.*approved\.txt/);
-  await p.waitForLoadState('load');
-  await until(() => p.evaluate(() => document.getElementById('preview-container').textContent.includes('APPROVED')), 5000, 'content');
+  await until(() => p.evaluate(() => window.__previewState?.ok), 6000, 'independent preview');
   await p.close();
-  return 'preview of approved.txt';
+  return 'approved.txt independent preview';
+});
+await audit('artifact-history', '切换会话恢复产物与预览', async () => {
+  const target = (await rpc('sessions.list')).find((session) => session.title === '审计-确认');
+  await main.evaluate((id) => window.__myagentTest.openSession(id), seedA.id);
+  expect(await main.locator('.artifact-card').count() === 0, 'artifacts leaked');
+  await main.evaluate((id) => window.__myagentTest.openSession(id), target.id);
+  expect(await main.locator('.artifact-card').count() === 1, 'artifact not restored');
+  await main.click('.artifact-card');
+  await until(() => main.locator('#artifact-preview').textContent().then((text) => text.includes('APPROVED')), 6000, 'history preview');
+  await main.click('#artifact-close');
+  return 'session-isolated artifact survives reopen';
+});
+await audit('artifact-delivery', '正式交付自动右侧预览，HTML隔离与Markdown成品可读', async () => {
+  const session = await rpc('sessions.create', { title: '审计-产物交付', cwd: wsDir });
+  await main.evaluate((id) => window.__myagentTest.openSession(id), session.id);
+  const html = path.join(wsDir, '交付 report.html');
+  const md = path.join(wsDir, '交付 note.md');
+  fs.writeFileSync(html, '<!doctype html><h1>DELIVERY_HTML_TITLE</h1><script>parent.__artifactPwned=true</script><img src="https://example.invalid/artifact-leak"><a href="https://example.invalid/nav">link</a>');
+  fs.writeFileSync(md, '# DELIVERY_MD_TITLE\n\n**formatted**');
+  const call = (id, target) => ({ id, type: 'function', function: { name: 'present_file', arguments: JSON.stringify({ path: target }) } });
+  mock.push([{ content: '', tool_calls: [call('deliver-html', html), call('deliver-md', md)] }, { content: 'DELIVERY_COMPLETE' }]);
+  await main.fill('#input', '交付这两个文件');
+  armTurn(); await main.click('#btn-send'); await waitDone();
+  await until(() => main.locator('#artifact-preview iframe').evaluateAll((frames) => frames.some((frame) => frame.srcdoc.includes('DELIVERY_MD_TITLE'))), 10000, 'markdown preview');
+  expect(await main.locator('#artifact-list .artifact-item').count() === 2, 'two delivered artifacts missing');
+  const unexpected = [];
+  const requestListener = (request) => { if (request.url().includes('example.invalid')) unexpected.push(request.url()); };
+  main.on('request', requestListener);
+  await main.locator('#artifact-list .artifact-item').filter({ hasText: '交付 report.html' }).click();
+  await until(() => main.locator('#artifact-preview iframe').count(), 6000, 'html iframe');
+  const frame = await main.locator('#artifact-preview iframe').evaluate((element) => ({ sandbox: element.getAttribute('sandbox'), srcdoc: element.srcdoc }));
+  expect(frame.sandbox === '' && /default-src/.test(frame.srcdoc), 'unrestricted html');
+  await sleep(300);
+  expect(!await main.evaluate(() => window.__artifactPwned), 'script executed');
+  expect(!unexpected.length, 'preview made external requests ' + unexpected);
+  await main.click('#artifact-source');
+  await until(() => main.locator('#artifact-preview').textContent().then((text) => text.includes('<h1>DELIVERY_HTML_TITLE</h1>')), 6000, 'source view');
+  await main.click('#artifact-source');
+  await until(() => main.locator('#artifact-preview iframe').count(), 6000, 'rendered view');
+  await shot(main, 'artifact-html-panel');
+  main.off('request', requestListener);
+  return 'two delivered artifacts; Markdown rendered; HTML isolated; source switch';
+});
+await audit('artifact-responsive', '窄窗和暗色面板可折叠，不阻塞聊天输入', async () => {
+  await main.setViewportSize({ width: 900, height: 720 });
+  await win('setTheme', { theme: 'dark' });
+  await shot(main, 'artifact-narrow-dark');
+  await main.locator('#input').click();
+  await main.fill('#input', '窄窗展开态输入可用');
+  expect(await main.locator('#input').inputValue() === '窄窗展开态输入可用', 'expanded panel blocks composer');
+  await main.click('#artifact-close');
+  expect(await main.locator('#artifact-panel').isHidden(), 'panel did not fold');
+  await main.fill('#input', '窄窗输入可用');
+  expect(await main.locator('#input').inputValue() === '窄窗输入可用', 'composer blocked');
+  await main.fill('#input', '');
+  await win('setTheme', { theme: 'light' });
+  await main.setViewportSize({ width: 1280, height: 800 });
+  return '900px dark; fold restores composer access';
 });
 await audit('continue', '步数上限 → 「继续」按钮 → 同一引擎继续并完成', async () => {
   await rpc('settings.set', { key: 'engine.maxSteps', value: 4 });
@@ -961,10 +1092,13 @@ await audit('search-enter', 'Enter → 结果列表（任务 + 文件）', async
   return r.length + ' results (task + file)';
 });
 await audit('search-tabs', 'Tab 任务/文件/全部 → 结果按类型过滤；空查询 → 空态', async () => {
+  // tab clicks re-query (search.js filters at query time), so poll — a single
+  // read races the in-flight render
   await sw.click('.gs-tab[data-tab="message"]');
-  const m = await rows(); expect(m.every((t) => t.startsWith('message')), 'non-message in 任务: ' + m);
+  const m = await until(async () => { const x = await rows(); return x.length && x.every((t) => t.startsWith('message')) ? x : null; }, 4000, 'message tab');
   await sw.click('.gs-tab[data-tab="file"]');
-  const f = await rows(); expect(f.length && f.every((t) => t.startsWith('file')), 'bad 文件 tab: ' + f);
+  const f = await until(async () => { const x = await rows(); return x.length && x.every((t) => t.startsWith('file')) ? x : null; }, 4000, 'file tab');
+  expect(f.some((t) => t.includes('findme.txt')), 'file hit missing: ' + f);
   await sw.click('.gs-tab[data-tab="all"]');
   await sw.fill('#q', '');
   await sw.click('.gs-tab[data-tab="message"]');

@@ -16,10 +16,12 @@ function createPresetStore(dir) {
         .filter(Boolean)
         .sort((a, b) => a.name.localeCompare(b.name));
     },
-    create({ name, description, prompt }) {
+    create({ name, description, prompt, meta }) {
       if (!name) throw new Error('name is required');
       const preset = { id: 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
-        name, description: description || '', prompt: prompt || '' };
+        name, description: description || '', prompt: prompt || '',
+        // F56: provenance for catalog-imported experts (plain data, kept verbatim)
+        ...(meta && typeof meta === 'object' && !Array.isArray(meta) ? { meta } : {}) };
       fs.writeFileSync(fileOf(preset.id), JSON.stringify(preset, null, 2));
       return preset;
     },

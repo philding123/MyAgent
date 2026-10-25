@@ -32,8 +32,9 @@
 
 ### F20 文档预览（docx/pdf/pptx/sheet）
 
-- 入口：主窗消息/工具产物不可直接内嵌（保持聊天轻量），走独立预览窗
-  （对齐 WorkBuddy "预览是组件族、宿主注入 file" 的形态）。
+- 初版入口：主窗消息/工具产物走独立预览窗（保持聊天轻量）。
+  2026-10-24 F55 修订：默认在右侧折叠面板内嵌预览，独立窗保留为可选入口；
+  共享渲染器、安全边界与验证方法见 [38-artifact-center.md](38-artifact-center.md)。
   `rpc.window` 新增 action `openPreview`，参数 `{path}`。
 - 文件内容获取：**窄 IPC 不变**——新增 daemon 方法 `files.readBinary {path}`
   （走 `sandbox.checkFile(path,'read')`，≤25MB，返回 `{mime, size, base64}`）。

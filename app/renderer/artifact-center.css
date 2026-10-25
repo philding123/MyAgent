@@ -1,0 +1,34 @@
+#app { position: relative; }
+#artifact-panel {
+  flex: 0 0 clamp(340px, 38vw, 620px); min-width: 0; display: flex;
+  flex-direction: column; background: var(--bg-content); border-left: 1px solid var(--border);
+}
+#main.hub-open + #artifact-panel, #main.home + #artifact-panel { display: none; }
+.artifact-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px; min-height: 64px; }
+#artifact-list { flex: 0 0 auto; max-height: 170px; overflow: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+.artifact-item { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; padding: 9px 12px; background: var(--gray-1); }
+.artifact-item span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.artifact-item small { flex-shrink: 0; color: var(--text-2); }
+.artifact-item.active { border-color: var(--brand); background: var(--brand-soft); }
+.artifact-meta { border-top: 1px solid var(--border); padding: 12px 16px 6px; }
+#artifact-name { display: block; overflow-wrap: anywhere; }
+#artifact-path { margin-top: 5px; font-size: 11px; color: var(--text-2); overflow-wrap: anywhere; max-height: 44px; overflow: auto; user-select: text; }
+.artifact-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+.artifact-actions button { min-height: 28px; }
+.artifact-actions button[aria-pressed="true"] { border-color: var(--brand); color: var(--brand-deep); }
+#artifact-status { min-height: 28px; padding: 4px 16px; color: var(--text-2); font-size: 12px; overflow-wrap: anywhere; }
+#artifact-status[data-state="error"] { color: var(--bad); }
+#artifact-preview { flex: 1; min-height: 0; overflow: auto; background: var(--gray-2); padding: 12px; }
+#artifact-preview iframe { width: 100%; min-height: 420px; height: 100%; border: 0; background: white; }
+#artifact-preview .docx-host { padding: 8px; }
+#artifact-preview .pdf-page { max-width: 100%; height: auto; }
+.artifact-empty { color: var(--text-2); padding: 10px; line-height: 1.7; }
+button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+@media (max-width: 1150px) {
+  #artifact-panel { position: absolute; right: 0; top: 0; bottom: min(240px, 38%); width: min(520px, 65%); z-index: 20; box-shadow: -8px 0 28px #0002; }
+}
+@media (max-width: 680px) {
+  #artifact-panel { width: 90%; }
+  #main #topbar { padding: 0 8px; gap: 4px; }
+  #main #topbar #mode-switch { display: none; }
+}

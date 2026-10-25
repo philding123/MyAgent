@@ -1,0 +1,45 @@
+{
+  "branch": "feat/artifact-center",
+  "baseCommit": "86ce8dae76e1f9412bb01f42df655fe8a38fde67",
+  "uncommitted": true,
+  "runSource": "dev checkout; npm run verify; not an installer",
+  "verificationStartedAt": "2026-10-25T00:17:20.842Z",
+  "files": [
+    {
+      "path": "app/renderer/dist/bundle.js",
+      "sha256": "69db871d99e5f6587972cffb6b8c634cf826c2d48bcf378ed0d726622f96c3b8"
+    },
+    {
+      "path": "app/renderer/dist/preview.js",
+      "sha256": "f191a45169ce8e1c9c03418c8f67259ccae66e76f0c64ea2784ff938b2483bb6"
+    },
+    {
+      "path": "app/renderer/index.html",
+      "sha256": "fe2e9d19dfe27462a93e9154fe8bb5d2aeabc3b9be0b8ef0811f68b842c918b4"
+    },
+    {
+      "path": "app/renderer/artifact-center.css",
+      "sha256": "11ea034709665f9f6c918e3cceb2dc83acf9d64e60653cdaa0768bbfef6c1314"
+    },
+    {
+      "path": "app/daemon/index.js",
+      "sha256": "c36e6864ff28d7782b18866d985a8e5147ebf0db569f37c4c24a301fd71c036b"
+    },
+    {
+      "path": "app/main/index.js",
+      "sha256": "83161303535f65bd36643ec8d422a6c8118fabe40d3d7ec898754a6b494f6370"
+    },
+    {
+      "path": "app/main/artifact-actions.js",
+      "sha256": "7129eadc7cacaacd5a61eede24bd6ff11b5baffc0340707fb47ce85956cf41fb"
+    },
+    {
+      "path": "app/shared/artifacts.js",
+      "sha256": "8e7bec05481f550071ae80ea36a4f77cca2f37e3d7081dccb35f84f5734025cc"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "8b33aa6d56e8162557eb1a73785a942232f31a58ba2b56a84019b7043ed79334"
+    }
+  ]
+}
