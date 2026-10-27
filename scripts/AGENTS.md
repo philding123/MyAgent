@@ -17,7 +17,7 @@
 | `release-manifest.mjs` | `SHA256SUMS.txt` + F21 `latest.json`（Windows 安装包） | `--base-url` = Release 下载前缀；T21c 验证与 Updater 契约一致 |
 | `gen-app-icon.js` | 离屏 Electron 渲染 SVG → `build/icon.png`/`icon-1024.png` | `xvfb-run -a electron scripts/gen-app-icon.js` |
 | `vendor-claude-skills.mjs` | F53：从 anthropics/skills（锁 commit）生成 `market/claude-skills/`（index.json + Apache-2.0 技能 + tree_sha256；文档四件套仅列出） | `--repo <clone>` 复用本地克隆，`--ref <sha>` 锁版本；升级上游 = 重跑后跑 T47 |
-| `vendor-agency-experts.mjs` | F56：从 msitarzewski/agency-agents（MIT，锁 commit）精选 26 位专家 persona 生成 `market/agency-experts/`（index.json + 逐字 md + sha256 + LICENSE/NOTICES） | `--repo <clone>`/`--ref <sha>`；升级上游 = 重跑后跑 T51；中文卡片名/简介是目录元数据，不回写上游 |
+| `vendor-agency-experts.mjs` | F56：从 msitarzewski/agency-agents（MIT，锁 commit）精选 33 位专家 persona 生成 `market/agency-experts/`（index.json + 逐字 md + sha256 + LICENSE/NOTICES；批2 = 金融 5 + 支付计费/FinOps 2） | `--repo <clone>`/`--ref <sha>`；升级上游 = 重跑后跑 T51；中文卡片名/简介是目录元数据，不回写上游 |
 | `mock-llm.mjs` | OpenAI 兼容 mock server（scenario 队列：content/tool_calls/__error） | `startMockLlm()` 供集成测试 import；独立跑可当调试端点 |
 | `real-llm-check.js` | 真实模型检查（CJS） | 读 `~/.codex/{config.toml,auth.json}`，经 daemon RPC 配置（Key 进 vault），R0–R2 七项断言，结果写 `artifacts/real-llm-result.json` |
 

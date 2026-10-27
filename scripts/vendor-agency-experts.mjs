@@ -19,8 +19,8 @@ const opt = (n) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 
 
 const UPSTREAM = 'https://github.com/msitarzewski/agency-agents';
 const LICENSE = 'MIT';
-const DIVISION_ZH = { engineering: '工程', design: '设计', product: '产品', testing: '测试', security: '安全', research: '研究' };
-// Curated batch 1 (26): personal-workstation value first; one persona per file,
+const DIVISION_ZH = { engineering: '工程', design: '设计', product: '产品', testing: '测试', security: '安全', research: '研究', finance: '金融' };
+// Curated batch 1 (26) + batch 2 finance (2026-10-25, 7): one persona per file,
 // verbatim. zh display names/descriptions are ours (catalog metadata only).
 const CURATED = [
   // engineering
@@ -55,6 +55,14 @@ const CURATED = [
   ['security/security-secrets-credential-engineer.md', '凭证卫生工程师', '密钥轮换、泄漏处置与凭据管理规范'],
   // research
   ['research/research-synthesist.md', '研究综合师', '多来源调研并综合成结构化结论'],
+  // finance (batch 2) + adjacent engineering money roles
+  ['finance/finance-bookkeeper-controller.md', '记账控制员', '复式记账、月结闭环与账务一致性控制'],
+  ['finance/finance-financial-analyst.md', '财务分析师', '财务报表解读、比率与经营状况分析'],
+  ['finance/finance-fpa-analyst.md', 'FP&A 分析师', '预算编制、滚动预测与经营计划分析'],
+  ['finance/finance-investment-researcher.md', '投资研究员', '标的调研、估值方法与投资论证'],
+  ['finance/finance-tax-strategist.md', '税务策略师', '税务筹划路径与合规要点梳理'],
+  ['engineering/engineering-payments-billing-engineer.md', '支付计费工程师', '计费系统、支付通道与对账幂等设计'],
+  ['engineering/engineering-finops-engineer.md', 'FinOps 工程师', '云成本优化、预算告警与单位经济性治理'],
 ];
 
 function parseFrontmatter(text, file) {

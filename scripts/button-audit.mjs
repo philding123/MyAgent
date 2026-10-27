@@ -441,9 +441,13 @@ await audit('expert-catalog', '专家页显示开源目录并可搜索/筛选', 
     && document.querySelector('#hub-expert-catalog-grid .sc-title').textContent.includes('后端')), 3000, 'search filter');
   await main.fill('#expert-search', '');
   await main.click('#expert-filters [data-efilter="security"]');
-  await until(() => main.evaluate(() => [...document.querySelectorAll('#hub-expert-catalog-grid .sc-tag')].every((t) => t.textContent === '安全')), 3000, 'division filter');
+  await until(() => main.evaluate(() => document.querySelectorAll('#hub-expert-catalog-grid .skill-card').length >= 3
+    && [...document.querySelectorAll('#hub-expert-catalog-grid .sc-tag')].every((t) => t.textContent === '安全')), 3000, 'division filter');
+  await main.click('#expert-filters [data-efilter="finance"]');
+  await until(() => main.evaluate(() => document.querySelectorAll('#hub-expert-catalog-grid .skill-card').length >= 5
+    && [...document.querySelectorAll('#hub-expert-catalog-grid .sc-tag')].every((t) => t.textContent === '金融')), 3000, 'finance filter');
   await main.click('#expert-filters [data-efilter="all"]');
-  return 'catalog ≥20 · 搜索“后端”命中 1 · 安全筛选';
+  return 'catalog ≥20 · 搜索“后端”命中 1 · 安全/金融筛选';
 });
 await audit('expert-preview', '查看 → 完整提示词纯文本预览（含溯源），Esc 关闭', async () => {
   await main.locator('#hub-expert-catalog-grid .skill-card', { hasText: '后端架构师' }).first().locator('button', { hasText: '查看' }).click();

@@ -630,7 +630,7 @@ async function send() {
 // Main-area page like wb: three tabs; the 技能 tab merges the builtin Claude
 // skills catalog (market.list) with locally installed skills (skills.list).
 const HUB_GROUPS = { creative: '创意设计', dev: '开发技术', enterprise: '企业沟通', document: '文档' };
-const EXPERT_GROUPS = { engineering: 'dev', testing: 'dev', security: 'dev', design: 'creative', product: 'enterprise', research: 'document' };
+const EXPERT_GROUPS = { engineering: 'dev', testing: 'dev', security: 'dev', design: 'creative', product: 'enterprise', research: 'document', finance: 'enterprise' };
 const hub = { tab: 'skills', filter: 'all', q: '', plugins: [], skills: [], catalogs: [],
   expertFilter: 'all', expertQ: '', mine: [], experts: [], expertCatalog: null, expertModalId: null };
 

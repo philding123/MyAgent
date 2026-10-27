@@ -22,9 +22,10 @@ test('T51 vendored index is well-formed with the curated divisions and digests',
   assert.equal(idx.metadata.license, 'MIT');
   assert.equal(idx.metadata.upstream, 'https://github.com/msitarzewski/agency-agents');
   assert.match(idx.metadata.commit, /^[0-9a-f]{40}$/);
-  assert.ok(idx.experts.length >= 20, 'curated batch shrank: ' + idx.experts.length);
+  assert.ok(idx.experts.length >= 26, 'curated batch shrank: ' + idx.experts.length);
   const divisions = new Set(idx.experts.map((e) => e.division));
-  for (const d of ['engineering', 'design', 'product', 'testing', 'security', 'research']) assert.ok(divisions.has(d), 'missing division ' + d);
+  for (const d of ['engineering', 'design', 'product', 'testing', 'security', 'research', 'finance']) assert.ok(divisions.has(d), 'missing division ' + d);
+  assert.ok(idx.experts.filter((e) => e.division === 'finance').length >= 5, 'finance batch missing');
   const ids = new Set();
   for (const e of idx.experts) {
     assert.match(e.id, /^[a-z0-9-]+$/, 'bad id ' + e.id);
