@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { makeWebTools } = require('./web');
+const { makeSocialTools } = require('./social');
 const { makePresentTool } = require('./present');
 
 const MAX_READ_LINES = 2000;
@@ -182,6 +183,10 @@ function makeTools({ sandbox, skillRegistry, browser, cloud, daemonBridge, libra
   // F46 web retrieval (task-parity P0-2): search + fetch without a browser
   // launch (wb collects server-side; see web.js header for the benchmark).
   Object.assign(tools, makeWebTools({ fetchImpl: webFetchImpl }));
+
+  // F57 social/feed pull (design/40): hackernews keyless API + generic RSS
+  // (self-hosted RSSHub covers domestic social); X/Reddit stay on connectors.
+  Object.assign(tools, makeSocialTools({ fetchImpl: webFetchImpl }));
 
   // F47 present_file (task-parity P0-3): user-visible delivery, wb
   // present_files semantics (engine forwards dest as tool_result.artifact).

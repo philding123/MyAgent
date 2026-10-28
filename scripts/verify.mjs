@@ -189,6 +189,7 @@ const featureNames = {
   T49: '逐按钮结果审计（主窗/设置窗/搜索窗全部控件）',
   T50: 'F55 会话产物中心、历史恢复及安全文件操作',
   T51: 'F56 开源专家市场（agency-agents 精选 persona → 预设）',
+  T52: 'F57 社交/社区内容拉取（social_fetch：HN + RSS/RSSHub）',
 };
 
 let lines = [];

@@ -46,6 +46,7 @@
 | T49 | 逐按钮结果审计 | e2e | `scripts/button-audit.mjs` 91 项：主窗/设置窗/搜索窗全部控件按效果断言（daemon 状态、窗口状态、磁盘、LLM 实收内容），见 design/36 |
 | T50 | F55 会话产物中心 | unit+int+UI | artifact 持久化/历史恢复/后台隔离/成功后登记；右侧折叠与选择；文件路径原生操作门控；共享安全预览；详见 38-artifact-center.md |
 | T51 | F56 开源专家市场 | unit+int+审计 | 固化目录完整性（33 位/七分区含金融/sha256 锁 commit）；read 剥 frontmatter + 溯源；导入为预设（meta.source 溯源、prompt 逐字）+ 重复 dedup；篡改拒绝；experts.builtin 关闭；UI 浏览/搜索/筛选/纯文本预览/导入；详见 39-opensource-expert-market.md |
+| T52 | F57 社交内容拉取 | unit | social_fetch：HN 适配与 limit/首页双形态；RSS/Atom 解析（CDATA/实体/alternate 链接）；错误即值（非 200/非 feed/传输失败/未知平台）；条数与字数上限；kind=read；详见 40-social-pull.md |
 | T10c | 凭证键进 vault | int | llm.apiKey / sandbox.cloud.apiKey 经 settings.set 只进 vault；settings:changed 不回显值；旧明文迁移 |
 | T37b | / 技能调用 | unit | `/技能名` 附带 SKILL.md 正文；未知名/文中斜杠/路径不触发 |
 | T46 | F52 连接器 | int | mock MCP stdio server：add→connected→tools 经 RPC 列出、重名拒装、toggle 停启；连接器工具进引擎（exec 类）并经 daemon 桥完成 tools/call 往返（结果回喂 LLM） |

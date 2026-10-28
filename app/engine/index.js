@@ -152,7 +152,7 @@ function buildSystem(msg) {
     parts.push('<skills>\nAvailable skills (call skill_read to load full instructions before using one):\n'
       + msg.skills.map((s) => '- ' + s.name + ': ' + s.description).join('\n') + '\n</skills>');
   }
-  parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser.');
+  parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser. For current social/community buzz use social_fetch (hackernews; rss for RSSHub routes such as localhost:1200).');
   parts.push('Planning discipline: for multi-step tasks, call the todo tool whenever the plan forms or progress changes — items [{text,done}], full list each time.');
   if (msg.systemExtras && msg.systemExtras.length) parts.push(...msg.systemExtras);
   return parts.join('\n\n');

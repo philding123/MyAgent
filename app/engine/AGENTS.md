@@ -12,6 +12,8 @@
 | `policy.js` | `MODE_RULES`（ask: write/exec=deny；plan: write=confirm、exec=只读白名单 `READONLY_CMD`；craft: 全放行）+ `systemPromptFragment`（对齐 WorkBuddy interactionmode fragments 的 `<current_mode>` 硬规则写法） |
 | `llm.js` | `LlmClient.chat(messages, tools)`；`ping()` 供测试连接 |
 | `tools/index.js` | `makeTools({sandbox, skillRegistry})` → tools 表（read_file/list_dir/write_file/run_command/search/skill_read，各带 kind: read/write/exec）+ OpenAI `definitions` |
+| `tools/web.js` | F46 web_search（cn.bing SERP）/web_fetch（htmlToText，上限）；直连 fetch、错误即值 | 
+| `tools/social.js` | F57 social_fetch：hackernews（hn.algolia keyless）+ rss（RSS/Atom 紧凑解析；国内社交走自托管 RSSHub 路由）；kind=read，≤30 条/8000 字 |
 
 ## 3. 铁律与不变式
 
