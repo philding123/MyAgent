@@ -24,6 +24,7 @@
 
 ## Recently Done
 
+- F59 Computer Use：视觉回路+浏览器 CUA+OS computer 工具+门控 UI 四阶段一轮落地（T55 全绿，merge 1ababa0）
 - Phase 5–14 追记（2026-10-15~10-28）：像素 UI/实机 v5.8.2 基线/行为对比/功能补齐/安装发布/技能市场/侧栏六项等 F29–F54 全部完成，详见 design/00-roadmap 与 artifacts/acceptance-report.md
 - F55 产物中心 + F56 开源专家市场（含金融批）+ F57 社交内容拉取合入 main（merge fb5558d，T50/T51/T52 全绿）
 - F37 会话独立窗口：wb 单例复用重定向口径，T53 全绿；连带修复 verify 门槛假 ALL GREEN（聚合 T 行，issue 2026-10-29），merge 4805946
