@@ -49,6 +49,7 @@
 | T52 | F57 社交内容拉取 | unit | social_fetch：HN 适配与 limit/首页双形态；RSS/Atom 解析（CDATA/实体/alternate 链接）；错误即值（非 200/非 feed/传输失败/未知平台）；条数与字数上限；kind=read；详见 40-social-pull.md |
 | T53 | F37 会话独立窗口 | unit+e2e | windows.js 单例（640×800/480×600/frameless/URL 参数）、复用 focus+app:pendingUrls 重定向不增窗、无 id 不重定向、closed 释放槽位、selfAction 只作用于调用窗；e2e conversation-window/main-shell/retarget/self 四步；详见 41-conversation-window.md |
 | T54 | F58 文件历史/回滚 | unit+int+审计 | 快照记录与同轮去重、count/expire 淘汰、单文件/总量护栏（跳过墓碑与 FIFO）、sha256 校验防篡改、restore 先打恢复前快照（回滚可撤销）、越界/无会话拒绝、enable=false 停录；RPC list/diff/restore/delete 往返与真实字节回滚、present_file 交付也快照；按钮审计 `file-history`（真实引擎二次写入→版本列表→恢复基线并复验预览）；详见 42-file-history.md |
+| T55 | F59 Computer Use | unit+int+e2e/审计（预登记，随实施轮落 verify） | 引擎图像多部件组装与护栏（尺寸/张数/KB、不支持图像错误即值）；computer/browser-CUA 动作 kindOf 映射（ask/plan 拒 exec）；坐标限已列窗口客户区；开关默认关 disabled 值；daemon 注入假 PowerShell 执行器往返；browser CUA 真实回路（fixture 页截图→坐标点击→断言变化）；computer 原语实机抽查清单（手工）；详见 43-computer-use.md |
 | T10c | 凭证键进 vault | int | llm.apiKey / sandbox.cloud.apiKey 经 settings.set 只进 vault；settings:changed 不回显值；旧明文迁移 |
 | T37b | / 技能调用 | unit | `/技能名` 附带 SKILL.md 正文；未知名/文中斜杠/路径不触发 |
 | T46 | F52 连接器 | int | mock MCP stdio server：add→connected→tools 经 RPC 列出、重名拒装、toggle 停启；连接器工具进引擎（exec 类）并经 daemon 桥完成 tools/call 往返（结果回喂 LLM） |
