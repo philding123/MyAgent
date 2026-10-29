@@ -28,6 +28,15 @@
   <button id="win-max" class="band-icon" title="最大化">□</button>
   <button id="win-close" class="band-icon band-close" title="关闭">✕</button>
 </div>
+<!-- F37 conversation window header: shown only in body.conversation-window
+     (design/41) — drag region + this-window controls -->
+<header id="conv-bar" hidden>
+  <span id="conv-title">MyAgent</span>
+  <span class="band-spring"></span>
+  <button id="conv-new" class="band-icon" title="新任务（在此窗口）">＋</button>
+  <button id="conv-min" class="band-icon" title="最小化">—</button>
+  <button id="conv-close" class="band-icon band-close" title="关闭">✕</button>
+</header>
 <div id="app">
   <aside id="sidebar">
     <div class="sb-head">
@@ -74,6 +83,9 @@
         <span id="crumb-sep" class="hidden">/</span>
         <span id="session-title">—</span>
       </div>
+      <button id="btn-popout" class="icon-btn" title="在独立窗口打开此会话">
+        <svg viewBox="0 0 16 16" width="15" height="15"><path d="M9 2.5h4.5V7" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M13.5 2.5L7.5 8.5" stroke="currentColor" stroke-width="1.3"/><path d="M11.5 9.5v4H2.5v-9h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+      </button>
       <div id="mode-switch">
         <button data-mode="ask" title="只读问答">ask</button>
         <button data-mode="plan" title="读 + 规划，写入需批准">plan</button>

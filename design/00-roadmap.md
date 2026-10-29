@@ -93,7 +93,7 @@ Phase 11（P11 技能分发对齐）：F53 内置 Claude 技能市场 + F54 侧�
 | F55 | 会话产物中心（持久记录、右侧折叠预览、安全文件路径操作） | 用户反馈右侧产物预览 + 既有 present_files/预览组件记录；非本轮像素实测 | P12 | 38-artifact-center.md | ✅ T50（实机验证 5/6：默认应用真实启动一步因本机关联启动失效记环境归因，artifacts/artifact-center-live/report.md） |
 | F56 | 开源专家市场（agency-agents MIT 精选 33 位 persona 内置，导入为预设，sha256 校验；批2 含金融 5 位） | wb 云端专家/专家团队为排除项（90-deferred）；开源替代路线 | P13 | 39-opensource-expert-market.md | ✅ T51 |
 | F57 | 社交/社区内容拉取（social_fetch：HN keyless API + 通用 RSS/RSSHub 路由 + social-pull 技能） | 用户诉求；本机实测仅 HN keyless 可达，国内平台走自托管 RSSHub，X/Reddit 留连接器路线 | P14 | 40-social-pull.md | ✅ T52 |
-| F37 | 会话独立窗（P2 观察：个人并行会话需求出现再实施） | window-apps `conversation` + bootstrap `?windowKind=conversation` | P7 | — | 观察 |
+| F37 | 会话独立窗（单例复用重定向 + conversation 模式 + win-self；原 P2 观察项，2026-10-29 立项实施） | window-apps `conversation`（instancePolicy single + postMessage 重定向 + 640×800 utility） | P15 | 41-conversation-window.md | ✅ T53 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |
 | — | mermaid 渲染 → 已由 F19 复刻 | `vendor-mermaid`、`mermaid-plugin-component` | — | 20-mermaid-preview.md | ✅→F19 |

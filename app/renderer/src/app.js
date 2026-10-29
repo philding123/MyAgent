@@ -188,6 +188,18 @@ let draftMode = 'craft';  // draft home: mode / workspace picked before the firs
 let draftCwd = null;
 let homeDir = null; // from app.version — sessions whose cwd is home are loose tasks
 
+// F37 conversation window mode (design/41): body class hides band+sidebar and
+// shows #conv-bar; boot pins the session from ?session= or falls to a draft
+// (wb home state — first send materializes the session, enabling parallel tasks)
+const CONVERSATION_WINDOW = new URLSearchParams(location.search).get('windowKind') === 'conversation';
+if (CONVERSATION_WINDOW) {
+  document.body.classList.add('conversation-window');
+  $('#conv-bar').hidden = false;
+  $('#conv-min').onclick = () => window.myagent.windowAction('win-self', { op: 'minimize' });
+  $('#conv-close').onclick = () => window.myagent.windowAction('win-self', { op: 'close' });
+  $('#conv-new').onclick = () => newTask();
+}
+
 // ---------- RPC helpers ----------
 async function rpc(method, params) {
   const r = await window.myagent.invoke(method, params);
@@ -512,6 +524,7 @@ async function openSession(id) {
   $('#crumb-space').classList.toggle('hidden', !spaceName);
   $('#crumb-sep').classList.toggle('hidden', !spaceName);
   $('#session-title').textContent = s.title;
+  $('#conv-title').textContent = s.title;
   updateModeButtons();
   updateWorkspaceChip();
   setSendEnabled(!runningSessions.has(s.id));
@@ -548,6 +561,7 @@ function newTask() {
   $('#crumb-space').classList.add('hidden');
   $('#crumb-sep').classList.add('hidden');
   $('#session-title').textContent = '新任务';
+  $('#conv-title').textContent = '新任务';
   $('#messages').innerHTML = '';
   toolCards.clear();
   todoEl = null;
@@ -987,6 +1001,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (file) window.myagent.windowAction('openPreview', { path: file });
   };
   $('#btn-search').onclick = () => window.myagent.windowAction('openSearch');
+  // F37: open the current task in the reusable conversation window
+  $('#btn-popout').onclick = () => {
+    if (current) window.myagent.windowAction('openConversation', { id: current.id });
+  };
   $('#btn-settings').onclick = () => window.myagent.windowAction('openSettings');
   // F38 band + sidebar nav (v5.8.2 real UI)
   $('#band-search').onclick = () => window.myagent.windowAction('openSearch');
@@ -1112,7 +1130,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     const snap = await rpc('app.selfcheck');
     setDaemonStatus(true);
     await refreshSessions();
-    if (sessions.length) await openSession(sessions[0].id);
+    if (CONVERSATION_WINDOW) {
+      // F37: pin the requested session, or start as a draft home (wb
+      // conversation-window home state) — never inherit sessions[0]
+      const pinned = new URLSearchParams(location.search).get('session');
+      if (pinned) await openSession(pinned);
+      else { setHomeMode(true); showHomeHero(); }
+    } else if (sessions.length) await openSession(sessions[0].id);
     else { setHomeMode(true); showHomeHero(); } // wb home, no dir-picker on startup
   } catch (e) {
     setDaemonStatus(false);

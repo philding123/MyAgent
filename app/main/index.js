@@ -128,6 +128,18 @@ async function bootstrap() {
       deliverPendingUrls();
       return true;
     }
+    // F37 conversation window (design/41): single reusable session surface;
+    // reuse re-targets via app:pendingUrls to that window only (wb parity)
+    if (req.action === 'openConversation') {
+      if (!req.id || typeof req.id !== 'string') return false;
+      windows.createConversation(req.id);
+      return true;
+    }
+    // F37: conversation-window in-DOM controls act on the CALLING window
+    // (win-min/max/close stay pinned to the main window — no regression)
+    if (req.action === 'win-self') {
+      return windows.selfAction(BrowserWindow.fromWebContents(_e.sender), req.op);
+    }
     // F54: catalog homepage links (view-only skills) — https only, OS browser
     if (req.action === 'openExternal') {
       let u = null;
@@ -471,6 +483,64 @@ async function runSmoke() {
       for (const kw of payWords) if (txt.includes(kw)) payHits.push(kw);
     }
     step('ui-paywall-zero', payHits.length === 0, payHits.join(','));
+
+    // F37 conversation window (design/41): open from the renderer affordance,
+    // conversation mode hides band+sidebar, reuse re-targets the same window,
+    // win-self drives the calling window, and missing id opens nothing
+    const convBefore = windows.ids().length;
+    const opened = await mainWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("openConversation", ' + JSON.stringify({ id: s1.result.id }) + ')', true);
+    const convWin = windows.get('conversation');
+    await waitLoad(convWin);
+    await new Promise((r) => setTimeout(r, 700));
+    const convInfo = await convWin.webContents.executeJavaScript(`(() => ({
+      body: document.body.classList.contains('conversation-window'),
+      bandHidden: getComputedStyle(document.getElementById('band')).display === 'none',
+      sideHidden: getComputedStyle(document.getElementById('sidebar')).display === 'none',
+      barShown: !document.getElementById('conv-bar').hidden,
+      title: document.getElementById('conv-title').textContent,
+      mainUnchanged: true,
+    }))()`, true).catch(() => null);
+    step('conversation-window', opened === true && !!convInfo && convInfo.body && convInfo.bandHidden
+      && convInfo.sideHidden && convInfo.barShown && convInfo.title === 'smoke'
+      && windows.ids().length === convBefore + 1, JSON.stringify(convInfo));
+    // main window keeps its shell after the conversation window opened
+    const shellAfter = await mainWin.webContents.executeJavaScript(
+      '[document.getElementById("sidebar").offsetWidth, document.getElementById("band").offsetHeight]', true);
+    step('conversation-main-shell', shellAfter[0] === 360 && shellAfter[1] === 30, JSON.stringify(shellAfter));
+    // reuse: a second session re-targets the same window (wb single-instance)
+    const s2 = await daemon.request('sessions.create', { title: 'conv2' });
+    await mainWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("openConversation", ' + JSON.stringify({ id: s2.result.id }) + ')', true);
+    let convTitle = '';
+    for (let i = 0; i < 20; i++) {
+      convTitle = await convWin.webContents.executeJavaScript(
+        'document.getElementById("conv-title").textContent', true).catch(() => '');
+      if (convTitle === 'conv2') break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    step('conversation-retarget', windows.ids().length === convBefore + 1 && convTitle === 'conv2',
+      convTitle + ' windows=' + windows.ids().join(','));
+    // win-self acts on the calling window; missing id opens nothing
+    const selfOp = await convWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("win-self", { op: "minimize" })', true);
+    const noId = await mainWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("openConversation", {})', true);
+    // close destroys the calling webContents mid-roundtrip — the
+    // executeJavaScript promise then never resolves, so fire-and-forget and
+    // poll the registry instead of awaiting the reply
+    convWin.webContents.executeJavaScript(
+      'window.myagent.windowAction("win-self", { op: "close" })', true).catch(() => {});
+    let convGone = false;
+    for (let i = 0; i < 25; i++) {
+      convGone = !windows.ids().includes('conversation');
+      if (convGone) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    step('conversation-self', selfOp === 'minimize' && noId === false
+      && !windows.ids().includes('conversation') && windows.ids().length === convBefore,
+      JSON.stringify({ selfOp, noId, ids: windows.ids() }));
 
     // deeplink queue (T16): register capture synchronously, then deliver
     await mainWin.webContents.executeJavaScript(

@@ -17,7 +17,7 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 | 契约 | 内容 |
 |---|---|
 | RPC 请求/响应 | `{id, method, params}` → `{id, ok, result \| error:{code,message}}`；未知方法返回 `no_method` |
-| RPC 事件 | daemon → main → 所有窗广播 `rpc:event`，topic：`engine:{sessionId}`、`terminal:{id}:data`、`terminal:{id}:exit`、`daemon:ready`、`daemon:status`、`app:update`（F21）、`app:sync`（F26）、`app:theme`（F29 主题切换，持久化于 `appearance.theme`）、`sessions:changed`（会话增删改/清空/同步拉取/定时任务建会话）、`settings:changed`（`{key, value}`，凭证类只带 key）；主进程定向：`settings:panel`（已开设置窗切面板）、`app:pendingUrls`（deeplink 与搜索窗 openSession 共用） |
+| RPC 事件 | daemon → main → 所有窗广播 `rpc:event`，topic：`engine:{sessionId}`、`terminal:{id}:data`、`terminal:{id}:exit`、`daemon:ready`、`daemon:status`、`app:update`（F21）、`app:sync`（F26）、`app:theme`（F29 主题切换，持久化于 `appearance.theme`）、`sessions:changed`（会话增删改/清空/同步拉取/定时任务建会话）、`settings:changed`（`{key, value}`，凭证类只带 key）；主进程定向：`settings:panel`（已开设置窗切面板）、`app:pendingUrls`（deeplink 与搜索窗 openSession 共用；F37 会话独立窗复用重定向也定向发它） |
 | daemon 方法表 | 唯一注册处 `app/daemon/index.js` `methods{}`；`app.selfcheck` 返回能力矩阵（store/terminal.kind/sandbox/skills/engine/vault/browser/im/market/sync/a2a） |
 | 引擎 stdio | stdin 控制 `{type:init\|user\|confirm\|abort\|daemon_tool_result}`；stdout 事件 `{type:status\|token\|tool_call\|tool_result\|confirm_request\|done\|error\|daemon_tool_request}`（daemon_tool_* 是引擎工具回调 daemon 能力的桥，仅 market） |
 | 存储 DAO | `openStore()` 返回 sqlite 或 json 实现，接口一致：sessions/messages/settings/memory/logs + health/checkpoint + importSession（F26 同步导入） |

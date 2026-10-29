@@ -96,6 +96,39 @@ function createPreview(filePath) {
   return win;
 }
 
+// F37 conversation window (design/41): one reusable, re-targetable session
+// surface — wb `conversation` window-app is single-instance and navigated via
+// postMessage after open, so reuse focuses + re-targets instead of spawning.
+function createConversation(sessionId) {
+  const target = String(sessionId || '');
+  if (windows.has('conversation')) {
+    const w = windows.get('conversation');
+    w.focus();
+    if (target) {
+      // re-target through the existing pendingUrls pipeline (renderer
+      // handlePendingUrls → openSession), delivered to this window only
+      w.webContents.send('rpc:event', { topic: 'app:pendingUrls', payload: [{ action: 'session', id: target }] });
+    }
+    return w;
+  }
+  // wb sizes: 640×800, min 480×600; frameless like the other app windows
+  const win = new BrowserWindow({ ...baseOpts('MyAgent', [640, 800]), autoHideMenuBar: true, frame: false, minWidth: 480, minHeight: 600 });
+  win.loadFile(path.join(RENDERER, 'index.html'), { search: '?windowKind=conversation' + (target ? '&session=' + encodeURIComponent(target) : '') });
+  win.on('closed', () => windows.delete('conversation'));
+  windows.set('conversation', win);
+  return win;
+}
+
+// F37: in-DOM controls of a non-main window act on THAT window (the caller
+// resolves it via BrowserWindow.fromWebContents(e.sender) in index.js)
+function selfAction(win, op) {
+  if (!win) return null;
+  if (op === 'minimize') win.minimize();
+  else if (op === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize();
+  else if (op === 'close') win.close();
+  return op;
+}
+
 function broadcast(channel, payload) {
   for (const win of windows.values()) {
     if (!win.isDestroyed()) win.webContents.send(channel, payload);
@@ -113,4 +146,4 @@ function ids() { return [...windows.keys()]; }
 function get(name) { return windows.get(name) || null; }
 function closeAll() { for (const w of windows.values()) w.destroy(); windows.clear(); }
 
-module.exports = { createMain, createSettings, createSearch, createPreview, broadcast, setTheme, theme, ids, get, closeAll };
+module.exports = { createMain, createSettings, createSearch, createPreview, createConversation, selfAction, broadcast, setTheme, theme, ids, get, closeAll };
