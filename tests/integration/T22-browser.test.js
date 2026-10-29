@@ -50,7 +50,7 @@ test('T22b navigate→content→snapshot→click→screenshot flow', { timeout: 
   assert.ok(after.data.content.includes('after'), 'click changed page state');
 
   const shot = await session.run({ action: 'screenshot' });
-  assert.strictEqual(shot.data.png_base64.slice(0, 8), 'iVBORw0K', 'png magic in base64');
+  assert.strictEqual(shot.data.image.base64.slice(0, 8), 'iVBORw0K', 'png magic in base64 (F59 image convention)');
 
   const closed = await session.run({ action: 'close' });
   assert.strictEqual(closed.ok, true);

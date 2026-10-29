@@ -14,6 +14,7 @@ const readline = require('readline');
 const path = require('path');
 const { JsonlCodec } = require('../daemon/jsonl');
 const { compactHistory } = require('./compact');
+const { buildToolMessage } = require('./vision');
 const { Sandbox, defaultRules } = require('../daemon/sandbox');
 const { makeTools } = require('./tools/index');
 const { checkToolMode, systemPromptFragment } = require('./policy');
@@ -70,13 +71,15 @@ async function handleInit(msg) {
     all: () => msg.skills || [] };
   // F22: one browser session per engine process; tool registered only when
   // the environment can drive a browser (probe + lazy playwright-core load).
+  // F59: the coordinate (CUA) actions additionally need computer use on.
+  state.computerUseEnabled = !!(msg.computerUse && msg.computerUse.enabled);
   let browserDef = null;
   try {
     const { probeBrowser } = require('../shared/browser-probe');
     const { makeBrowserSession, browserToolDefinition } = require('./tools/browser');
     if (probeBrowser().available) {
       state.browserSession = makeBrowserSession();
-      browserDef = browserToolDefinition(state.browserSession);
+      browserDef = browserToolDefinition(state.browserSession, { cuaEnabled: () => state.computerUseEnabled });
     }
   } catch (_) { /* browser stays unavailable */ }
   // F27 cloud backend (e2b-compatible): file/command tools proxy to it when
@@ -103,6 +106,14 @@ async function handleInit(msg) {
       return state.presentDir;
     },
     daemonBridge: (msg.daemonTools || []).includes('market') ? (args) => callDaemonTool('market', args) : null });
+  // F59: OS-level computer use — registered only when the settings gate is on
+  // (default off, design/43); non-win32 returns honest environment errors.
+  if (state.computerUseEnabled) {
+    const { makeComputerTool } = require('./tools/computer');
+    state.tools.tools.computer = makeComputerTool();
+    state.tools.definitions.push({ type: 'function', function: { name: 'computer',
+      description: state.tools.tools.computer.description, parameters: state.tools.tools.computer.schema } });
+  }
   // F48 (task-parity P1): visible plan — the todo tool mirrors wb's subtask
   // list; events drive the renderer's plan card
   state.tools.tools.todo = {
@@ -153,6 +164,9 @@ function buildSystem(msg) {
       + msg.skills.map((s) => '- ' + s.name + ': ' + s.description).join('\n') + '\n</skills>');
   }
   parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser. For current social/community buzz use social_fetch (hackernews; rss for RSSHub routes such as localhost:1200).');
+  if (msg.computerUse && msg.computerUse.enabled) {
+    parts.push('Computer use discipline: the computer tool and the browser click_at/type_at actions drive the real screen. Screenshot first, act only on what you can see, prefer list_windows refs over raw coordinates, and stop to ask when the screen shows something unexpected.');
+  }
   parts.push('Planning discipline: for multi-step tasks, call the todo tool whenever the plan forms or progress changes — items [{text,done}], full list each time.');
   if (msg.systemExtras && msg.systemExtras.length) parts.push(...msg.systemExtras);
   return parts.join('\n\n');
@@ -160,6 +174,7 @@ function buildSystem(msg) {
 
 async function runTurn(userText) {
   state.history.push({ role: 'user', content: userText });
+  state.imageBudget = { images: 0 }; // F59: per-turn screenshot budget
   emit({ type: 'status', stage: 'thinking' });
   for (let step = 0; step < state.maxSteps; step++) {
     if (state.aborted) { emit({ type: 'done', reason: 'aborted' }); return; }
@@ -203,7 +218,10 @@ async function runTurn(userText) {
       }
       const tool = state.tools.tools[name];
       const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
-      state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, summary: result.summary, data: result.data }) });
+      // F59: results carrying data.image attach as an image_url part (the
+      // base64 never rides inside the JSON text); cap violations become the
+      // result itself so the model sees an honest value error
+      state.history.push(buildToolMessage(call.id, result, state.imageBudget).msg);
       // F55: only successful structured results can register an artifact.
       // Daemon rebinds session identity and timestamps before persistence.
       const { normalizeArtifact } = require('../shared/artifacts');
@@ -238,7 +256,10 @@ async function gateTool(name, args) {
   }
   // 3) confirmation for exec
   if (kind === 'exec') {
-    const cmdV = state.sandbox.checkCommand(args.command || '');
+    // F59: computer open_app is command-equivalent — the same deny/confirm
+    // patterns protect it (launching an app IS running a command)
+    const cmd = name === 'computer' && args.action === 'open_app' ? String(args.target || '') : (args.command || '');
+    const cmdV = state.sandbox.checkCommand(cmd);
     if (cmdV.verdict === 'deny') return { blocked: true, kind: 'sandbox', reason: 'command denied by rules' };
     const needConfirm = cmdV.verdict === 'confirm' || modeV.verdict === 'confirm';
     if (needConfirm) return { needConfirm: true, describe: args.command || (name + ' ' + JSON.stringify(args).slice(0, 80)), confirmId: null };

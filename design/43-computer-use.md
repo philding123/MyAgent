@@ -1,6 +1,24 @@
 # 43 · Computer Use（F59 / T55）
 
-状态：2026-10-29 立项（P17），四阶段排期（见文末），未实施；验收以实施轮 acceptance-report 为准。
+状态：2026-10-29 立项（P17），2026-10-30 四阶段一轮实施完成；验收以 acceptance-report 为准。
+
+## 实施裁决（2026-10-30，随实现落定）
+
+- **视觉回路不重编码**：纯 Node 引擎无图像编码器，首轮不做 PNG→JPEG/缩放重编码；护栏为
+  **base64 ≤1.5MB/图 + ≤10 图/轮**（超限=错误即值），浏览器视口本就 1280 宽。
+- **截屏双路**（实机发现：本机锁屏/无控制台会话下 CopyFromScreen 与 BitBlt 全屏捕获均
+  「句柄无效」/全黑）：`screenshot` 无 ref=主屏捕获（该环境失败为诚实值）；
+  **带 ref=PrintWindow(PW_RENDERFULLCONTENT) 截指定窗口**——渲染窗口自身 DWM 面，
+  遮挡/锁屏下仍可用（pixel-capture-win32.ps1 已验证的同一路线）。
+- **坐标纪律强于设计稿**：click/type/key 不仅要求坐标在窗口矩形内，且**必须 ref 化**
+  （list_windows → w1..wN + 窗口相对坐标），与 browser 工具 ref 纪律同构，杜绝盲注桌面。
+- **open_app 走命令规则**：gateTool 对 `computer open_app` 复用 sandbox checkCommand
+  的 deny/confirm 模式（启动应用=执行命令）；文档类目标直接拒绝（本机关联启动失效
+  LIVE-05b 且文档属 present_file/preview 职责）。
+- **CUA 动作与 browser 既有自动化分层**：`computerUse.enable` 只门控坐标动作
+  （browser click_at/type_at + computer 工具整体注册）；F22 既有 ref 自动化不受影响。
+- 审计项 `computer-live` 双平台分流：win32 真实回路（列窗口+PrintWindow 截图进
+  image_url）；无 PowerShell 环境断言诚实环境错误值。
 
 ## WorkBuddy 观察（app.asar 静态证据，2026-10-29）
 
@@ -96,11 +114,11 @@ T55 预登记；实施轮再进 verify featureNames/e2eMap（现在注册零测�
 
 | 阶段 | 优先级 | 交付 | 验收 |
 |---|---|---|---|
-| 0 证据与契约 | ✅ 本立项 | 观察（本节）+ 偏离裁决表 + 工具/动作定名 | — |
-| 1 视觉回路 + 浏览器 CUA | P0 | 引擎图像部件 + browser screenshot/click_at/type_at | unit+int 全绿 |
-| 2 OS 原语 | P0 | `computer` 工具（PowerShell 截屏/SendInput/EnumWindows/openApp）+ 坐标窗口约束 | unit+int 全绿 |
-| 3 门控与 UI | P1 | computerUse.enable 默认关 + 启用告警 + 审计补项 | e2e + 审计 |
-| 4 收口 | — | 全量 verify ALL GREEN + 实机抽查（真实 CUA 任务一轮） | acceptance-report |
+| 0 证据与契约 | ✅ 立项完成 | 观察（本节）+ 偏离裁决表 + 工具/动作定名 | — |
+| 1 视觉回路 + 浏览器 CUA | ✅ 2026-10-30 | vision.js 图像部件（1.5MB/10 图护栏）+ browser click_at/type_at | unit 全绿 |
+| 2 OS 原语 | ✅ 2026-10-30 | `computer` 工具（PS list/shot/click/key/front/open + ref 坐标纪律） | unit 全绿 |
+| 3 门控与 UI | ✅ 2026-10-30 | computerUse.enable 默认关 + 首启原生确认 + selfcheck + system 提示 | 集成 2/2 + 审计 cu-toggle/computer-live |
+| 4 收口 | ✅ 2026-10-30 | 全量 verify ALL GREEN | acceptance-report |
 
 ## 降级 / 边界
 

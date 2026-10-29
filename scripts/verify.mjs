@@ -193,6 +193,7 @@ const featureNames = {
   T52: 'F57 社交/社区内容拉取（social_fetch：HN + RSS/RSSHub）',
   T53: 'F37 会话独立窗口（单实例复用重定向 + conversation 模式 + win-self）',
   T54: 'F58 文件历史/回滚（本地版本快照 + files.history.* + 产物面板恢复）',
+  T55: 'F59 Computer Use（引擎视觉回路 + 浏览器 CUA + OS computer 工具，默认关门控）',
 };
 
 let lines = [];
