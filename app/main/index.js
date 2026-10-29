@@ -2,7 +2,8 @@
 // Electron main entry (F01/F02/F16). Narrow IPC surface: one 'rpc' handle +
 // event broadcast, window controls, deeplink queue, smoke-test hook.
 
-const { app, ipcMain, dialog, BrowserWindow, Menu, shell } = require('electron');
+const { app, ipcMain, dialog, BrowserWindow, Menu, shell, clipboard } = require('electron');
+const { createArtifactActions, isArtifactSender } = require('./artifact-actions');
 const { DaemonClient } = require('./daemon-client');
 const windows = require('./windows');
 const { createTray, parseDeeplink } = require('./tray');
@@ -97,12 +98,25 @@ async function bootstrap() {
   ipcMain.handle('rpc', (_e, req) => daemon.request(req.method, req.params));
   // MYAGENT_TEST_SEAMS=1 (audit harness only): OS dialogs answer from a queue
   // the harness fills, external links are recorded instead of launched
-  const seams = process.env.MYAGENT_TEST_SEAMS ? { picks: [], external: [] } : null;
+  const seams = process.env.MYAGENT_TEST_SEAMS ? { picks: [], external: [], artifacts: [], responses: [] } : null;
+  const artifactAction = createArtifactActions({
+    request: (method, params) => daemon.request(method, params), shell, clipboard, seams,
+    isTrustedSender: (e) => isArtifactSender(e, windows, path.join(__dirname, '..', 'renderer', 'index.html')),
+    confirmOpen: async (target, _event, signal) => {
+      const result = await dialog.showMessageBox(windows.get('main'), {
+        type: 'warning', title: '打开产物', message: '使用系统默认应用打开此文件？',
+        detail: target.path, buttons: ['取消', '打开'], defaultId: 0, cancelId: 0,
+        noLink: true, signal,
+      });
+      return result.response === 1;
+    },
+  });
   const pick = (properties) => {
     if (seams) return Promise.resolve(seams.picks.length ? seams.picks.shift() : null);
     return dialog.showOpenDialog({ properties }).then((r) => (r.canceled ? null : r.filePaths[0]));
   };
   ipcMain.handle('rpc.window', async (_e, req) => {
+    if (req.action === 'artifactAction') return artifactAction(_e, req);
     if (req.action === 'openSettings') windows.createSettings(req.panel);
     if (req.action === 'openSearch') windows.createSearch();
     if (req.action === 'openPreview' && req.path) windows.createPreview(String(req.path));
@@ -161,9 +175,11 @@ async function bootstrap() {
     }
     if (seams && req.action === 'test-seam') {
       if (req.pick !== undefined) seams.picks = [req.pick]; // one answer per armed dialog
+      if (Array.isArray(req.responses)) seams.responses = req.responses.map((r) => r === true);
       if (req.menuClick) return global.__myagentMenu.clickItem(req.menuClick.section, req.menuClick.id, windows.get('main'));
       if (req.restoreMain) { const w = windows.get('main'); if (w) { w.restore(); w.show(); } }
-      return { external: seams.external.slice(), picks: seams.picks.length };
+      return { external: seams.external.slice(), picks: seams.picks.length,
+        artifacts: seams.artifacts.slice(), responses: seams.responses.length };
     }
     return null;
   });
@@ -310,7 +326,10 @@ async function runSmoke() {
         args: { path: 'X:/a.txt' }, step: 2, maxSteps: 64 });
       await new Promise((r) => setTimeout(r, 50));
       const prog = document.getElementById('progress-line');
-      const art = !!document.querySelector('.artifact-card');
+      const noPrematureArt = !document.querySelector('.artifact-card');
+      T.injectEngineEvent({ type: 'tool_result', id: 'smokeArtifact', ok: true, summary: 'written',
+        artifact: { path: 'X:/a.txt', name: 'a.txt', kind: 'working', location: 'local' } });
+      const art = noPrematureArt && !!document.querySelector('.artifact-card');
       const progOk = !!prog && !prog.classList.contains('hidden') && /第 2\\/64 步/.test(prog.textContent);
       T.injectEngineEvent({ type: 'todo', todos: [{ text: '调研 REA', done: true }, { text: '写报告', done: false }] });
       const rows = document.querySelectorAll('.todo-card .todo-row').length;

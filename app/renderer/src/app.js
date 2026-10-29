@@ -6,6 +6,8 @@ import hljs from 'highlight.js';
 import katex from 'katex';
 import DOMPurify from 'dompurify';
 import mermaid from 'mermaid';
+import { ArtifactCenter } from './artifact-center.js';
+import { collectArtifacts } from '../../shared/artifacts.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -170,22 +172,11 @@ function updateToolCard(el, o) {
   el.scrollIntoView({ block: 'end' });
 }
 
-// F44 artifact cards: files the agent writes render as wb-style cards
-function appendArtifact(p) {
-  let grid = document.querySelector('#messages .artifact-grid');
-  if (!grid) {
-    grid = document.createElement('div');
-    grid.className = 'artifact-grid';
-    $('#messages').appendChild(grid);
-  }
-  const card = document.createElement('button');
-  card.className = 'artifact-card';
-  card.title = p;
-  card.innerHTML = '<span class="af-ico">📄</span><span class="af-name">' + escapeHtml(p.split(/[\\/]/).pop()) + '</span>';
-  card.onclick = () => window.myagent.windowAction('openPreview', { path: p });
-  grid.appendChild(card);
-  grid.scrollIntoView({ block: 'end' });
-}
+const artifactCenter = new ArtifactCenter({
+  rpc,
+  windowAction: (action, params) => window.myagent.windowAction(action, params),
+});
+let sessionLoad = 0;
 
 // ---------- state ----------
 let sessions = [];
@@ -258,6 +249,7 @@ function setDaemonStatus(ok) {
 
 function handleEngineEvent(ev) {
   if (ev.type === 'status' && ev.stage === 'thinking') {
+    artifactCenter.beginTurn();
     streamingEl = appendMessage('assistant', { content: '…' });
     startProgress();
   } else if (ev.type === 'token') {
@@ -273,8 +265,6 @@ function handleEngineEvent(ev) {
     updateProgress(ev);
     const el = appendMessage('tool', { tool: ev.name, summary: JSON.stringify(ev.args).slice(0, 140), ok: true });
     toolCards.set(ev.id, { el, name: ev.name });
-    // F44: written files surface as artifact cards (wb 产物卡片)
-    if (ev.name === 'write_file' && ev.args && ev.args.path) appendArtifact(ev.args.path);
   } else if (ev.type === 'tool_result') {
     const card = toolCards.get(ev.id);
     const detail = ev.detail || (ev.reason && ev.reason !== 'denied' ? ev.reason : '');
@@ -283,12 +273,7 @@ function handleEngineEvent(ev) {
     } else {
       appendMessage('tool', { tool: card ? card.name : ev.id, summary: ev.summary, ok: ev.ok, detail });
     }
-    // F47: present_file delivers into the user-visible folder — card points
-    // there, and wb present_files semantics include auto-opening the preview
-    if (ev.artifact && ev.artifact.path) {
-      appendArtifact(ev.artifact.path);
-      window.myagent.windowAction('openPreview', { path: ev.artifact.path }).catch(() => {});
-    }
+    if (ev.ok && ev.artifact?.path) artifactCenter.add(ev.artifact);
   } else if (ev.type === 'confirm_request') {
     showConfirm(ev);
   } else if (ev.type === 'done') {
@@ -509,7 +494,15 @@ async function refreshSessions(preloaded) {
 }
 
 async function openSession(id) {
-  const s = await rpc('sessions.get', { id });
+  const load = ++sessionLoad;
+  let s;
+  try { s = await rpc('sessions.get', { id }); }
+  catch (error) {
+    if (load === sessionLoad) appendMessage('event', { content: '无法打开会话：' + error.message });
+    return;
+  }
+  if (load !== sessionLoad) return;
+  if (!s) { appendMessage('event', { content: '会话不存在或已删除' }); return; }
   current = s; mode = s.mode || 'craft';
   closeHub();
   setHomeMode(false);
@@ -535,6 +528,7 @@ async function openSession(id) {
       appendMessage('tool', { tool: m.tool_name || 'tool', summary: m.content, ok });
     }
   }
+  artifactCenter.setSession(s.id, collectArtifacts(s.messages || [], s.id));
   refreshSessions();
 }
 
@@ -542,6 +536,8 @@ async function openSession(id) {
 // composer on the home view; the session is created when the first message
 // is sent (title taken from it)
 function newTask() {
+  sessionLoad++;
+  artifactCenter.setSession(null);
   current = null;
   closeHub();
   setHomeMode(true);
@@ -606,6 +602,7 @@ async function send() {
     // the draft's mode / workspace choices belong to the session it becomes
     current = await rpc('sessions.create', { title: (clean || basename(context[0])).slice(0, 30), mode: draftMode, ...(draftCwd ? { cwd: draftCwd } : {}) });
     mode = current.mode;
+    artifactCenter.setSession(current.id);
     setHomeMode(false);
     $('#session-title').textContent = current.title;
     updateModeButtons();
@@ -633,7 +630,9 @@ async function send() {
 // Main-area page like wb: three tabs; the 技能 tab merges the builtin Claude
 // skills catalog (market.list) with locally installed skills (skills.list).
 const HUB_GROUPS = { creative: '创意设计', dev: '开发技术', enterprise: '企业沟通', document: '文档' };
-const hub = { tab: 'skills', filter: 'all', q: '', plugins: [], skills: [], catalogs: [] };
+const EXPERT_GROUPS = { engineering: 'dev', testing: 'dev', security: 'dev', design: 'creative', product: 'enterprise', research: 'document', finance: 'enterprise' };
+const hub = { tab: 'skills', filter: 'all', q: '', plugins: [], skills: [], catalogs: [],
+  expertFilter: 'all', expertQ: '', mine: [], experts: [], expertCatalog: null, expertModalId: null };
 
 function setNavActive(id) {
   document.querySelectorAll('#sb-nav .nav-item').forEach((b) => b.classList.toggle('active', b.id === id));
@@ -670,8 +669,12 @@ async function loadHubTab() {
       hub.plugins = ls.plugins; hub.catalogs = ls.catalogs; hub.skills = skills;
       renderHubSkills();
     } else if (hub.tab === 'experts') {
-      renderHubCards('#hub-expert-grid', '#hub-expert-empty', (await rpc('presets.list')).map((p) => ({
-        title: p.name, desc: (p.description || p.prompt || '').slice(0, 160), tag: '专家', letter: p.name })));
+      // F56: 我的专家 (presets) + 开源专家目录 (vendored agency-agents personas)
+      const [mine, cat] = await Promise.all([rpc('presets.list'), rpc('experts.list')]);
+      hub.mine = mine;
+      hub.experts = (cat && cat.experts) || [];
+      hub.expertCatalog = (cat && cat.catalog) || null;
+      renderHubExperts();
     } else if (hub.tab === 'connectors') {
       const list = await rpc('connectors.list');
       const tag = (c) => (c.enabled === false ? '已停用'
@@ -714,6 +717,120 @@ function renderHubCards(gridSel, emptySel, items) {
   }
   $(emptySel).classList.toggle('hidden', items.length > 0);
 }
+
+// ---------- F56 open-source expert catalog (design/39) ----------
+function expertIcon(emoji, division) {
+  const ico = document.createElement('span');
+  ico.className = 'sc-ico sc-ico--' + (EXPERT_GROUPS[division] || 'other');
+  ico.textContent = emoji && emoji.trim() ? emoji.trim().slice(0, 2) : '?';
+  return ico;
+}
+
+function expertCatalogCard(e) {
+  const card = skillCardShell(e.name, e.division, e.display_name || e.name, e.division_zh || e.division,
+    e.description_zh || e.description, (e.name || '') + (e.license ? ' · ' + e.license : '') + '\n' + (e.description || ''));
+  card.replaceChild(expertIcon(e.emoji, e.division), card.querySelector('.sc-ico'));
+  card.dataset.expert = e.id;
+  const act = document.createElement('button');
+  act.className = 'sc-act';
+  if (e.installed) {
+    act.textContent = '已导入';
+    act.classList.add('sc-act--done');
+    act.title = '已在「我的专家」中';
+  } else {
+    act.textContent = '导入';
+    act.onclick = () => importExpert(e.id);
+  }
+  const view = document.createElement('button');
+  view.className = 'sc-act sc-act--view';
+  view.textContent = '查看';
+  view.title = '查看完整提示词';
+  view.onclick = () => openExpertModal(e.id);
+  card.append(view, act);
+  return card;
+}
+
+function renderHubExperts() {
+  // 我的专家 — presets, locally created or catalog-imported (tag shows origin)
+  const q = hub.expertQ.trim().toLowerCase();
+  const mine = hub.mine.filter((p) => !q
+    || (p.name + ' ' + (p.description || '')).toLowerCase().includes(q));
+  renderHubCards('#hub-expert-grid', '#hub-expert-empty', mine.map((p) => ({
+    title: p.name, desc: (p.description || p.prompt || '').slice(0, 160),
+    tag: p.meta && p.meta.source ? '目录导入' : '本地', letter: p.name,
+  })));
+  $('#expert-mine-label').textContent = `我的专家 (${mine.length})`;
+
+  // 开源目录 — division chips + text filter over the vendored catalog
+  const list = hub.experts.filter((e) => {
+    if (hub.expertFilter === 'installed') return e.installed;
+    if (hub.expertFilter !== 'all' && e.division !== hub.expertFilter) return false;
+    if (!q) return true;
+    return [e.name, e.display_name, e.description, e.description_zh, e.division_zh]
+      .join(' ').toLowerCase().includes(q);
+  });
+  const grid = $('#hub-expert-catalog-grid');
+  grid.innerHTML = '';
+  for (const e of list) grid.appendChild(expertCatalogCard(e));
+  $('#hub-expert-catalog-empty').classList.toggle('hidden', list.length > 0);
+  const meta = hub.expertCatalog && hub.expertCatalog.metadata || {};
+  $('#expert-catalog-label').textContent = hub.expertCatalog
+    ? `开源专家市场 (${list.length}/${hub.experts.length}) · agency-agents · MIT · ${String(meta.commit || '').slice(0, 7)}`
+    : '开源专家市场（已关闭：experts.builtin）';
+}
+
+async function openExpertModal(id, statusNote = '') {
+  let data;
+  try { data = await rpc('experts.read', { id }); }
+  catch (e) { hub.expertModalId = id; $('#expert-modal-name').textContent = '专家加载失败';
+    $('#expert-modal-meta').textContent = ''; $('#expert-modal-prompt').textContent = e.message;
+    $('#expert-modal-status').textContent = ''; const b = $('#expert-modal-import'); b.textContent = '不可导入'; b.disabled = true;
+    $('#expert-modal').classList.remove('hidden'); return; }
+  hub.expertModalId = id;
+  $('#expert-modal-name').textContent = (data.display_name || data.name) + ' · ' + data.name;
+  $('#expert-modal-meta').textContent = [data.division_zh || data.division, data.license,
+    data.commit ? '上游 ' + String(data.commit).slice(0, 7) : ''].filter(Boolean).join(' · ');
+  // untrusted persona text: plain textContent only, never innerHTML
+  $('#expert-modal-prompt').textContent = data.prompt;
+  const installed = hub.experts.find((e) => e.id === id && e.installed);
+  const btn = $('#expert-modal-import');
+  btn.textContent = installed ? '已在我的专家' : '导入为我的专家';
+  btn.disabled = !!installed;
+  $('#expert-modal-status').textContent = statusNote;
+  $('#expert-modal').classList.remove('hidden');
+  $('#expert-modal-close').focus();
+}
+
+function closeExpertModal() {
+  $('#expert-modal').classList.add('hidden');
+  hub.expertModalId = null;
+}
+
+async function importExpert(id) {
+  let r;
+  try { r = await rpc('experts.import', { id }); }
+  catch (e) { r = { status: 'refused', reason: e.message }; }
+  const note = r.status === 'installed' ? '已导入「我的专家」，可在会话中绑定'
+    : r.status === 'already_installed' ? '此前已导入' : '导入被拒：' + (r.reason || '');
+  if (hub.expertModalId === id) {
+    $('#expert-modal-status').textContent = note;
+    const btn = $('#expert-modal-import');
+    btn.textContent = '已在我的专家';
+    btn.disabled = true;
+  } else if (r.status === 'refused') {
+    // surface the refusal where the user is looking
+    openExpertModal(id, note).catch(() => {});
+  }
+  if (r.status !== 'refused') {
+    // refresh both lists in place; keep the hub tab open
+    const [mine, cat] = await Promise.all([rpc('presets.list'), rpc('experts.list')]).catch(() => [[], { experts: [] }]);
+    hub.mine = mine;
+    hub.experts = (cat && cat.experts) || hub.experts;
+    renderHubExperts();
+  }
+  return r;
+}
+
 
 function hubSkillItems() {
   const installedMeta = new Map(hub.skills.map((s) => [s.name, s]));
@@ -890,6 +1007,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     c.onclick = () => { hub.filter = c.dataset.filter; renderHubTabs(); renderHubSkills(); };
   });
   $('#hub-search').addEventListener('input', (e) => { hub.q = e.target.value; renderHubSkills(); });
+  // F56 expert catalog: chips/search filter both lists; modal preview + import
+  $('#expert-search').addEventListener('input', (e) => { hub.expertQ = e.target.value; renderHubExperts(); });
+  $('#expert-filters').addEventListener('click', (e) => {
+    const chip = e.target.closest('.hub-chip');
+    if (!chip) return;
+    hub.expertFilter = chip.dataset.efilter;
+    document.querySelectorAll('#expert-filters .hub-chip').forEach((c) => c.classList.toggle('active', c === chip));
+    renderHubExperts();
+  });
+  $('#expert-modal-close').onclick = closeExpertModal;
+  $('#expert-modal').addEventListener('click', (e) => { if (e.target.id === 'expert-modal') closeExpertModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('#expert-modal').classList.contains('hidden')) closeExpertModal();
+  });
+  $('#expert-modal-import').onclick = () => { if (hub.expertModalId) importExpert(hub.expertModalId); };
   $('#hub-manage-experts').onclick = () => window.myagent.windowAction('openSettings', { panel: 'presets' });
   $('#hub-manage-connectors').onclick = () => window.myagent.windowAction('openSettings', { panel: 'connectors' });
   $('#nav-tasks').onclick = () => window.myagent.windowAction('openSettings', { panel: 'tasks' });

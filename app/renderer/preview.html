@@ -4,12 +4,25 @@
   <meta charset="utf-8">
   <title>MyAgent Preview</title>
   <link rel="stylesheet" href="style.css">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <style>
+    /* Keep the original 32px preview-bar geometry (T29). */
+    #preview-bar { position: relative; padding-right: 76px; }
+    #preview-source { position: absolute; right: 12px; top: 4px; height: 24px; padding: 0 10px; font-size: 12px; }
+    #preview-source[hidden], #preview-warning[hidden] { display: none; }
+    #preview-warning { flex-shrink: 0; padding: 6px 16px; font-size: 12px; line-height: 1.5; color: var(--text-1); background: var(--gray-3); border-bottom: 1px solid var(--border); }
+    #preview-container { min-height: 0; }
+    .preview-document { display: block; }
+    .preview-content .pdf-page { max-width: 100%; height: auto; }
+  </style>
 </head>
 <body data-theme="light" class="preview-body">
   <header id="preview-bar">
     <span id="preview-title">…</span>
     <span id="preview-kind" class="muted"></span>
+    <button id="preview-source" type="button" aria-pressed="false" hidden>源码</button>
   </header>
+  <div id="preview-warning" role="status" hidden></div>
   <main id="preview-container"></main>
   <script src="dist/preview.js"></script>
 </body>

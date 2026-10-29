@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "date": "2026-10-24T11:59:33.000Z",
+    "platform": "win32",
+    "branch": "feat/artifact-center",
+    "head": "86ce8dae76e1",
+    "dirty": 38,
+    "exec": "dev checkout (electron .)",
+    "seams": "OFF — real native actions",
+    "deliveredPath": "C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-live-fx-gDtjAe\\实机 交付目录\\2026-10-24-11-59-09\\实机 交付 报告.txt"
+  },
+  "results": [
+    {
+      "section": "实机 · 交付与登记",
+      "id": "LIVE-01",
+      "name": "交付成功自动登记,产物面板预览(中文+空格路径)",
+      "pass": true,
+      "note": "delivered=C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-live-fx-gDtjAe\\实机 交付目录\\2026-10-24-11-59-09\\实机 交付 报告.txt"
+    },
+    {
+      "section": "实机 · 路径操作",
+      "id": "LIVE-02",
+      "name": "复制路径 → 真实剪贴板内容与产物路径完全一致",
+      "pass": true,
+      "note": "clipboard matches (Chinese+spaces preserved)"
+    },
+    {
+      "section": "实机 · 路径操作",
+      "id": "LIVE-03",
+      "name": "打开所在文件夹 → 真实资源管理器定位交付文件所在目录",
+      "pass": true,
+      "note": "real Explorer opened C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-live-fx-gDtjAe\\实机 交付目录\\2026-10-24-11-59-09 and was closed (1)"
+    },
+    {
+      "section": "实机 · 路径操作",
+      "id": "LIVE-04",
+      "name": "默认应用打开·拒绝 → 原生确认弹窗出现,取消后不启动任何程序",
+      "pass": true,
+      "note": "native dialog shown (screenshot), 取消 honored, nothing launched"
+    },
+    {
+      "section": "实机 · 路径操作",
+      "id": "LIVE-05",
+      "name": "默认应用打开·批准 → 应用链路真实执行(原生弹窗批准→openPath 成功)",
+      "pass": true,
+      "note": "app chain complete; default-app window not observed — see LIVE-05b environment probe"
+    },
+    {
+      "section": "实机 · 路径操作",
+      "id": "LIVE-05b",
+      "name": "环境探测:本机基于文件关联的启动是否可用(失败=环境异常,非应用缺陷)",
+      "pass": false,
+      "note": "no default-application window appeared; machine-level association launch is broken (independent control probes at the bottom of the report)"
+    }
+  ],
+  "envProbes": [
+    {
+      "probe": "direct exe launch (Start-Process notepad.exe <file>)",
+      "result": "works",
+      "windows": 1
+    },
+    {
+      "probe": "association launch (Start-Process <file.txt>)",
+      "result": "silently no-op",
+      "windows": 0,
+      "note": "exit code 0"
+    }
+  ]
+}

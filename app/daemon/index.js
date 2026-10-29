@@ -11,6 +11,7 @@ const { Sandbox, defaultRules } = require('./sandbox');
 const { MAX_PREVIEW_BYTES } = require('../shared/preview-kind');
 const { SkillRegistry, installSkill, uninstallSkill } = require('./skills');
 const { createPresetStore } = require('./presets');
+const { createExpertCatalog } = require('./expert-catalog');
 const { createScheduler } = require('./tasks');
 const { augmentContext, augmentSkill } = require('./context');
 const { EngineHost } = require('./engine-host');
@@ -24,6 +25,8 @@ const { extractZip } = require('./unzip');
 const { unpacked } = require('../shared/asar-path');
 const { SyncService } = require('./sync');
 const { A2aServer } = require('./a2a');
+const { normalizeArtifact } = require('../shared/artifacts');
+const { createArtifactRegistry } = require('./artifacts');
 
 const APP_VERSION = require('../../package.json').version;
 
@@ -57,6 +60,14 @@ function createDaemon({ send }) {
   }
   const registry = new SkillRegistry([skillsBuiltin, skillsUser]);
   const presetsStore = createPresetStore(path.join(home, 'presets'));
+  // F56 vendored open-source expert personas (design/39); disabled by setting
+  // experts.builtin=false, mirroring market.builtin for skills
+  const expertCatalog = createExpertCatalog({
+    dir: process.env.MYAGENT_EXPERT_BUILTIN || unpacked(path.join(__dirname, '..', '..', 'market', 'agency-experts')),
+    presets: presetsStore,
+    log: (scope, line) => store.log('info', scope, line),
+  });
+  const expertsBuiltinOn = () => store.getSetting('experts.builtin') !== false;
   const libraryDir = path.join(home, 'library');
   fs.mkdirSync(libraryDir, { recursive: true });
 
@@ -76,8 +87,16 @@ function createDaemon({ send }) {
     else if (payload.type === 'tool_result') {
       const name = callName.get(sid + ':' + payload.id) || 'tool';
       callName.delete(sid + ':' + payload.id);
+      const candidate = payload.artifact;
+      delete payload.artifact;
+      // Topic/call map are authoritative, not an engine-supplied session/name.
+      const artifact = payload.ok === true && candidate ? normalizeArtifact({ ...candidate, sessionId: sid }, {
+        sessionId: sid, toolCallId: payload.id, sourceTool: name, createdAt: Date.now(),
+      }) : null;
       store.appendMessage({ session_id: sid, role: 'tool', content: payload.summary || '',
-        tool_name: name, tool_json: JSON.stringify({ ok: payload.ok, detail: payload.detail || null }) });
+        tool_name: name, tool_json: JSON.stringify({ ok: payload.ok, detail: payload.detail || null,
+          ...(artifact ? { artifact } : {}) }) });
+      if (artifact) payload.artifact = artifact;
     } else if (payload.type === 'done' || payload.type === 'error' || payload.type === 'engine_exit') {
       const text = turnBuf.get(sid);
       if (text && text.trim()) store.appendMessage({ session_id: sid, role: 'assistant', content: text });
@@ -85,9 +104,14 @@ function createDaemon({ send }) {
     }
   }
   const emit = (topic, payload) => {
+    try { recordEngineEvent(topic, payload); }
+    catch (_) {
+      // Continue conversation delivery but never advertise an unpersisted file.
+      if (payload && payload.artifact) delete payload.artifact;
+    }
     rawEmit(topic, payload);
-    try { recordEngineEvent(topic, payload); } catch (_) { /* persistence never blocks delivery */ }
   };
+  const artifacts = createArtifactRegistry(store);
 
   const terminalHost = new TerminalHost(emit);
   let prewarmOn = store.getSetting('engine.prewarm') === true;
@@ -301,6 +325,9 @@ function createDaemon({ send }) {
       vault: { mode: vault.mode, dir: path.join(home, 'keystore') },
       dataDir,
     }),
+    'messages.list': async (p) => store.listMessages(p.sessionId),
+    'artifacts.list': async (p) => artifacts.list(p),
+    'artifacts.resolve': async (p) => artifacts.resolve(p),
     'sessions.list': async () => store.listSessions(),
     'sessions.create': async (p) => store.createSession(p || {}),
     'sessions.get': async (p) => {
@@ -342,6 +369,16 @@ function createDaemon({ send }) {
     'presets.list': async () => presetsStore.list(),
     'presets.create': async (p) => presetsStore.create(p),
     'presets.remove': async (p) => presetsStore.remove(p.id),
+    // F56 open-source expert catalog: browse/read/import as presets
+    'experts.list': async () => (expertsBuiltinOn() ? expertCatalog.list() : { catalog: null, experts: [] }),
+    'experts.read': async (p) => {
+      if (!expertsBuiltinOn()) throw new Error('expert catalog disabled (experts.builtin=false)');
+      return expertCatalog.read(p.id);
+    },
+    'experts.import': async (p) => {
+      if (!expertsBuiltinOn()) return { status: 'refused', reason: 'expert catalog disabled (experts.builtin=false)' };
+      return expertCatalog.importExpert(p.id);
+    },
     // F40 scheduled tasks
     'tasks.create': async (p) => scheduler.create(p),
     'tasks.list': async () => scheduler.list(),
@@ -461,15 +498,23 @@ function createDaemon({ send }) {
     // F20 preview source: sandbox-checked binary read (credential dirs stay
     // denied by defaultRules; size capped). Returns base64 for the renderer.
     'files.readBinary': async (p) => {
+      if (typeof p.path !== 'string' || !p.path || /[\x00-\x1f]/.test(p.path)
+        || /^[\\\\/]{2}/.test(p.path) || /:/.test(p.path.replace(/^[A-Za-z]:/, ''))) {
+        const e = new Error('not a local file path'); e.code = 'unsafe_path'; throw e;
+      }
       const sb = new Sandbox(defaultRules(process.cwd()), { workspace: process.cwd() });
       const chk = sb.checkFile(p.path, 'read');
       if (!chk.ok) { const e = new Error('sandbox denied: ' + chk.path); e.code = 'sandbox_denied'; throw e; }
-      const stat = fs.statSync(chk.path);
-      if (!stat.isFile()) { const e = new Error('not a file: ' + chk.path); e.code = 'not_file'; throw e; }
+      const real = fs.realpathSync(chk.path);
+      if (!sb.checkFile(real, 'read').ok || /^[\\\\/]{2}/.test(real)) {
+        const e = new Error('sandbox denied resolved path'); e.code = 'sandbox_denied'; throw e;
+      }
+      const stat = fs.statSync(real);
+      if (!stat.isFile()) { const e = new Error('not a file: ' + real); e.code = 'not_file'; throw e; }
       const cap = Math.min(p.maxBytes || MAX_PREVIEW_BYTES, MAX_PREVIEW_BYTES);
       if (stat.size > cap) { const e = new Error('file too large: ' + stat.size + ' > ' + cap); e.code = 'too_large'; throw e; }
       const { mimeForExt } = require('../shared/preview-kind');
-      const buf = fs.readFileSync(chk.path);
+      const buf = fs.readFileSync(real);
       return { mime: mimeForExt(chk.path), size: stat.size, base64: buf.toString('base64') };
     },
     'memory.test.llm': async () => {
@@ -508,7 +553,7 @@ function createDaemon({ send }) {
         return result;
       })
       .then((result) => cb({ id: msg.id, ok: true, result }))
-      .catch((e) => cb({ id: msg.id, ok: false, error: { code: 'handler_error', message: e.message } }));
+      .catch((e) => cb({ id: msg.id, ok: false, error: { code: e.code || 'handler_error', message: e.message } }));
   }
 
   function snapshot() {
@@ -522,6 +567,7 @@ function createDaemon({ send }) {
   }
 
   function shutdown() {
+    scheduler.stop();
     engineHost.stopAll();
     terminalHost.killAll();
     try { im.dispose(); } catch (_) {}

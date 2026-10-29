@@ -152,7 +152,7 @@ function buildSystem(msg) {
     parts.push('<skills>\nAvailable skills (call skill_read to load full instructions before using one):\n'
       + msg.skills.map((s) => '- ' + s.name + ': ' + s.description).join('\n') + '\n</skills>');
   }
-  parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser.');
+  parts.push('Deliverable discipline: when the task asks for a file deliverable, write it into the workspace, then finish by calling present_file{path} so the file lands in the user-visible delivery folder. For research, prefer web_search/web_fetch over driving the browser. For current social/community buzz use social_fetch (hackernews; rss for RSSHub routes such as localhost:1200).');
   parts.push('Planning discipline: for multi-step tasks, call the todo tool whenever the plan forms or progress changes — items [{text,done}], full list each time.');
   if (msg.systemExtras && msg.systemExtras.length) parts.push(...msg.systemExtras);
   return parts.join('\n\n');
@@ -204,10 +204,15 @@ async function runTurn(userText) {
       const tool = state.tools.tools[name];
       const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
       state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, summary: result.summary, data: result.data }) });
-      // F47: delivered artifacts ride the tool_result event so the renderer
-      // can card them pointing at the user-visible destination
-      const artifact = (name === 'present_file' && result.ok && result.data && result.data.dest)
-        ? { path: result.data.dest, name: path.basename(result.data.dest) } : undefined;
+      // F55: only successful structured results can register an artifact.
+      // Daemon rebinds session identity and timestamps before persistence.
+      const { normalizeArtifact } = require('../shared/artifacts');
+      const artifactPath = result.ok && result.data && (name === 'present_file' ? result.data.dest
+        : name === 'write_file' ? result.data.path : null);
+      const artifact = artifactPath ? normalizeArtifact({ path: artifactPath,
+        location: name === 'present_file' ? 'local' : result.data.location }, {
+        sessionId: state.init.sessionId, toolCallId: call.id, sourceTool: name, createdAt: Date.now(),
+      }) : null;
       emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result), ...(artifact ? { artifact } : {}) });
     }
   }

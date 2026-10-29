@@ -2,9 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:;">
 <title>MyAgent</title>
 <link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./artifact-center.css">
 <link rel="stylesheet" href="./dist/vendor/github-dark.css">
 <link rel="stylesheet" href="./dist/vendor/katex.min.css">
 <link rel="stylesheet" href="./dist/vendor/xterm.css">
@@ -81,6 +82,7 @@
       <button id="btn-terminal" class="icon-btn" title="终端">
         <svg viewBox="0 0 16 16" width="15" height="15"><path d="M2 3.5h12v9.5H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 6l2.5 2-2.5 2M8 10.5h4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
       </button>
+      <button id="btn-artifacts" class="ghost small" aria-controls="artifact-panel" aria-expanded="false" title="展开/折叠会话产物">产物</button>
       <button id="btn-preview" class="icon-btn" title="预览文件 (docx/pdf/xlsx/pptx…)">
         <svg viewBox="0 0 16 16" width="15" height="15"><path d="M4 1.5h5.5L12.5 4.5V14.5H4z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 7h4M6 9.5h4M6 12h2.5" stroke="currentColor" stroke-width="1.2"/></svg>
       </button>
@@ -121,8 +123,29 @@
         </div>
         <div class="hub-pane hidden" data-pane="experts">
           <div class="hub-toolbar"><span class="hub-note">专家 = 命名的系统提示预设，绑定到会话后以该身份工作</span><button class="ghost small" id="hub-manage-experts">管理专家</button></div>
+          <div class="expert-toolbar">
+            <div class="hub-filters" id="expert-filters">
+              <button class="hub-chip active" data-efilter="all">全部</button>
+              <button class="hub-chip" data-efilter="installed">已导入</button>
+              <button class="hub-chip" data-efilter="engineering">工程</button>
+              <button class="hub-chip" data-efilter="design">设计</button>
+              <button class="hub-chip" data-efilter="product">产品</button>
+              <button class="hub-chip" data-efilter="testing">测试</button>
+              <button class="hub-chip" data-efilter="security">安全</button>
+              <button class="hub-chip" data-efilter="research">研究</button>
+              <button class="hub-chip" data-efilter="finance">金融</button>
+            </div>
+            <div class="hub-search">
+              <svg viewBox="0 0 16 16" width="14" height="14"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.2 10.2L14 14" stroke="currentColor" stroke-width="1.4"/></svg>
+              <input id="expert-search" placeholder="搜索专家">
+            </div>
+          </div>
+          <div class="side-section-label" id="expert-mine-label">我的专家</div>
           <div class="hub-grid" id="hub-expert-grid"></div>
-          <div class="hub-empty hidden" id="hub-expert-empty">还没有专家，点击「管理专家」创建</div>
+          <div class="hub-empty hidden" id="hub-expert-empty">还没有专家；可从下方开源目录导入，或点「管理专家」创建</div>
+          <div class="side-section-label" id="expert-catalog-label">开源专家市场</div>
+          <div class="hub-grid" id="hub-expert-catalog-grid"></div>
+          <div class="hub-empty hidden" id="hub-expert-catalog-empty">没有匹配的开源专家</div>
         </div>
         <div class="hub-pane hidden" data-pane="connectors">
           <div class="hub-toolbar"><span class="hub-note">连接器 = MCP 服务器，工具以 mcp_&lt;连接器&gt;_&lt;工具&gt; 注入任务</span><button class="ghost small" id="hub-manage-connectors">管理连接器</button></div>
@@ -166,6 +189,36 @@
     </footer>
     <div id="disclaimer">内容由 AI 生成，请核实重要信息</div>
   </main>
+  <aside id="artifact-panel" class="hidden" aria-label="会话产物">
+    <header class="artifact-heading"><strong>会话产物</strong><button id="artifact-close" class="ghost small" aria-label="折叠产物面板">折叠 ›</button></header>
+    <div id="artifact-list" aria-label="产物列表"></div>
+    <div class="artifact-meta"><strong id="artifact-name">选择一个产物</strong><div id="artifact-path"></div></div>
+    <div class="artifact-actions">
+      <button id="artifact-reveal" class="small">打开所在文件夹</button>
+      <button id="artifact-open" class="small">默认应用打开</button>
+      <button id="artifact-copy" class="small">复制路径</button>
+      <button id="artifact-window" class="small">独立窗口</button>
+      <button id="artifact-source" class="small" aria-pressed="false">源码 / 成品</button>
+    </div>
+    <div id="artifact-status" role="status" aria-live="polite"></div>
+    <div id="artifact-preview"></div>
+  </aside>
+</div>
+<!-- F56 expert persona preview: prompt text is untrusted content, rendered as
+     plain text only (textContent), never as HTML -->
+<div id="expert-modal" class="hidden" role="dialog" aria-modal="true" aria-label="专家提示词预览">
+  <div class="expert-modal-card">
+    <header class="expert-modal-head">
+      <strong id="expert-modal-name"></strong>
+      <span id="expert-modal-meta" class="dim"></span>
+      <button class="ghost small" id="expert-modal-close" aria-label="关闭预览">关闭</button>
+    </header>
+    <pre id="expert-modal-prompt"></pre>
+    <footer class="expert-modal-foot">
+      <span id="expert-modal-status" role="status"></span>
+      <button class="primary" id="expert-modal-import">导入为我的专家</button>
+    </footer>
+  </div>
 </div>
 <script src="./dist/bundle.js"></script>
 </body>
