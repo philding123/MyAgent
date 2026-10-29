@@ -9,12 +9,13 @@
 - [Architecture for engineers](./ARCHITECTURE-TECHNICAL.md)
 - [Current status snapshot](./STATUS.md)
 - [Current todo list](./todo.md)
-- [Latest daily progress](./daily/2026-10-21.md)
+- [Latest daily progress](./daily/2026-10-29.md)
 - [Latest decision](./decisions/2026-10-14-wsl-ghidra-native-analysis-engine.md)
-- [Latest issue](./issues/2026-10-14-sqlite-corrupt-recovery-locked-files.md)
+- [Latest issue](./issues/2026-10-29-verify-gate-allgreen-false-positive.md)
 
 ## Recent Daily Notes
 
+- [2026-10-29](./daily/2026-10-29.md)
 - [2026-10-21](./daily/2026-10-21.md)
 - [2026-10-14](./daily/2026-10-14.md)
 
@@ -28,6 +29,7 @@
 
 ## Recent Issues
 
+- [Issue 2026-10-29 · verify 验收门槛假 ALL GREEN（watchdog 截断的 smoke 蒙混过关）](./issues/2026-10-29-verify-gate-allgreen-false-positive.md)
 - [Issue 2026-10-14 · Windows 下 SQLite 损坏恢复被文件锁卡死](./issues/2026-10-14-sqlite-corrupt-recovery-locked-files.md)
 - [Issue 2026-10-14 · Electron/Windows 进程树不随 process.exit 终止](./issues/2026-10-14-electron-process-tree-exit.md)
 
