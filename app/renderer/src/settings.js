@@ -12,6 +12,7 @@ async function loadSettings() {
   $('#llm-base').value = all['llm.baseUrl'] || '';
   $('#llm-model').value = all['llm.model'] || '';
   $('#prewarm-chk').checked = all['engine.prewarm'] === true;
+  $('#cu-chk').checked = all['computerUse.enable'] === true;
   const theme = await window.myagent.windowAction('theme') || 'light';
   $('#theme-select').value = theme;
   document.body.dataset.theme = theme;
@@ -108,6 +109,15 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#llm-model').onchange = (e) => save('llm.model', e.target.value.trim());
   $('#llm-key').onchange = (e) => { if (e.target.value) { save('llm.apiKey', e.target.value); e.target.value = ''; } };
   $('#prewarm-chk').onchange = (e) => save('engine.prewarm', e.target.checked);
+  // F59 (design/43): first-enable warning — screen captures ride to the
+  // configured LLM endpoint; cancelling the dialog leaves the gate off
+  $('#cu-chk').onchange = (e) => {
+    if (e.target.checked) {
+      const ok = window.confirm('开启电脑操控（computer use）？\n\n开启后代理可以截取屏幕、列出窗口并进行点击/键盘输入（改动类动作仅在 craft 模式放行）。\n使用中的屏幕截图会作为消息内容发送到「模型」面板配置的端点。');
+      if (!ok) { e.target.checked = false; return; }
+    }
+    save('computerUse.enable', e.target.checked);
+  };
   $('#theme-select').onchange = (e) => {
     document.body.dataset.theme = e.target.value;
     window.myagent.windowAction('setTheme', { theme: e.target.value });

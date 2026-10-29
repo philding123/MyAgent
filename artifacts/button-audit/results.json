@@ -333,7 +333,7 @@
     "id": "expert-import",
     "name": "导入 → 成为我的专家（带来源标记），重复导入不重复建",
     "pass": true,
-    "note": "imported 1 preset (pmvtoqob), re-import dedup"
+    "note": "imported 1 preset (pmvts6gu), re-import dedup"
   },
   {
     "section": "主窗 · 技能页",
@@ -389,7 +389,7 @@
     "id": "sub-workspace",
     "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
     "pass": true,
-    "note": "cwd=C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-audit-fx-VsXGvC\\audit_workspace"
+    "note": "cwd=C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-audit-fx-FaCH5e\\audit_workspace"
   },
   {
     "section": "主窗 · 首页与输入区",
@@ -452,7 +452,7 @@
     "id": "confirm-deny",
     "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
     "pass": true,
-    "note": "denied, not written; s=61eee3"
+    "note": "denied, not written; s=46981a"
   },
   {
     "section": "主窗 · 运行中控件",
@@ -663,6 +663,20 @@
     "name": "清空全部数据 → 取消不删；确认后会话与记忆清空，主窗侧栏同步",
     "pass": true,
     "note": "12 → 0, sidebar synced"
+  },
+  {
+    "section": "设置窗",
+    "id": "cu-toggle",
+    "name": "电脑操控开关 → 首开原生确认：取消保持关、确认落库、关闭无弹窗",
+    "pass": true,
+    "note": "confirm-gated toggle off→on→off"
+  },
+  {
+    "section": "设置窗",
+    "id": "computer-live",
+    "name": "computer 工具实机：列窗口出 refs、真实截屏进视觉回路",
+    "pass": true,
+    "note": "windows listed + real screenshot in the vision loop"
   },
   {
     "section": "设置窗",

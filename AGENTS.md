@@ -25,7 +25,7 @@ Electron main (app/main)  ←窄 IPC: 'rpc' + 'rpc.window'→
 | 技能 | `SKILL.md` frontmatter：name/description/allowed-tools/disable（支持 YAML 块标量 `>`/`\|`/`\|-` 与引号）；渐进披露（清单进 system，全文经 `skill_read`） |
 | 技能市场 | 内置目录 `market/claude-skills/`（F53，anthropics/skills 锁 commit，`builtin:` 源 + tree_sha256；文档四件套 installable:false）先于远端源（F25 `market.url`）；`market.list` → `{catalogs, plugins}`；`market.builtin=false` 关闭 |
 | IM 通道插件 | `{id, meta, capabilities, gateway, outbound, defaultReplyPolicy}`；入站 `{messageId, content[], sender, group?, timestamp, replyContext}`；500 环形去重；凭证入 vault `im.<channel>.token`（telegram 完整实现，slack/discord/dingtalk/feishu 骨架+真连手工，webhook 本地回环） |
-| 引擎工具面 | read_file/list_dir/write_file/run_command/search/skill_read + `browser`（F22，read 动作 browse、click/fill/press/scroll 经 kindOf 归 exec 受策略门控）+ `market`（F25，daemon 桥）+ `agent_delegate`（F28，A2A 客户端）+ `web_search`/`web_fetch`（F46）+ `social_fetch`（F57，HN keyless + RSS/RSSHub 路由） |
+| 引擎工具面 | read_file/list_dir/write_file/run_command/search/skill_read + `browser`（F22，read 动作 browse、click/fill/press/scroll 经 kindOf 归 exec 受策略门控；F59 增 click_at/type_at 坐标动作受 computerUse 门控）+ `market`（F25，daemon 桥）+ `agent_delegate`（F28，A2A 客户端）+ `web_search`/`web_fetch`（F46）+ `social_fetch`（F57，HN keyless + RSS/RSSHub 路由）+ `computer`（F59 OS 原语，`computerUse.enable` 默认关才注册；截图经 vision.js 以 image_url 部件进 history，1.5MB/10 图护栏） |
 | 数据目录 | 真实：`%APPDATA%/myagent`（keystore/ data/ skills/）；测试用 `MYAGENT_HOME` 覆盖 |
 | 凭证键 | `settings.set` 对 `llm.apiKey`、`sandbox.cloud.apiKey` 只写 vault（settings 只记 `<key>.set`），启动迁移旧明文；新增凭证类设置必须加入 daemon `VAULT_KEYS` |
 | 测试接缝 | `MYAGENT_TEST_SEAMS=1`（仅按钮审计）：文件对话框队列应答、外链记录不外开、`test-seam` 触发菜单项/恢复主窗；`win-state` 为只读窗口动作 |

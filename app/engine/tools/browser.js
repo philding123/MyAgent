@@ -8,7 +8,11 @@
 const ACTION_KINDS = {
   navigate: 'read', content: 'read', snapshot: 'read', screenshot: 'read', close: 'read',
   click: 'exec', fill: 'exec', press: 'exec', scroll: 'exec',
+  // F59 CUA actions: coordinate-driven (vision loop), exec + computer-use gated
+  click_at: 'exec', type_at: 'exec',
 };
+
+const VIEWPORT = { width: 1280, height: 800 };
 
 const MAX_SNAPSHOT = 80;
 const NAV_TIMEOUT_MS = 30000;
@@ -17,6 +21,14 @@ const NAV_TIMEOUT_MS = 30000;
 // codebuddy-lite-wb); playwright errors embed \x1b[2m dim codes that render
 // as garbage glyphs in chat cards.
 const stripAnsi = (s) => String(s).replace(/\x1B\[[0-9;]*[A-Za-z]/g, '');
+
+function coordInViewport(x, y) {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return { error: 'x/y must be integers (viewport coordinates from the last screenshot)' };
+  if (x < 0 || y < 0 || x >= VIEWPORT.width || y >= VIEWPORT.height) {
+    return { error: 'coordinates outside the ' + VIEWPORT.width + 'x' + VIEWPORT.height + ' viewport' };
+  }
+  return { x, y };
+}
 
 function makeBrowserSession(opts = {}) {
   // opts.playwright: injected playwright-core (tests); resolved lazily otherwise.
@@ -106,7 +118,9 @@ function makeBrowserSession(opts = {}) {
       }
       case 'screenshot': {
         const buf = await p.screenshot({ type: 'png' });
-        return { ok: true, summary: 'screenshot ' + buf.length + 'B', data: { png_base64: buf.toString('base64') } };
+        // F59: data.image rides as an image_url part (vision.js); the base64
+        // must NOT also sit inside the JSON text
+        return { ok: true, summary: 'screenshot ' + buf.length + 'B', data: { image: { mime: 'image/png', base64: buf.toString('base64') } } };
       }
       case 'click': {
         await p.click(resolveRef(args.ref), { timeout: NAV_TIMEOUT_MS });
@@ -126,6 +140,23 @@ function makeBrowserSession(opts = {}) {
         await p.evaluate((dy) => window.scrollBy(0, dy), Number(args.dy || 300));
         return { ok: true, summary: 'scrolled ' + (args.dy || 300) };
       }
+      case 'click_at': {
+        const at = coordInViewport(args.x, args.y);
+        if (at.error) return { ok: false, summary: at.error };
+        await p.mouse.click(at.x, at.y);
+        await p.waitForTimeout(300);
+        return { ok: true, summary: 'clicked at ' + at.x + ',' + at.y };
+      }
+      case 'type_at': {
+        const at = coordInViewport(args.x, args.y);
+        if (at.error) return { ok: false, summary: at.error };
+        const text = String(args.text ?? '');
+        if (!text) return { ok: false, summary: 'type_at needs text' };
+        await p.mouse.click(at.x, at.y);
+        await p.waitForTimeout(150);
+        await p.keyboard.type(text);
+        return { ok: true, summary: 'typed ' + text.length + ' chars at ' + at.x + ',' + at.y };
+      }
       default:
         return { ok: false, summary: 'unknown action: ' + action + ' (valid: ' + Object.keys(ACTION_KINDS).join(',') + ')' };
     }
@@ -139,23 +170,29 @@ function makeBrowserSession(opts = {}) {
   return { run, dispose, ACTION_KINDS };
 }
 
-function browserToolDefinition(session) {
+function browserToolDefinition(session, opts = {}) {
+  const cuaEnabled = typeof opts.cuaEnabled === 'function' ? opts.cuaEnabled : () => true;
   return {
     kind: 'read', // ask-mode may navigate/read; exec actions re-classified via kindOf
     kindOf: (args) => ACTION_KINDS[args.action] || 'read',
-    description: 'Drive a headless browser. Actions: navigate{url} content[selector] snapshot screenshot click{ref} fill{ref,value} press{key} scroll{dy} close. click/fill/press/scroll are state-changing (policy-gated); refs come from snapshot.',
+    description: 'Drive a headless browser. Actions: navigate{url} content[selector] snapshot screenshot click{ref} fill{ref,value} press{key} scroll{dy} click_at{x,y} type_at{x,y,text} close. click/fill/press/scroll/click_at/type_at are state-changing (policy-gated); refs come from snapshot, x/y are viewport coordinates from the last screenshot (vision loop).',
     schema: {
       type: 'object',
       properties: {
         action: { type: 'string', enum: Object.keys(ACTION_KINDS) },
         url: { type: 'string' }, selector: { type: 'string' },
         ref: { type: 'string' }, value: { type: 'string' }, key: { type: 'string' },
-        dy: { type: 'number' },
+        dy: { type: 'number' }, x: { type: 'number' }, y: { type: 'number' }, text: { type: 'string' },
       },
       required: ['action'],
     },
     run: async (args) => {
       try {
+        // F59: the coordinate (CUA) actions are part of the computer-use
+        // surface — Settings gate, default off; ref-based automation is not
+        if ((args.action === 'click_at' || args.action === 'type_at') && !cuaEnabled()) {
+          return { ok: false, summary: 'coordinate browser actions need computer use enabled (Settings)' };
+        }
         return await session.run(args);
       } catch (e) {
         return { ok: false, summary: 'browser ' + args.action + ' failed: ' + stripAnsi(String(e && e.message || e)) };

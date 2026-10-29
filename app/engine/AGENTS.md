@@ -14,6 +14,8 @@
 | `tools/index.js` | `makeTools({sandbox, skillRegistry})` → tools 表（read_file/list_dir/write_file/run_command/search/skill_read，各带 kind: read/write/exec）+ OpenAI `definitions` |
 | `tools/web.js` | F46 web_search（cn.bing SERP）/web_fetch（htmlToText，上限）；直连 fetch、错误即值 | 
 | `tools/social.js` | F57 social_fetch：hackernews（hn.algolia keyless）+ rss（RSS/Atom 紧凑解析；国内社交走自托管 RSSHub 路由）；kind=read，≤30 条/8000 字 |
+| `vision.js` | F59 视觉回路：工具结果带 `data.image={mime,base64}` → tool 消息组装为 `[{type:text},{type:image_url}]` 多部件（base64 绝不重复进 JSON 文本）；护栏 base64 ≤1.5MB/图、≤10 图/轮，超限=错误即值 |
+| `tools/computer.js` | F59 OS 原语 `computer`（仅 `computerUse.enable` 才注册）：内嵌 PowerShell（list/shot/click/key/front/open）；**坐标 ref 化**（list_windows→w1..wN+窗口相对坐标，front 先行）；screenshot 带 ref=PrintWindow（锁屏可用）、无 ref=主屏（该环境失败为诚实值）；open_app 复用 gateTool 命令规则；非 win32=环境值 |
 
 ## 3. 铁律与不变式
 

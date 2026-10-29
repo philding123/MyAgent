@@ -188,6 +188,9 @@ function createDaemon({ send }) {
         maxContextChars: parseInt(settings['engine.maxContextChars'], 10) || 150000,
         // F52: connector (MCP client) tools ride the daemon bridge
         connectorTools: mcpConns.engineToolDefs(),
+        // F59 computer use (design/43): the OS-level tool + browser CUA
+        // actions register only behind this settings gate (default off)
+        computerUse: { enabled: store.getSetting('computerUse.enable') === true },
         llm: {
           baseUrl: settings['llm.baseUrl'] || 'http://127.0.0.1:11434/v1',
           apiKey: vault.get('llm.apiKey') || settings['llm.apiKey'] || '',
@@ -342,6 +345,7 @@ function createDaemon({ send }) {
       skills: { count: registry.scan().length, dirs: [skillsBuiltin, skillsUser] },
       engine: engineHost.status(),
       browser: (() => { try { return require('../shared/browser-probe').probeBrowser(); } catch (_) { return { available: false }; } })(),
+      computerUse: { enabled: store.getSetting('computerUse.enable') === true, platform: process.platform },
       im: im.status(),
       market: getMarket().status(),
       sync: sync.status(),

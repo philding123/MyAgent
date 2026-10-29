@@ -1116,6 +1116,51 @@ await audit('clear', '清空全部数据 → 取消不删；确认后会话与�
   await until(() => main.evaluate(() => document.querySelectorAll('#session-list li, .session-list-nested li').length === 0), 4000, 'main sidebar emptied');
   return n0 + ' → 0, sidebar synced';
 });
+await audit('cu-toggle', '电脑操控开关 → 首开原生确认：取消保持关、确认落库、关闭无弹窗', async () => {
+  await st.click('.settings-navigation__item[data-panel="engine"]');
+  const isOn = async () => (await rpcIn(st, 'settings.all'))['computerUse.enable'] === true;
+  st.once('dialog', (dg) => dg.dismiss());
+  await st.locator('#cu-chk').click();
+  await sleep(400);
+  expect(!(await isOn()), 'cancel left the gate off');
+  expect(!(await st.locator('#cu-chk').isChecked()), 'checkbox restored after cancel');
+  st.once('dialog', (dg) => dg.accept());
+  await st.locator('#cu-chk').click();
+  await until(isOn, 4000, 'enabled persisted');
+  await st.locator('#cu-chk').click(); // off again — must not prompt
+  await until(async () => !(await isOn()), 4000, 'disabled persisted');
+  return 'confirm-gated toggle off→on→off';
+});
+await audit('computer-live', process.platform === 'win32'
+  ? 'computer 工具实机：列窗口出 refs、真实截屏进视觉回路'
+  : 'computer 工具（无 PowerShell 环境）：截屏动作=诚实环境错误值', async () => {
+  const callC = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
+  await rpc('settings.set', { key: 'computerUse.enable', value: true });
+  const s = await rpc('sessions.create', { title: '审计-电脑操控', cwd: wsDir, mode: 'craft' });
+  await main.evaluate((id) => window.__myagentTest.openSession(id), s.id);
+  mock.push([
+    { tool_calls: process.platform === 'win32'
+      // PrintWindow per-window: CopyFromScreen fails on locked/headless
+      // sessions ("invalid handle") — the window route is the proven one
+      ? [callC('l1', 'computer', { action: 'list_windows' }), callC('s1', 'computer', { action: 'screenshot', ref: 'w1' })]
+      : [callC('s1', 'computer', { action: 'screenshot' })] },
+    { content: 'CUA_PROBE_DONE' },
+  ]);
+  await main.fill('#input', '看看屏幕');
+  armTurn(); await main.click('#btn-send'); await waitDone();
+  const last = mock.requests[mock.requests.length - 1];
+  const toolTexts = last.messages.filter((m) => m.role === 'tool')
+    .map((m) => (typeof m.content === 'string' ? m.content : m.content[0].text));
+  if (process.platform === 'win32') {
+    expect(toolTexts.some((t) => /w1/.test(t) && t.includes('windows')), 'list_windows exposed refs');
+    expect(last.messages.some((m) => Array.isArray(m.content) && m.content.some((p) => p.type === 'image_url'
+      && String(p.image_url.url).startsWith('data:image/png;base64,'))), 'real screenshot reached the model');
+  } else {
+    expect(toolTexts.some((t) => t.includes('requires Windows')), 'honest environment value');
+  }
+  await rpc('settings.set', { key: 'computerUse.enable', value: false });
+  return process.platform === 'win32' ? 'windows listed + real screenshot in the vision loop' : 'degraded to value error';
+});
 await audit('settings-close', '× 关闭 → 设置窗关闭', async () => {
   await sClick('#btn-close-settings');
   await until(() => !findPage(/settings\.html/), 3000, 'closed');
