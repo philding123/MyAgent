@@ -10,7 +10,7 @@ Electron 主进程。向上管理 OS 集成（窗口/托盘/协议/对话框）�
 |---|---|---|
 | `index.js` | bootstrap：daemon 启动 → IPC handle → 托盘 → 主窗 → deeplink 队列 →（MYAGENT_SMOKE 时）runSmoke | `runSmoke` 覆盖 T01/T16/T17/T18 步骤，结果写 JSON（`MYAGENT_SMOKE_OUT`，含 exitCode 字段） |
 | `daemon-client.js` | DaemonClient（EventEmitter） | request 多路复用（30s 超时回包）、`ready/down/event` 事件、重启退避 500ms→8s ≤5 次；shutdown 用 taskkill /T /F 树杀 |
-| `windows.js` | main/settings/search 三窗单例注册表 | `broadcast('rpc:event')` 全窗广播；`setTheme` 跨窗同步；close-to-tray 仅主窗 |
+| `windows.js` | 窗口注册表：main/settings/search 单例、preview 按路径（F33）、conversation 单例复用重定向（F37） | `broadcast('rpc:event')` 全窗广播；`setTheme` 跨窗同步；close-to-tray 仅主窗；`selfAction(win,op)` 供 `win-self`（作用于调用窗） |
 | `tray.js` | 托盘菜单（Show/Quit）+ `parseDeeplink` | `myagent://session/<id>`、`myagent://settings`；icon 走 nativeImage dataURL |
 
 ## 3. 铁律与不变式
@@ -23,5 +23,6 @@ Electron 主进程。向上管理 OS 集成（窗口/托盘/协议/对话框）�
 ## 4. 开发与测试
 
 - E2E：`npm run verify` 的 e2e-smoke 步骤；单跑见 CLAUDE.md 命令。
-- 相关测试：T01/T16/T17/T18（冒烟步骤名即断言）。
-- 已知坑：Electron 下载后 dist 需完整（缺 exe 时从 `%LOCALAPPDATA%/electron/Cache` 手动解压并写 `path.txt`）。
+- 相关测试：T01/T16/T17/T18/T53（冒烟步骤名即断言）。
+- 已知坑：Electron 下载后 dist 需完整（缺 exe 时从 `%LOCALAPPDATA%/electron/Cache` 手动解压并写 `path.txt`）；
+  runSmoke 里 await 一段"会让调用窗自身关闭"的 executeJavaScript 永不 resolve（webContents 已销毁，Electron 不 reject）——关窗调用须 fire-and-forget + 轮询窗口表（T53 conversation-self 踩过）。

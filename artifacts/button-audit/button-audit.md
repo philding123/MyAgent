@@ -1,6 +1,6 @@
 # MyAgent 逐按钮行为审计（结果断言，非存在性）
 
-- 时间：2026-10-28T10:35:28.202Z；平台：win32；101/101 PASS
+- 时间：2026-10-29T14:16:20.409Z；平台：win32；102/102 PASS
 - 每项断言按钮存在的「目的」：daemon 状态、窗口状态、磁盘文件、LLM 实际收到的内容；OS 对话框由 MYAGENT_TEST_SEAMS 队列应答。
 
 | 区域 | 控件 | 预期效果 | 结果 | 实测 |
@@ -34,6 +34,7 @@
 | 主窗 · 顶栏 | mode-ask | 模式按钮 ask → daemon 持久化 + chip 同步 | PASS | session.mode=ask |
 | 主窗 · 顶栏 | mode-plan | 模式按钮 plan → daemon 持久化 + chip 同步 | PASS | session.mode=plan |
 | 主窗 · 顶栏 | mode-craft | 模式按钮 craft → daemon 持久化 + chip 同步 | PASS | session.mode=craft |
+| 主窗 · 顶栏 | btn-popout | 独立窗口 ⧉ → conversation 窗口钉住当前会话，关闭后注册表槽位释放 | PASS | pinned "审计-会话乙" |
 | 主窗 · 顶栏 | btn-terminal | 终端 → 面板打开，键入命令真的执行并回显 | PASS | echoed AUDIT_TERM_42 |
 | 主窗 · 顶栏 | btn-preview | 预览 → 选文件 → 预览窗显示该文件内容 | PASS | preview shows the picked file |
 | 主窗 · 顶栏 | btn-preview-cancel | 预览 → 取消选择 → 不开窗 | PASS | no window |
@@ -51,7 +52,7 @@
 | 主窗 · 技能页 | hub-manage-experts | 管理专家 → 设置窗「presets」 | PASS | settings/presets |
 | 主窗 · 技能页 | expert-catalog | 专家页显示开源目录并可搜索/筛选 | PASS | catalog ≥20 · 搜索“后端”命中 1 · 安全/金融筛选 |
 | 主窗 · 技能页 | expert-preview | 查看 → 完整提示词纯文本预览（含溯源），Esc 关闭 | PASS | persona preview + provenance, esc closed |
-| 主窗 · 技能页 | expert-import | 导入 → 成为我的专家（带来源标记），重复导入不重复建 | PASS | imported 1 preset (pmvrz99x), re-import dedup |
+| 主窗 · 技能页 | expert-import | 导入 → 成为我的专家（带来源标记），重复导入不重复建 | PASS | imported 1 preset (pmvtml9s), re-import dedup |
 | 主窗 · 技能页 | hub-tab-connectors | Tab 连接器 → 显示连接器与连接状态 | PASS | auditmcp 已连接 · 1 个工具 |
 | 主窗 · 技能页 | hub-manage-connectors | 管理连接器 → 设置窗「connectors」 | PASS | settings/connectors |
 | 主窗 · 技能页 | hub-tab-skills | Tab 技能 → 回到技能卡片 | PASS | ok |
@@ -59,7 +60,7 @@
 | 主窗 · 首页与输入区 | hero-chip | chip → 填入输入框并聚焦 | PASS | 创作文档 |
 | 主窗 · 首页与输入区 | suggestion | 建议条 → 填入输入框 | PASS | 做一张应收、应付和开票查询表 |
 | 主窗 · 首页与输入区 | btn-plus | ＋ → 弹出 @/技能 菜单，点外部关闭 | PASS | ok |
-| 主窗 · 首页与输入区 | sub-workspace | 选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间 | PASS | cwd=C:\Users\phil\AppData\Local\Temp\myagent-audit-fx-Vf44lT\audit_workspace |
+| 主窗 · 首页与输入区 | sub-workspace | 选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间 | PASS | cwd=C:\Users\phil\AppData\Local\Temp\myagent-audit-fx-p8foic\audit_workspace |
 | 主窗 · 首页与输入区 | sub-mode-draft | 草稿态选「只读问答」 → 首条消息建的会话 mode=ask（引擎按 ask 跑） | PASS | mode=ask |
 | 主窗 · 首页与输入区 | sub-mode-session | 会话中 chip 菜单切到「计划模式」 → daemon 持久化 | PASS | topbar (chip hidden in task view) |
 | 主窗 · 首页与输入区 | btn-context | ＋ → @ 添加上下文 → 选文件 → 发送后 LLM 收到文件内容 | PASS | LLM user message carries the file content |
@@ -68,7 +69,7 @@
 | 主窗 · 首页与输入区 | btn-send | 发送（Enter 与按钮）→ 草稿物化为会话 + 回复渲染 + 消息落库 | PASS | two turns rendered + persisted |
 | 主窗 · 首页与输入区 | btn-send-empty | 空输入点发送 → 不建会话、不请求 LLM | PASS | no-op |
 | 主窗 · 运行中控件 | confirm-approve | plan 模式写文件 → 批准条「Approve」→ 文件真的写入 | PASS | approved.txt written |
-| 主窗 · 运行中控件 | confirm-deny | 批准条「Deny」→ 文件不写入，模型收到拒绝 | PASS | denied, not written; s=069703 |
+| 主窗 · 运行中控件 | confirm-deny | 批准条「Deny」→ 文件不写入，模型收到拒绝 | PASS | denied, not written; s=d1698d |
 | 主窗 · 运行中控件 | artifact-card | 成功产物卡片 → 右侧预览该文件，拒绝写入不出卡 | PASS | approved.txt inline; denied.txt absent |
 | 主窗 · 运行中控件 | artifact-fold | 产物面板折叠与重开保持选择 | PASS | fold/reopen keeps approved.txt |
 | 主窗 · 运行中控件 | artifact-copy-reveal | 复制路径与打开所在文件夹使用受检目标 | PASS | copy/reveal target=approved.txt (native seam) |

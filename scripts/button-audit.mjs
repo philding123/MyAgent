@@ -317,6 +317,25 @@ for (const mode of ['ask', 'plan', 'craft']) {
     return 'session.mode=' + s.mode;
   });
 }
+await audit('btn-popout', '独立窗口 ⧉ → conversation 窗口钉住当前会话，关闭后注册表槽位释放', async () => {
+  const title0 = await main.evaluate(() => document.getElementById('session-title').textContent);
+  expect(!!title0 && title0 !== '—' && title0 !== '新任务', 'no open session to pin: ' + title0);
+  await main.click('#btn-popout');
+  const conv = await waitPage(/windowKind=conversation/, 6000);
+  await conv.waitForLoadState('load');
+  // until() needs a falsy-while-waiting predicate: the title only counts once
+  // the pinned session actually loaded (boot openSession is async)
+  const st = await until(() => conv.evaluate(() => {
+    const t = document.getElementById('conv-title').textContent;
+    return t && t !== 'MyAgent' ? { t, pinned: document.body.classList.contains('conversation-window') } : null;
+  }), 8000, 'conversation pinned');
+  expect(st.pinned && st.t === title0, JSON.stringify(st));
+  const ids = await win('win-state');
+  expect(ids.windows.includes('conversation'), 'registry: ' + ids.windows.join(','));
+  await closePage(/windowKind=conversation/);
+  await until(async () => !(await win('win-state')).windows.includes('conversation'), 5000, 'conversation slot freed');
+  return 'pinned "' + st.t + '"';
+});
 await audit('btn-terminal', '终端 → 面板打开，键入命令真的执行并回显', async () => {
   await main.click('#btn-terminal');
   await until(() => main.evaluate(() => !!document.querySelector('#terminal-view .xterm')), 5000, 'xterm');

@@ -168,6 +168,7 @@ const e2eMap = {
   T47: [],
   T48: ['ui-nav', 'ui-hub'],
   T49: [],
+  T53: ['conversation-window', 'conversation-main-shell', 'conversation-retarget', 'conversation-self'],
 };
 
 const featureNames = {
@@ -190,6 +191,7 @@ const featureNames = {
   T50: 'F55 会话产物中心、历史恢复及安全文件操作',
   T51: 'F56 开源专家市场（agency-agents 精选 persona → 预设）',
   T52: 'F57 社交/社区内容拉取（social_fetch：HN + RSS/RSSHub）',
+  T53: 'F37 会话独立窗口（单实例复用重定向 + conversation 模式 + win-self）',
 };
 
 let lines = [];
@@ -235,7 +237,22 @@ const report = lines.join('\n');
 writeFileSync(path.join(ART, 'acceptance-report.md'), report);
 writeFileSync(path.join(ART, 'verify-raw.json'), JSON.stringify(results, null, 2));
 console.log('\n' + report);
+// the gate aggregates the T rows, not just phase exit codes: a watchdog-
+// truncated smoke still writes exitCode 0, and e2e-only rows (e.g. T16) have
+// no unit tests to fail — only their missing steps would reveal it
+let rowsOk = true;
+for (const tid of Object.keys(featureNames)) {
+  // audit rows carry .pass (not .ok) — map exactly like the report loop
+  const subs = tid === 'T49'
+    ? (auditList.length ? auditList.map((a) => ({ ok: a.pass, name: a.id })) : [{ ok: false, name: 'button audit produced no results' }])
+    : (tIndex[tid] || []);
+  const e2eNames = e2eMap[tid] || [];
+  const e2eSteps = (results.e2e?.steps || []).filter((s) => e2eNames.includes(s.name));
+  const ok = subs.every((s) => s.ok) && e2eSteps.every((s) => s.ok)
+    && e2eSteps.length === e2eNames.length && (subs.length + e2eSteps.length > 0);
+  if (!ok) { rowsOk = false; console.log('ROW FAIL: ' + tid); }
+}
 const allGreen = results.unit?.code === 0 && results.integration?.code === 0 && results.e2e?.code === 0
-  && results.audit?.code === 0 && auditList.length > 0;
+  && results.audit?.code === 0 && auditList.length > 0 && rowsOk;
 console.log(allGreen ? '\nALL GREEN' : '\nHAS FAILURES');
 process.exit(allGreen ? 0 : 1);
