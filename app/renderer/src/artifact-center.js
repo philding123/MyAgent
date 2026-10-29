@@ -29,6 +29,8 @@ export class ArtifactCenter {
     for (const operation of ['reveal', 'open', 'copy', 'window']) {
       document.getElementById('artifact-' + operation).onclick = () => this.act(operation);
     }
+    document.getElementById('artifact-history').onclick = () => this.toggleHistory();
+    this.history = null;
     this.panel.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         this.setExpanded(false, true);
@@ -43,6 +45,7 @@ export class ArtifactCenter {
 
   setSession(id, records = []) {
     this.generation++;
+    this.history = null;
     this.preview.destroy();
     this.preview = createPreviewController(this.previewHost, this.rpc);
     this.sessionId = id;
@@ -167,6 +170,7 @@ export class ArtifactCenter {
 
   async show(artifact) {
     const generation = ++this.generation;
+    this.history = null;
     this.preview.destroy();
     this.preview = createPreviewController(this.previewHost, this.rpc);
     this.status.dataset.state = 'loading';
@@ -206,5 +210,138 @@ export class ArtifactCenter {
     } catch (error) {
       if (generation === this.generation) this.status.textContent = error.message;
     }
+  }
+
+  // ---------- F58 file history (design/42): version browser in the panel ----------
+  async toggleHistory() {
+    if (this.history) return this.closeHistory();
+    const artifact = this.selected;
+    if (!artifact || artifact.location === 'remote') return;
+    const generation = ++this.generation;
+    this.status.dataset.state = 'loading';
+    this.status.textContent = '正在读取版本…';
+    try {
+      const list = await this.rpc('files.history.list', { path: artifact.path });
+      if (generation !== this.generation) return;
+      this.history = { versions: list.versions, selected: (list.versions.find((v) => !v.skipped) || list.versions[0] || {}).id || null };
+      this.renderHistory();
+      this.status.textContent = '';
+      this.status.dataset.state = '';
+    } catch (error) {
+      if (generation !== this.generation) return;
+      this.status.textContent = '无法读取版本：' + error.message;
+      this.status.dataset.state = 'error';
+    }
+  }
+
+  closeHistory() {
+    this.history = null;
+    if (this.selected) this.show(this.selected);
+  }
+
+  renderHistory() {
+    this.preview.destroy();
+    this.preview = createPreviewController(this.previewHost, this.rpc);
+    this.previewHost.replaceChildren();
+    const root = document.createElement('div');
+    root.className = 'fh-root';
+    const head = document.createElement('div');
+    head.className = 'fh-head';
+    const title = document.createElement('strong');
+    title.textContent = '历史版本 · ' + this.history.versions.length;
+    const back = document.createElement('button');
+    back.className = 'small';
+    back.textContent = '返回预览';
+    back.onclick = () => this.closeHistory();
+    head.append(title, back);
+    root.appendChild(head);
+    if (!this.history.versions.length) {
+      const empty = document.createElement('p');
+      empty.className = 'fh-empty';
+      empty.textContent = '该文件还没有本地版本（仅记录本应用自己的写入与交付）。';
+      root.appendChild(empty);
+      this.previewHost.appendChild(root);
+      return;
+    }
+    const list = document.createElement('div');
+    list.className = 'fh-list';
+    for (const v of this.history.versions) {
+      const item = document.createElement('button');
+      item.className = 'fh-item' + (v.id === this.history.selected ? ' active' : '');
+      item.setAttribute('aria-pressed', String(v.id === this.history.selected));
+      const when = document.createElement('span');
+      when.textContent = new Date(v.createdAt).toLocaleString();
+      const meta = document.createElement('small');
+      meta.textContent = v.tool + ' · ' + Math.max(1, Math.round(v.size / 1024)) + ' KB' + (v.skipped ? ' · 未快照(超限)' : '');
+      item.append(when, meta);
+      if (v.skipped) {
+        item.disabled = true;
+        item.title = '该版本超过单文件快照上限，只可查看不可恢复';
+      } else {
+        item.onclick = () => { this.history.selected = v.id; this.renderHistory(); };
+      }
+      list.appendChild(item);
+    }
+    root.appendChild(list);
+    const detail = document.createElement('div');
+    detail.className = 'fh-detail';
+    root.appendChild(detail);
+    this.previewHost.appendChild(root);
+    this.loadVersionDetail(detail);
+  }
+
+  async loadVersionDetail(host) {
+    const artifact = this.selected;
+    const versionId = this.history && this.history.selected;
+    if (!artifact || !versionId) return;
+    const generation = this.generation;
+    let diff;
+    try { diff = await this.rpc('files.history.diff', { path: artifact.path, versionId }); }
+    catch (error) { host.textContent = '无法对比：' + error.message; return; }
+    if (generation !== this.generation || !this.history) return;
+    host.replaceChildren();
+    const cap = document.createElement('div');
+    cap.className = 'fh-diff-cap';
+    cap.textContent = diff.binary ? '二进制版本 — 仅支持恢复，不支持逐行对比'
+      : diff.tooLarge ? '差异过大：+' + diff.added + ' / -' + diff.removed + ' 行'
+      : '与当前内容相比：恢复将移除 ' + diff.removed + ' 行、带回 ' + diff.added + ' 行';
+    host.appendChild(cap);
+    if (diff.lines) {
+      const pre = document.createElement('pre');
+      pre.className = 'fh-diff';
+      for (const line of diff.lines) {
+        const row = document.createElement('span');
+        row.className = 'fh-' + line.type;
+        row.textContent = line.type === 'gap' ? '⋯ ' + line.count + ' 行未变'
+          : line.type === 'add' ? '+ ' + line.text
+          : line.type === 'del' ? '- ' + line.text
+          : '  ' + line.text;
+        pre.appendChild(row);
+      }
+      host.appendChild(pre);
+    }
+    const confirm = document.createElement('div');
+    confirm.className = 'fh-confirm';
+    const note = document.createElement('span');
+    note.textContent = '用此版本覆盖当前文件（当前内容会先存为一个版本，可再撤销）';
+    const restore = document.createElement('button');
+    restore.className = 'primary';
+    restore.textContent = '恢复此版本';
+    restore.onclick = async () => {
+      restore.disabled = true;
+      try {
+        await this.rpc('files.history.restore', { path: artifact.path, sessionId: this.sessionId, versionId });
+        this.status.dataset.state = 'ready';
+        this.status.textContent = '已恢复到所选版本';
+        this.history = null;
+        this.show(this.selected); // preview reloads the restored content
+      } catch (error) {
+        restore.disabled = false;
+        this.status.dataset.state = 'error';
+        this.status.textContent = '恢复失败：' + error.message;
+      }
+    };
+    confirm.append(note, restore);
+    host.appendChild(confirm);
   }
 }

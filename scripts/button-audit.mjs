@@ -752,6 +752,33 @@ await audit('artifact-history', '切换会话恢复产物与预览', async () =>
   await main.click('#artifact-close');
   return 'session-isolated artifact survives reopen';
 });
+await audit('file-history', '历史版本：真实快照列表、diff 恢复旧版本并校验字节回滚', async () => {
+  const s = (await rpc('sessions.list')).find((x) => x.title === '审计-确认');
+  const target = path.join(wsDir, 'approved.txt');
+  expect(fs.existsSync(target) && fs.readFileSync(target, 'utf8') === 'APPROVED', 'approved.txt baseline missing');
+  // a second engine write (craft session, same path) creates version 2 —
+  // history is keyed by path, not session
+  const c2 = await rpc('sessions.create', { title: '审计-历史', cwd: wsDir, mode: 'craft' });
+  mock.push([{ content: '', tool_calls: [{ id: 'w9', type: 'function', function: { name: 'write_file', arguments: JSON.stringify({ path: target, content: 'APPROVED-V2' }) } }] }, { content: 'updated' }]);
+  await main.evaluate((id) => window.__myagentTest.openSession(id), c2.id);
+  await main.fill('#input', '再改一版');
+  armTurn(); await main.click('#btn-send');
+  await until(() => fs.existsSync(target) && fs.readFileSync(target, 'utf8') === 'APPROVED-V2', 8000, 'v2 written');
+  await waitDone();
+  // back to the session owning the artifact card; open the version browser
+  await main.evaluate((id) => window.__myagentTest.openSession(id), s.id);
+  await main.click('.artifact-card');
+  await until(() => main.locator('#artifact-history').isEnabled(), 4000, 'history button enabled');
+  await main.click('#artifact-history');
+  const count = await until(() => main.locator('.fh-item').count().then((n) => (n >= 2 ? n : null)), 5000, 'two versions listed');
+  // newest-first: the OLDEST row (last) holds the APPROVED baseline
+  await main.locator('.fh-item').nth(count - 1).click();
+  await until(() => main.locator('.fh-confirm').count(), 5000, 'diff + confirm row');
+  await main.click('.fh-confirm button.primary');
+  await until(() => fs.readFileSync(target, 'utf8') === 'APPROVED', 8000, 'restored bytes');
+  await until(() => main.locator('#artifact-preview').textContent().then((t) => t.includes('APPROVED')), 8000, 'preview after restore');
+  return 'versions=' + count + ', restored baseline';
+});
 await audit('artifact-delivery', '正式交付自动右侧预览，HTML隔离与Markdown成品可读', async () => {
   const session = await rpc('sessions.create', { title: '审计-产物交付', cwd: wsDir });
   await main.evaluate((id) => window.__myagentTest.openSession(id), session.id);

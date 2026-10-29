@@ -27,6 +27,7 @@ const { SyncService } = require('./sync');
 const { A2aServer } = require('./a2a');
 const { normalizeArtifact } = require('../shared/artifacts');
 const { createArtifactRegistry } = require('./artifacts');
+const { createFileHistory, createFileHistoryApi } = require('./file-history');
 
 const APP_VERSION = require('../../package.json').version;
 
@@ -78,10 +79,13 @@ function createDaemon({ send }) {
   // store with their tool name (resolved from the tool_call event).
   const turnBuf = new Map();
   const callName = new Map();
+  // F58: per-turn snapshot dedup — one snapshot per file per turn, cleared
+  // when the next turn starts thinking
+  const snapSeen = new Map();
   function recordEngineEvent(topic, payload) {
     if (!topic.startsWith('engine:')) return;
     const sid = topic.slice('engine:'.length);
-    if (payload.type === 'status' && payload.stage === 'thinking') turnBuf.set(sid, '');
+    if (payload.type === 'status' && payload.stage === 'thinking') { turnBuf.set(sid, ''); snapSeen.set(sid, new Set()); }
     else if (payload.type === 'token') turnBuf.set(sid, (turnBuf.get(sid) || '') + payload.text);
     else if (payload.type === 'tool_call') callName.set(sid + ':' + payload.id, payload.name);
     else if (payload.type === 'tool_result') {
@@ -97,6 +101,19 @@ function createDaemon({ send }) {
         tool_name: name, tool_json: JSON.stringify({ ok: payload.ok, detail: payload.detail || null,
           ...(artifact ? { artifact } : {}) }) });
       if (artifact) payload.artifact = artifact;
+      // F58: snapshot local write/deliver artifacts (best-effort, once per
+      // file per turn); failures only log — the write already succeeded
+      if (artifact && artifact.location === 'local' && (name === 'write_file' || name === 'present_file')) {
+        let seen = snapSeen.get(sid);
+        if (!seen) { seen = new Set(); snapSeen.set(sid, seen); }
+        if (!seen.has(artifact.path)) {
+          seen.add(artifact.path);
+          const snap = fileHistory.record(artifact.path, { sessionId: sid, tool: name });
+          if (!snap.ok && snap.reason !== 'disabled') {
+            store.log('info', 'file-history', 'no snapshot (' + snap.reason + '): ' + artifact.path);
+          }
+        }
+      }
     } else if (payload.type === 'done' || payload.type === 'error' || payload.type === 'engine_exit') {
       const text = turnBuf.get(sid);
       if (text && text.trim()) store.appendMessage({ session_id: sid, role: 'assistant', content: text });
@@ -112,6 +129,15 @@ function createDaemon({ send }) {
     rawEmit(topic, payload);
   };
   const artifacts = createArtifactRegistry(store);
+  // F58 file history (design/42): local version snapshots of files MyAgent
+  // wrote/delivered. Best-effort only — never blocks the write itself.
+  const fileHistory = createFileHistory({
+    dir: path.join(home, 'filehistory'),
+    getSetting: (k) => store.getSetting(k),
+    log: (level, scope, line) => store.log(level, scope, line),
+  });
+  const filesApi = createFileHistoryApi({ fileHistory, store, SandboxCtor: Sandbox, defaultRulesFn: defaultRules });
+  try { fileHistory.pruneAll(); } catch (_) {} // startup lazy prune
 
   const terminalHost = new TerminalHost(emit);
   let prewarmOn = store.getSetting('engine.prewarm') === true;
@@ -328,6 +354,11 @@ function createDaemon({ send }) {
     'messages.list': async (p) => store.listMessages(p.sessionId),
     'artifacts.list': async (p) => artifacts.list(p),
     'artifacts.resolve': async (p) => artifacts.resolve(p),
+    // F58 (design/42): restore/delete are workspace-gated in filesApi
+    'files.history.list': async (p) => filesApi.list(p),
+    'files.history.diff': async (p) => filesApi.diff(p),
+    'files.history.restore': async (p) => filesApi.restore(p),
+    'files.history.delete': async (p) => filesApi.delete(p),
     'sessions.list': async () => store.listSessions(),
     'sessions.create': async (p) => store.createSession(p || {}),
     'sessions.get': async (p) => {

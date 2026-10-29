@@ -1,6 +1,20 @@
 # 42 · 文件历史/回滚（F58 / T54）
 
-状态：2026-10-29 立项（P16），四阶段排期（见文末），未实施；验收以实施轮 acceptance-report 为准。
+状态：2026-10-29 立项（P16）并于同日实施完成（阶段 1–4 一轮完成）；验收以 acceptance-report 为准。
+
+## 实施裁决（2026-10-29，随实现落定）
+
+- **索引形态**：每路径一目录 `<filehistory>/<sha256(path)[0:32]>/`，内含 `index.json` + `<seq>.bin`。
+  未走 sqlite 表：个人规模（百级文件 × 10 版本）下单路径 JSON 足够，免去 better-sqlite3
+  双 ABI 机器，删目录即删整个文件历史；「sqlite 不可用降级 json」的原表述由
+  「单一 json 形态 + 接口不变」取代。
+- **方法面为四个**（立项时三个）：UI 逐行对比需要服务端出 diff（内容不出 daemon），
+  增加 `files.history.diff {path, versionId}`；文本走 LCS（前置/后缀裁剪 + 25 万格上限，
+  超限返回计数），二进制返回 `{binary:true}` 只可恢复。
+- **同轮去重**：daemon `recordEngineEvent` 以「thinking 开始一轮」为界，同轮同路径只快照
+  一次；新的一轮再写同一文件会再次快照。
+- **审计项 id**：`file-history`（`artifact-history` 已被"切换会话恢复产物"占用）。
+
 
 ## WorkBuddy 观察（app.asar 静态证据，2026-10-29）
 
@@ -66,11 +80,11 @@
 
 | 阶段 | 优先级 | 交付 | 验收 |
 |---|---|---|---|
-| 0 证据与契约 | ✅ 已完成于本立项 | 观察（本节）+ 契约定名（files.history.* 三方法、settings 三键） | — |
-| 1 记录 | P0 | 快照存储 + 写入挂钩 + 配置/惰性清理 | unit 全绿 |
-| 2 恢复 | P0（可用性最小面） | RPC 三方法 + 沙箱约束 + 恢复前快照 | unit+int 全绿 |
-| 3 UI | P1 | 产物面板历史/恢复 + 文本 diff | e2e + 按钮审计补项 |
-| 4 收口 | — | 全量 verify ALL GREEN + 实机抽查（真实 md/docx 各回滚一次） | acceptance-report |
+| 0 证据与契约 | ✅ 立项完成 | 观察（本节）+ 契约定名（files.history.* 方法、settings 三键） | — |
+| 1 记录 | ✅ 2026-10-29 | 快照存储 + 写入挂钩 + 配置/惰性清理 | unit 13 用例全绿 |
+| 2 恢复 | ✅ 2026-10-29 | RPC 四方法（含 diff）+ 沙箱约束 + 恢复前快照 | int 5 用例全绿 |
+| 3 UI | ✅ 2026-10-29 | 产物面板历史/恢复 + 文本 diff | 按钮审计 `file-history`（103 项含新项） |
+| 4 收口 | ✅ 2026-10-29 | 全量 verify ALL GREEN + 验收报告 | acceptance-report |
 
 ## 降级 / 边界
 

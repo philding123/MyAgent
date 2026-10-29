@@ -192,6 +192,7 @@ const featureNames = {
   T51: 'F56 开源专家市场（agency-agents 精选 persona → 预设）',
   T52: 'F57 社交/社区内容拉取（social_fetch：HN + RSS/RSSHub）',
   T53: 'F37 会话独立窗口（单实例复用重定向 + conversation 模式 + win-self）',
+  T54: 'F58 文件历史/回滚（本地版本快照 + files.history.* + 产物面板恢复）',
 };
 
 let lines = [];
