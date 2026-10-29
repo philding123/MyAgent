@@ -2,7 +2,7 @@
 
 ## Snapshot
 
-- Latest daily note: [2026-10-29](./daily/2026-10-29.md)
+- Latest daily note: [2026-10-30](./daily/2026-10-30.md)
 - Latest decision: [ADR 2026-10-14 · 原生逆向分析引擎选型：WSL2 Ubuntu-24.04 + Ghidra 12.1.4（经 REA）](./decisions/2026-10-14-wsl-ghidra-native-analysis-engine.md)
 - Latest issue: [Issue 2026-10-29 · verify 验收门槛假 ALL GREEN（watchdog 截断的 smoke 蒙混过关）](./issues/2026-10-29-verify-gate-allgreen-false-positive.md)
 - Current todo list: [Project Memory TODO](./todo.md)
@@ -30,9 +30,9 @@
 
 ### Daily Notes
 
+- [2026-10-30](./daily/2026-10-30.md)
 - [2026-10-29](./daily/2026-10-29.md)
 - [2026-10-21](./daily/2026-10-21.md)
-- [2026-10-14](./daily/2026-10-14.md)
 
 ## Commands
 

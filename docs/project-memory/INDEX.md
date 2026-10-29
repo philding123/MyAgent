@@ -9,12 +9,13 @@
 - [Architecture for engineers](./ARCHITECTURE-TECHNICAL.md)
 - [Current status snapshot](./STATUS.md)
 - [Current todo list](./todo.md)
-- [Latest daily progress](./daily/2026-10-29.md)
+- [Latest daily progress](./daily/2026-10-30.md)
 - [Latest decision](./decisions/2026-10-14-wsl-ghidra-native-analysis-engine.md)
 - [Latest issue](./issues/2026-10-29-verify-gate-allgreen-false-positive.md)
 
 ## Recent Daily Notes
 
+- [2026-10-30](./daily/2026-10-30.md)
 - [2026-10-29](./daily/2026-10-29.md)
 - [2026-10-21](./daily/2026-10-21.md)
 - [2026-10-14](./daily/2026-10-14.md)
