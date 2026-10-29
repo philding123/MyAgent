@@ -18,6 +18,7 @@
 | `terminal.js` | TerminalHost | 优先 @lydell/node-pty（kind='pty'），降级 child_process（kind='pipe'）；win32 shell 取 ComSpec |
 | `market.js` | Market：内置目录（F53，`builtin:` 源复制安装 + tree_sha256 复核）+ 远端源（F25，zip + sha256） | 返回 installed/already_installed/refused；`installable:false` 直接 refused 带原因；不升级已装 |
 | `expert-catalog.js` | F56 开源专家目录（market/agency-experts）：experts.list/read/import（design/39） | persona sha256 校验后逐字读取；导入=presets.create 带 meta.source 溯源；`experts.builtin=false` 关闭；专家≠技能≠A2A |
+| `file-history.js` | F58 文件历史（design/42）：本地版本快照 + `files.history.{list,diff,restore,delete}` | 每路径一目录（index.json + seq.bin）；record **best-effort 永不抛**（写入已成功）；restore 先打 restore-pre 快照（回滚可撤销）+ sha256 防篡改；restore/delete 经 session workspace 沙箱门；count/expireDays/maxFileBytes/maxTotalBytes 护栏；同轮同路径去重在 index.js 钩子 |
 | `unzip.js` | 纯 JS zip 解压（stored/deflate） | zip-slip/符号链接/加密条目整体拒绝，先校验后落盘；各平台一致 |
 | `search.js` | globalSearch(store, q, workspace) | 会话库 LIKE + 工作区行级扫描（忽略 node_modules/.git 等，上限 50 条） |
 | `crypto.js` | CredentialVault | safeStorage 优先，降级 AES-256-GCM + 0600 keyfile；条目前缀 ss:/aes: |

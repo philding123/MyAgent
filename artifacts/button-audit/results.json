@@ -333,7 +333,7 @@
     "id": "expert-import",
     "name": "导入 → 成为我的专家（带来源标记），重复导入不重复建",
     "pass": true,
-    "note": "imported 1 preset (pmvtml9s), re-import dedup"
+    "note": "imported 1 preset (pmvtoqob), re-import dedup"
   },
   {
     "section": "主窗 · 技能页",
@@ -389,7 +389,7 @@
     "id": "sub-workspace",
     "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
     "pass": true,
-    "note": "cwd=C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-audit-fx-p8foic\\audit_workspace"
+    "note": "cwd=C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-audit-fx-VsXGvC\\audit_workspace"
   },
   {
     "section": "主窗 · 首页与输入区",
@@ -452,7 +452,7 @@
     "id": "confirm-deny",
     "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
     "pass": true,
-    "note": "denied, not written; s=d1698d"
+    "note": "denied, not written; s=61eee3"
   },
   {
     "section": "主窗 · 运行中控件",
@@ -495,6 +495,13 @@
     "name": "切换会话恢复产物与预览",
     "pass": true,
     "note": "session-isolated artifact survives reopen"
+  },
+  {
+    "section": "主窗 · 运行中控件",
+    "id": "file-history",
+    "name": "历史版本：真实快照列表、diff 恢复旧版本并校验字节回滚",
+    "pass": true,
+    "note": "versions=2, restored baseline"
   },
   {
     "section": "主窗 · 运行中控件",
@@ -606,7 +613,7 @@
     "id": "sync",
     "name": "同步 保存目标/立即推送（文件落到目录）/立即拉取",
     "pass": true,
-    "note": "pushed 10 / applied 0 / auto toggle"
+    "note": "pushed 11 / applied 0 / auto toggle"
   },
   {
     "section": "设置窗",
@@ -648,14 +655,14 @@
     "id": "export",
     "name": "导出会话 JSON → 真的产出含会话的 JSON 文件，Key 已脱敏",
     "pass": true,
-    "note": "11 sessions exported"
+    "note": "12 sessions exported"
   },
   {
     "section": "设置窗",
     "id": "clear",
     "name": "清空全部数据 → 取消不删；确认后会话与记忆清空，主窗侧栏同步",
     "pass": true,
-    "note": "11 → 0, sidebar synced"
+    "note": "12 → 0, sidebar synced"
   },
   {
     "section": "设置窗",

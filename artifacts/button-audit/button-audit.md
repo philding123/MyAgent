@@ -1,6 +1,6 @@
 # MyAgent 逐按钮行为审计（结果断言，非存在性）
 
-- 时间：2026-10-29T14:16:20.409Z；平台：win32；102/102 PASS
+- 时间：2026-10-29T15:16:32.361Z；平台：win32；103/103 PASS
 - 每项断言按钮存在的「目的」：daemon 状态、窗口状态、磁盘文件、LLM 实际收到的内容；OS 对话框由 MYAGENT_TEST_SEAMS 队列应答。
 
 | 区域 | 控件 | 预期效果 | 结果 | 实测 |
@@ -52,7 +52,7 @@
 | 主窗 · 技能页 | hub-manage-experts | 管理专家 → 设置窗「presets」 | PASS | settings/presets |
 | 主窗 · 技能页 | expert-catalog | 专家页显示开源目录并可搜索/筛选 | PASS | catalog ≥20 · 搜索“后端”命中 1 · 安全/金融筛选 |
 | 主窗 · 技能页 | expert-preview | 查看 → 完整提示词纯文本预览（含溯源），Esc 关闭 | PASS | persona preview + provenance, esc closed |
-| 主窗 · 技能页 | expert-import | 导入 → 成为我的专家（带来源标记），重复导入不重复建 | PASS | imported 1 preset (pmvtml9s), re-import dedup |
+| 主窗 · 技能页 | expert-import | 导入 → 成为我的专家（带来源标记），重复导入不重复建 | PASS | imported 1 preset (pmvtoqob), re-import dedup |
 | 主窗 · 技能页 | hub-tab-connectors | Tab 连接器 → 显示连接器与连接状态 | PASS | auditmcp 已连接 · 1 个工具 |
 | 主窗 · 技能页 | hub-manage-connectors | 管理连接器 → 设置窗「connectors」 | PASS | settings/connectors |
 | 主窗 · 技能页 | hub-tab-skills | Tab 技能 → 回到技能卡片 | PASS | ok |
@@ -60,7 +60,7 @@
 | 主窗 · 首页与输入区 | hero-chip | chip → 填入输入框并聚焦 | PASS | 创作文档 |
 | 主窗 · 首页与输入区 | suggestion | 建议条 → 填入输入框 | PASS | 做一张应收、应付和开票查询表 |
 | 主窗 · 首页与输入区 | btn-plus | ＋ → 弹出 @/技能 菜单，点外部关闭 | PASS | ok |
-| 主窗 · 首页与输入区 | sub-workspace | 选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间 | PASS | cwd=C:\Users\phil\AppData\Local\Temp\myagent-audit-fx-p8foic\audit_workspace |
+| 主窗 · 首页与输入区 | sub-workspace | 选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间 | PASS | cwd=C:\Users\phil\AppData\Local\Temp\myagent-audit-fx-VsXGvC\audit_workspace |
 | 主窗 · 首页与输入区 | sub-mode-draft | 草稿态选「只读问答」 → 首条消息建的会话 mode=ask（引擎按 ask 跑） | PASS | mode=ask |
 | 主窗 · 首页与输入区 | sub-mode-session | 会话中 chip 菜单切到「计划模式」 → daemon 持久化 | PASS | topbar (chip hidden in task view) |
 | 主窗 · 首页与输入区 | btn-context | ＋ → @ 添加上下文 → 选文件 → 发送后 LLM 收到文件内容 | PASS | LLM user message carries the file content |
@@ -69,13 +69,14 @@
 | 主窗 · 首页与输入区 | btn-send | 发送（Enter 与按钮）→ 草稿物化为会话 + 回复渲染 + 消息落库 | PASS | two turns rendered + persisted |
 | 主窗 · 首页与输入区 | btn-send-empty | 空输入点发送 → 不建会话、不请求 LLM | PASS | no-op |
 | 主窗 · 运行中控件 | confirm-approve | plan 模式写文件 → 批准条「Approve」→ 文件真的写入 | PASS | approved.txt written |
-| 主窗 · 运行中控件 | confirm-deny | 批准条「Deny」→ 文件不写入，模型收到拒绝 | PASS | denied, not written; s=d1698d |
+| 主窗 · 运行中控件 | confirm-deny | 批准条「Deny」→ 文件不写入，模型收到拒绝 | PASS | denied, not written; s=61eee3 |
 | 主窗 · 运行中控件 | artifact-card | 成功产物卡片 → 右侧预览该文件，拒绝写入不出卡 | PASS | approved.txt inline; denied.txt absent |
 | 主窗 · 运行中控件 | artifact-fold | 产物面板折叠与重开保持选择 | PASS | fold/reopen keeps approved.txt |
 | 主窗 · 运行中控件 | artifact-copy-reveal | 复制路径与打开所在文件夹使用受检目标 | PASS | copy/reveal target=approved.txt (native seam) |
 | 主窗 · 运行中控件 | artifact-open | 默认应用打开每次批准；拒绝不执行 | PASS | deny then approve; no real external launch |
 | 主窗 · 运行中控件 | artifact-window | 产物独立窗口入口仍可用 | PASS | approved.txt independent preview |
 | 主窗 · 运行中控件 | artifact-history | 切换会话恢复产物与预览 | PASS | session-isolated artifact survives reopen |
+| 主窗 · 运行中控件 | file-history | 历史版本：真实快照列表、diff 恢复旧版本并校验字节回滚 | PASS | versions=2, restored baseline |
 | 主窗 · 运行中控件 | artifact-delivery | 正式交付自动右侧预览，HTML隔离与Markdown成品可读 | PASS | two delivered artifacts; Markdown rendered; HTML isolated; source switch |
 | 主窗 · 运行中控件 | artifact-responsive | 窄窗和暗色面板可折叠，不阻塞聊天输入 | PASS | 900px dark; fold restores composer access |
 | 主窗 · 运行中控件 | continue | 步数上限 → 「继续」按钮 → 同一引擎继续并完成 | PASS | continued |
@@ -91,14 +92,14 @@
 | 设置窗 | connectors | 连接器 添加并连接 → 已连接；停用/启用；移除；刷新 | PASS | add/connect, toggle, remove, bad-args error |
 | 设置窗 | update | 清单 URL 持久化；检查更新（不可达清单）→ 如实报错；应用更新（无已下载）→ 如实报错 | PASS | error: fetch failed / error: nothing ready to apply |
 | 设置窗 | market-panel | 云端市场 搜索/安装首个结果（内置目录）+ 源设置持久化 | PASS | search → install webapp-testing; url/insecure persisted |
-| 设置窗 | sync | 同步 保存目标/立即推送（文件落到目录）/立即拉取 | PASS | pushed 10 / applied 0 / auto toggle |
+| 设置窗 | sync | 同步 保存目标/立即推送（文件落到目录）/立即拉取 | PASS | pushed 11 / applied 0 / auto toggle |
 | 设置窗 | sandbox | 沙箱后端选择 → 持久化；云端字段持久化 | PASS | backend/url/id persisted, key → vault |
 | 设置窗 | a2a | A2A 开关 → 端点真的可访问（agent card），关 → 不可访问 | PASS | card MyAgent then down |
 | 设置窗 | skills-panel | 技能 导入目录 → 安装；勾选框停用/启用；uninstall 卸载 | PASS | import / toggle / uninstall |
 | 设置窗 | memory | 记忆 添加 → 下条消息 system 带上；× 删除 → 消失 | PASS | reached system prompt, then deleted |
 | 设置窗 | im | IM 保存 token（vault）/ 启动（假 token → 如实报错）/ 停止 | PASS | telegram → error (fetch failed) |
-| 设置窗 | export | 导出会话 JSON → 真的产出含会话的 JSON 文件，Key 已脱敏 | PASS | 11 sessions exported |
-| 设置窗 | clear | 清空全部数据 → 取消不删；确认后会话与记忆清空，主窗侧栏同步 | PASS | 11 → 0, sidebar synced |
+| 设置窗 | export | 导出会话 JSON → 真的产出含会话的 JSON 文件，Key 已脱敏 | PASS | 12 sessions exported |
+| 设置窗 | clear | 清空全部数据 → 取消不删；确认后会话与记忆清空，主窗侧栏同步 | PASS | 12 → 0, sidebar synced |
 | 设置窗 | settings-close | × 关闭 → 设置窗关闭 | PASS | closed |
 | 搜索窗 | search-enter | Enter → 结果列表（任务 + 文件） | PASS | 2 results (task + file) |
 | 搜索窗 | search-tabs | Tab 任务/文件/全部 → 结果按类型过滤；空查询 → 空态 | PASS | 任务 1 / 文件 1 / 空态 ok |
