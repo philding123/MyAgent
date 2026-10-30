@@ -7,7 +7,6 @@
 
 ## Next
 
-- F59 阶段 1：引擎视觉回路（工具结果图像多部件 + 护栏）+ 浏览器 CUA（browser screenshot/click_at/type_at）——design/43
 - 取得 wb「专家·技能·连接器」页实机截图（CDP），按 design/35 回改技能页布局并加像素断言
 - F24 手工项（一次管理员会话）：开发者模式 + SDK makeappx/signtool 签名 + 证书入 TrustedPeople → Add-AppxPackage；激活 argv 契约观察后定稿转发器（可顺带逆 WorkBuddyShareTarget.exe，带 PDB）。
 - F27 手工项：有 e2b 账号时云内跑一次命令；F26 两台机器目录同步互通。
