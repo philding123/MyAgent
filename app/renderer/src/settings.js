@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+import { uiConfirm } from './ui-kit.js';
 
 const $ = (s) => document.querySelector(s);
 const rpc = async (method, params) => {
@@ -111,9 +112,13 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#prewarm-chk').onchange = (e) => save('engine.prewarm', e.target.checked);
   // F59 (design/43): first-enable warning — screen captures ride to the
   // configured LLM endpoint; cancelling the dialog leaves the gate off
-  $('#cu-chk').onchange = (e) => {
+  $('#cu-chk').onchange = async (e) => {
     if (e.target.checked) {
-      const ok = window.confirm('开启电脑操控（computer use）？\n\n开启后代理可以截取屏幕、列出窗口并进行点击/键盘输入（改动类动作仅在 craft 模式放行）。\n使用中的屏幕截图会作为消息内容发送到「模型」面板配置的端点。');
+      const ok = await uiConfirm({
+        title: '开启电脑操控（computer use）？',
+        body: '开启后代理可以截取屏幕、列出窗口并进行点击/键盘输入（改动类动作仅在 craft 模式放行）。\n使用中的屏幕截图会作为消息内容发送到「模型」面板配置的端点。',
+        okText: '开启',
+      });
       if (!ok) { e.target.checked = false; return; }
     }
     save('computerUse.enable', e.target.checked);
@@ -151,7 +156,10 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#data-msg').textContent = 'exported';
   };
   $('#btn-clear').onclick = async () => {
-    if (!confirm('Delete ALL sessions and memory?')) return;
+    const ok = await uiConfirm({
+      title: '清空所有数据？', body: '将删除全部会话与记忆，且无法恢复。', okText: '全部删除', danger: true,
+    });
+    if (!ok) return;
     await rpc('data.clear');
     $('#data-msg').textContent = 'cleared';
   };
@@ -377,4 +385,9 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   const closeBtn = $('#btn-close-settings');
   if (closeBtn) closeBtn.onclick = () => window.close();
+  // Esc closes the window unless a dialog or a field is handling it
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('.ui-backdrop')) return;
+    window.close();
+  });
 });

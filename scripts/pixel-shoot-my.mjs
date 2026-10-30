@@ -17,7 +17,8 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'myagent-px-'));
 const electronJs = path.join(ROOT, 'node_modules', 'electron', 'cli.js');
-const child = spawn(process.execPath, [electronJs, '.', `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1'], {
+const child = spawn(process.execPath, [electronJs, '.', `--remote-debugging-port=${PORT}`, '--force-device-scale-factor=1',
+  ...(process.platform === 'linux' ? ['--no-sandbox'] : [])], {
   cwd: ROOT,
   env: { ...process.env, MYAGENT_HOME: home },
   stdio: 'ignore',
@@ -72,7 +73,7 @@ await main.evaluate(() => window.myagent.windowAction('openSearch'));
 await sleep(1000);
 const search = ctx.pages().find((p) => /search\.html/.test(p.url()));
 if (search) {
-  await emulateShot(search, 'search', 800, 640);
+  await emulateShot(search, 'search', 720, 480);
   await search.close();
   await sleep(300);
 } else console.error('search page not found');
@@ -108,7 +109,7 @@ await main.evaluate(() => window.myagent.windowAction('openSearch'));
 await sleep(1000);
 const searchDark = ctx.pages().find((p) => /search\.html/.test(p.url()));
 if (searchDark) {
-  await emulateShot(searchDark, 'search-dark', 800, 640, true);
+  await emulateShot(searchDark, 'search-dark', 720, 480, true);
   await searchDark.close();
 } else console.error('search-dark page not found');
 

@@ -10,7 +10,7 @@ Electron 主进程。向上管理 OS 集成（窗口/托盘/协议/对话框）�
 |---|---|---|
 | `index.js` | bootstrap：daemon 启动 → IPC handle → 托盘 → 主窗 → deeplink 队列 →（MYAGENT_SMOKE 时）runSmoke | `runSmoke` 覆盖 T01/T16/T17/T18 步骤，结果写 JSON（`MYAGENT_SMOKE_OUT`，含 exitCode 字段） |
 | `daemon-client.js` | DaemonClient（EventEmitter） | request 多路复用（30s 超时回包）、`ready/down/event` 事件、重启退避 500ms→8s ≤5 次；shutdown 用 taskkill /T /F 树杀 |
-| `windows.js` | 窗口注册表：main/settings/search 单例、preview 按路径（F33）、conversation 单例复用重定向（F37） | `broadcast('rpc:event')` 全窗广播；`setTheme` 跨窗同步；close-to-tray 仅主窗；`selfAction(win,op)` 供 `win-self`（作用于调用窗） |
+| `windows.js` | 窗口注册表：main/settings/search 单例、preview 按路径（F33）、conversation 单例复用重定向（F37） | `broadcast('rpc:event')` 全窗广播；`setTheme` 跨窗同步（含窗口底色）；close-to-tray 仅主窗；`selfAction(win,op)` 供 `win-self`（作用于调用窗）；F60 `present()` = `show:false` + ready-to-show 再显示并淡入（冒烟模式不显示）、`anchoredTo()` 设置/搜索以主窗为 parent 居中、搜索 720×480 浮动面板（win32/darwin 透明，失焦关闭；冒烟/接缝模式不关） |
 | `tray.js` | 托盘菜单（Show/Quit）+ `parseDeeplink` | `myagent://session/<id>`、`myagent://settings`；icon 走 nativeImage dataURL |
 
 ## 3. 铁律与不变式

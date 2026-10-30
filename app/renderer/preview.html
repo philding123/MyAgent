@@ -6,9 +6,7 @@
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <style>
-    /* Keep the original 32px preview-bar geometry (T29). */
-    #preview-bar { position: relative; padding-right: 76px; }
-    #preview-source { position: absolute; right: 12px; top: 4px; height: 24px; padding: 0 10px; font-size: 12px; }
+    #preview-source { height: 26px; padding: 0 10px; font-size: 12px; margin-left: 8px; }
     #preview-source[hidden], #preview-warning[hidden] { display: none; }
     #preview-warning { flex-shrink: 0; padding: 6px 16px; font-size: 12px; line-height: 1.5; color: var(--text-1); background: var(--gray-3); border-bottom: 1px solid var(--border); }
     #preview-container { min-height: 0; }
@@ -20,7 +18,12 @@
   <header id="preview-bar">
     <span id="preview-title">…</span>
     <span id="preview-kind" class="muted"></span>
-    <button id="preview-source" type="button" aria-pressed="false" hidden>源码</button>
+    <button id="preview-source" class="small" type="button" aria-pressed="false" hidden>源码</button>
+    <div class="preview-ctl">
+      <button id="pv-min" class="band-icon win-ctl" type="button" title="最小化" aria-label="最小化"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M1.5 6h9" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      <button id="pv-max" class="band-icon win-ctl" type="button" title="最大化" aria-label="最大化"><svg viewBox="0 0 12 12" width="11" height="11"><rect x="1.8" y="1.8" width="8.4" height="8.4" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      <button id="pv-close" class="band-icon band-close win-ctl" type="button" title="关闭 (Esc)" aria-label="关闭"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></button>
+    </div>
   </header>
   <div id="preview-warning" role="status" hidden></div>
   <main id="preview-container"></main>

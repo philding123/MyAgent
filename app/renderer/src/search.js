@@ -6,6 +6,10 @@ const rpc = async (method, params) => {
 };
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// F60: on platforms where the window is transparent (main passes
+// ?floating=1) the palette draws its own rounded, shadowed panel
+if (new URLSearchParams(location.search).get('floating') === '1') document.body.classList.add('is-floating');
+
 let sessions = [];
 let activeTab = 'all';
 let selected = -1;

@@ -152,7 +152,7 @@ await audit('band-toggle', '折叠/展开侧栏', async () => {
   const w = () => main.evaluate(() => document.getElementById('sidebar').offsetWidth);
   const w0 = await w(); await main.click('#band-toggle'); const w1 = await until(async () => ((await w()) === 0 ? 0 : null) ?? false, 2000, 'collapse').catch(() => w());
   await main.click('#band-toggle'); const w2 = await w();
-  expect(w0 === 360 && w1 === 0 && w2 === 360, `width ${w0}→${w1}→${w2}`);
+  expect(w0 === 280 && w1 === 0 && w2 === 280, `width ${w0}→${w1}→${w2}`);
   return `${w0}→${w1}→${w2}`;
 });
 await audit('band-search', '窗带搜索 → 全局搜索窗（输入框聚焦）', async () => {
@@ -655,8 +655,8 @@ await audit('btn-send', '发送（Enter 与按钮）→ 草稿物化为会话 + 
   expect(dom.includes('AUDIT_REPLY_ONE') && dom.includes('AUDIT_REPLY_TWO'), dom);
   const stored = await msgsOf(s.id);
   expect(stored.filter((m) => m.role === 'assistant').length === 2, 'stored ' + JSON.stringify(stored.map((m) => m.role)));
-  const label = await main.evaluate(() => document.getElementById('btn-send').textContent);
-  expect(label === '↑', 'send label changed to "' + label + '"');
+  const label = await main.evaluate(() => document.getElementById('btn-send').dataset.state);
+  expect(label === 'idle', 'send button state stuck at "' + label + '"');
   return 'two turns rendered + persisted';
 });
 await audit('btn-send-empty', '空输入点发送 → 不建会话、不请求 LLM', async () => {
@@ -1106,28 +1106,36 @@ await audit('export', '导出会话 JSON → 真的产出含会话的 JSON 文�
 });
 await audit('clear', '清空全部数据 → 取消不删；确认后会话与记忆清空，主窗侧栏同步', async () => {
   const n0 = (await rpc('sessions.list')).length;
-  st.once('dialog', (dg) => dg.dismiss());
+  // F60: in-page confirm dialog (ui-kit uiConfirm) instead of window.confirm
   await sClick('#btn-clear');
+  await st.click('.ui-dialog .ui-dialog-cancel');
   await sleep(500);
   expect((await rpc('sessions.list')).length === n0, 'deleted on cancel');
-  st.once('dialog', (dg) => dg.accept());
+  expect(!(await st.locator('.ui-backdrop').count()), 'dialog closed on cancel');
   await sClick('#btn-clear');
+  await st.click('.ui-dialog .ui-dialog-ok');
   await until(async () => (await rpc('sessions.list')).length === 0, 4000, 'cleared');
   await until(() => main.evaluate(() => document.querySelectorAll('#session-list li, .session-list-nested li').length === 0), 4000, 'main sidebar emptied');
   return n0 + ' → 0, sidebar synced';
 });
-await audit('cu-toggle', '电脑操控开关 → 首开原生确认：取消保持关、确认落库、关闭无弹窗', async () => {
+await audit('cu-toggle', '电脑操控开关 → 首开页内确认：取消/Esc 保持关、确认落库、关闭无弹窗', async () => {
   await st.click('.settings-navigation__item[data-panel="engine"]');
   const isOn = async () => (await rpcIn(st, 'settings.all'))['computerUse.enable'] === true;
-  st.once('dialog', (dg) => dg.dismiss());
   await st.locator('#cu-chk').click();
+  await st.click('.ui-dialog .ui-dialog-cancel');
   await sleep(400);
   expect(!(await isOn()), 'cancel left the gate off');
   expect(!(await st.locator('#cu-chk').isChecked()), 'checkbox restored after cancel');
-  st.once('dialog', (dg) => dg.accept());
   await st.locator('#cu-chk').click();
+  await st.locator('.ui-dialog').waitFor();
+  await st.keyboard.press('Escape'); // Esc = cancel, and must not close the window
+  await sleep(300);
+  expect(!(await isOn()) && !st.isClosed(), 'Esc cancelled without closing settings');
+  await st.locator('#cu-chk').click();
+  await st.click('.ui-dialog .ui-dialog-ok');
   await until(isOn, 4000, 'enabled persisted');
   await st.locator('#cu-chk').click(); // off again — must not prompt
+  expect(!(await st.locator('.ui-backdrop').count()), 'no dialog when turning off');
   await until(async () => !(await isOn()), 4000, 'disabled persisted');
   return 'confirm-gated toggle off→on→off';
 });

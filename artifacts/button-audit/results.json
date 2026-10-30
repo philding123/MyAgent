@@ -4,7 +4,7 @@
     "id": "band-toggle",
     "name": "折叠/展开侧栏",
     "pass": true,
-    "note": "360→0→360"
+    "note": "280→0→280"
   },
   {
     "section": "主窗 · 窗带",
@@ -333,7 +333,7 @@
     "id": "expert-import",
     "name": "导入 → 成为我的专家（带来源标记），重复导入不重复建",
     "pass": true,
-    "note": "imported 1 preset (pmvuharb), re-import dedup"
+    "note": "imported 1 preset (pmvuidsx), re-import dedup"
   },
   {
     "section": "主窗 · 技能页",
@@ -389,7 +389,7 @@
     "id": "sub-workspace",
     "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
     "pass": true,
-    "note": "cwd=/tmp/myagent-audit-fx-UZ9OlF/audit_workspace"
+    "note": "cwd=/tmp/myagent-audit-fx-6AvCQy/audit_workspace"
   },
   {
     "section": "主窗 · 首页与输入区",
@@ -452,7 +452,7 @@
     "id": "confirm-deny",
     "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
     "pass": true,
-    "note": "denied, not written; s=e2e4f3"
+    "note": "denied, not written; s=f1ea24"
   },
   {
     "section": "主窗 · 运行中控件",
@@ -667,7 +667,7 @@
   {
     "section": "设置窗",
     "id": "cu-toggle",
-    "name": "电脑操控开关 → 首开原生确认：取消保持关、确认落库、关闭无弹窗",
+    "name": "电脑操控开关 → 首开页内确认：取消/Esc 保持关、确认落库、关闭无弹窗",
     "pass": true,
     "note": "confirm-gated toggle off→on→off"
   },
