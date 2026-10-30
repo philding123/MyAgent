@@ -42,6 +42,37 @@ async function hydrateMermaid(container) {
   }
 }
 
+// F60 code blocks (design/44 §6): highlight + header with language label and
+// copy button. Runs on final text only (streaming re-renders every token).
+// hljs builds its spans from textContent, so sanitized output stays text.
+function decorateCode(container) {
+  for (const code of container.querySelectorAll('pre > code')) {
+    const pre = code.parentElement;
+    if (pre.classList.contains('has-head') || code.classList.contains('language-mermaid')) continue;
+    const lang = (/language-([\w+-]+)/.exec(code.className) || [])[1] || '';
+    if (lang && hljs.getLanguage(lang)) {
+      try { hljs.highlightElement(code); } catch (_) {}
+    }
+    const head = document.createElement('div');
+    head.className = 'code-head';
+    const label = document.createElement('span');
+    label.textContent = lang || 'text';
+    const copy = document.createElement('button');
+    copy.className = 'code-copy';
+    copy.type = 'button';
+    copy.textContent = '复制';
+    copy.onclick = () => {
+      navigator.clipboard.writeText(code.textContent || '').then(() => {
+        copy.textContent = '已复制';
+        setTimeout(() => { copy.textContent = '复制'; }, 1400);
+      }).catch(() => { copy.textContent = '复制失败'; });
+    };
+    head.append(label, copy);
+    pre.classList.add('has-head');
+    pre.prepend(head);
+  }
+}
+
 // smoke hook (T19): render a mermaid sample through the full pipeline
 window.__mermaidTest = async (sample) => {
   const div = document.createElement('div');
@@ -93,7 +124,7 @@ function appendMessage(role, opts = {}) {
     body.className = 'md';
     body.innerHTML = renderMarkdown(opts.content || '');
     el.appendChild(body);
-    if (role === 'assistant' && !opts.deferMermaid) hydrateMermaid(body);
+    if (role === 'assistant' && !opts.deferMermaid) hydrateMermaid(body).then(() => decorateCode(body));
   } else if (role === 'tool') {
     el.innerHTML = toolCardHtml(opts);
   } else if (role === 'event') {
@@ -290,7 +321,10 @@ function handleEngineEvent(ev) {
     showConfirm(ev);
   } else if (ev.type === 'done') {
     // stream finished: hydrate mermaid once on the final text (F19)
-    if (streamingEl && streamingEl.isConnected) hydrateMermaid(streamingEl.querySelector('.md'));
+    if (streamingEl && streamingEl.isConnected) {
+      const md = streamingEl.querySelector('.md');
+      hydrateMermaid(md).then(() => decorateCode(md));
+    }
     finishStreaming();
     runningSessions.delete(current && current.id);
     setSendEnabled(true);
@@ -582,7 +616,14 @@ function updateModeButtons() {
 }
 
 // ---------- send ----------
-function setSendEnabled(on) { $('#btn-send').disabled = !on; $('#btn-send').textContent = on ? '↑' : '…'; }
+const SEND_ICON = '<svg viewBox="0 0 16 16" width="15" height="15"><path d="M8 13V3.5M3.8 7.6 8 3.4l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const BUSY_ICON = '<span class="send-busy" aria-hidden="true"></span>';
+function setSendEnabled(on) {
+  const btn = $('#btn-send');
+  btn.disabled = !on;
+  btn.dataset.state = on ? 'idle' : 'busy';
+  btn.innerHTML = on ? SEND_ICON : BUSY_ICON;
+}
 
 // 「选择工作空间」: draft → remembered for the session the first send creates;
 // open task → sessions.setCwd. Home dir counts as "no workspace".

@@ -24,25 +24,28 @@
   <span class="menu-label" data-menu="help">帮助(H)</span>
   <span class="menu-label" data-menu="about">关于(A)</span>
   <div class="band-spring"></div>
-  <button id="win-min" class="band-icon" title="最小化">—</button>
-  <button id="win-max" class="band-icon" title="最大化">□</button>
-  <button id="win-close" class="band-icon band-close" title="关闭">✕</button>
+  <button id="win-min" class="band-icon win-ctl" title="最小化" aria-label="最小化"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M1.5 6h9" stroke="currentColor" stroke-width="1.1"/></svg></button>
+  <button id="win-max" class="band-icon win-ctl" title="最大化" aria-label="最大化"><svg viewBox="0 0 12 12" width="11" height="11"><rect x="1.8" y="1.8" width="8.4" height="8.4" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
+  <button id="win-close" class="band-icon band-close win-ctl" title="关闭" aria-label="关闭"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></button>
 </div>
 <!-- F37 conversation window header: shown only in body.conversation-window
      (design/41) — drag region + this-window controls -->
 <header id="conv-bar" hidden>
   <span id="conv-title">MyAgent</span>
   <span class="band-spring"></span>
-  <button id="conv-new" class="band-icon" title="新任务（在此窗口）">＋</button>
-  <button id="conv-min" class="band-icon" title="最小化">—</button>
-  <button id="conv-close" class="band-icon band-close" title="关闭">✕</button>
+  <button id="conv-new" class="band-icon win-ctl" title="新任务（在此窗口）" aria-label="新任务"><svg viewBox="0 0 12 12" width="12" height="12"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+  <button id="conv-min" class="band-icon win-ctl" title="最小化" aria-label="最小化"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M1.5 6h9" stroke="currentColor" stroke-width="1.1"/></svg></button>
+  <button id="conv-close" class="band-icon band-close win-ctl" title="关闭" aria-label="关闭"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></button>
 </header>
 <div id="app">
   <aside id="sidebar">
     <div class="sb-head">
-      <div>
-        <div class="brand">MyAgent</div>
-        <div class="version" id="app-version"></div>
+      <div class="sb-brand">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <div>
+          <div class="brand">MyAgent</div>
+          <div class="version" id="app-version"></div>
+        </div>
       </div>
       <button id="btn-discover" class="discover-pill" title="发现应用：Claude 技能市场">
         <svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.6 5.4L9 9 5.4 10.6 7 7z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>发现应用<svg viewBox="0 0 10 10" width="9" height="9"><path d="M2.5 3.8L5 6.2 7.5 3.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
@@ -71,7 +74,7 @@
       <div id="space-groups"></div>
     </div>
     <div id="side-foot">
-      <span class="user-avatar" title="本地模式">M</span>
+      <span class="user-avatar" title="本地模式">我</span>
       <button id="btn-settings">设置</button>
       <span id="daemon-status" class="status-dot ok" title="daemon connected"></span>
     </div>
@@ -188,7 +191,7 @@
               </div>
               <span class="composer-hint"></span>
               <span id="composer-model" class="model-chip" title="模型（设置中修改）"></span>
-              <button id="btn-send" title="发送">↑</button>
+              <button id="btn-send" title="发送" aria-label="发送" data-state="idle"><svg viewBox="0 0 16 16" width="15" height="15"><path d="M8 13V3.5M3.8 7.6 8 3.4l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
           </div>
           <div id="composer-sub">

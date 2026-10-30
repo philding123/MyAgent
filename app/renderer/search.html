@@ -3,18 +3,20 @@
 <head><meta charset="utf-8"><title>Global Search</title>
 <link rel="stylesheet" href="./style.css"></head>
 <body data-theme="light" class="global-search-root">
+<div class="gs-panel">
 <div class="gs-drag"></div>
-<div id="search-box"><span class="gs-ico">⌕</span><input id="q" placeholder="搜索会话与文件…"></div>
+<div id="search-box"><span class="gs-ico"><svg viewBox="0 0 16 16" width="17" height="17"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.4 10.4 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><input id="q" placeholder="搜索会话与文件…" autofocus></div>
 <div id="gs-tabs">
   <button class="gs-tab active" data-tab="all">全部</button>
   <button class="gs-tab" data-tab="message">任务</button>
   <button class="gs-tab" data-tab="file">文件</button>
 </div>
 <div id="results-wrap">
-  <div id="gs-empty" class="gs-empty"><span class="gs-empty-ico">⌕</span><span>输入关键字进行检索</span></div>
+  <div id="gs-empty" class="gs-empty"><span class="gs-empty-ico"><svg viewBox="0 0 16 16" width="20" height="20"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.4 10.4 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span>输入关键字搜索任务与文件</span></div>
   <ul id="results"></ul>
 </div>
-<div id="gs-footer"><span>↑↓ 上下切换</span><span>↵ 打开</span><span>ESC 关闭窗口</span></div>
+<div id="gs-footer"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>↵</kbd> 打开</span><span><kbd>Esc</kbd> 关闭</span></div>
+</div>
 <script src="./dist/search.js"></script>
 </body>
 </html>

@@ -36,6 +36,12 @@ function main() {
   }
 
   toggle.addEventListener('click', () => { source = !source; void load(); });
+  // F60: frameless window — its own controls act on this window (win-self)
+  const self = (op) => () => window.myagent.windowAction('win-self', { op });
+  document.getElementById('pv-min').addEventListener('click', self('minimize'));
+  document.getElementById('pv-max').addEventListener('click', self('maximize'));
+  document.getElementById('pv-close').addEventListener('click', self('close'));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented) self('close')(); });
   window.addEventListener('pagehide', () => { revision++; controller.destroy(); }, { once: true });
   void load();
 }

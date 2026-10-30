@@ -25,6 +25,7 @@ class FakeBrowserWindow {
   }
   loadFile(file, opts) { this.loaded = { file, opts }; }
   on(ev, fn) { this.handlers.set(ev, fn); }
+  once(ev, fn) { this.handlers.set(ev, fn); }
   focus() { this.focused++; }
   minimize() { this.minimized++; }
   maximize() { this.maximized++; }

@@ -178,7 +178,7 @@ const featureNames = {
   T16: 'F16 托盘/Deeplink', T17: 'F17 渲染管线', T18: 'F18 设置/自检',
   T19: 'F19 mermaid 渲染', T20: 'F20 文档预览', T21: 'F21 自动更新器', T22: 'F22 Browser-use',
   T23: 'F23 IM 通道', T24: 'F24 分享目标', T25: 'F25 云端市场', T26: 'F26 端云同步',
-  T27: 'F27 云沙箱', T28: 'F28 A2A 协作', T29: 'F29-F33 像素级 UI（WorkBuddy 复刻，排除支付）',
+  T27: 'F27 云沙箱', T28: 'F28 A2A 协作', T29: 'F29-F33 UI 规格（WorkBuddy 信息架构 + F60 视觉 token，排除支付）',
   T30: 'F34 MCP 服务面', T31: 'F35 原生菜单最小面', T32: 'F36 启动画面 splash',
   T33: 'F39 空间', T34: 'F40 定时任务', T35: 'F41 预设（助理）', T36: 'F42 资料库', T37: 'F43 @ 上下文',
   T38: 'F46 web_search/web_fetch 检索', T39: 'F47 present_file 交付', T40: 'F45 任务步数预算与续跑',
@@ -194,6 +194,7 @@ const featureNames = {
   T53: 'F37 会话独立窗口（单实例复用重定向 + conversation 模式 + win-self）',
   T54: 'F58 文件历史/回滚（本地版本快照 + files.history.* + 产物面板恢复）',
   T55: 'F59 Computer Use（引擎视觉回路 + 浏览器 CUA + OS computer 工具，默认关门控）',
+  T56: 'F60 UI 精修（窗口无闪烁淡入、子窗锚定主窗、搜索浮动面板、页内确认对话框）',
 };
 
 let lines = [];

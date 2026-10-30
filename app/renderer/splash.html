@@ -4,25 +4,36 @@
 <meta charset="utf-8">
 <title>MyAgent</title>
 <style>
-  :root { --brand: #00c29a; --text-1: #1f2329; --text-2: #646a73; }
+  /* F60 splash (design/44 §6): app tokens, logo mark, ink progress line */
+  :root { --bg: #fbfaf7; --text-1: #1d1c1a; --text-2: #9a978f; --track: #e6e3dd; --ink: #1d1c1a; }
+  :root.dark { --bg: #1b1a18; --text-1: #ecebe6; --text-2: #77746d; --track: #34322e; --ink: #ecebe6; }
   html, body { margin: 0; height: 100%; }
   body {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 24px; background: #fff; color: var(--text-1);
-    font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
-    -webkit-app-region: drag; user-select: none;
+    gap: 18px; background: var(--bg); color: var(--text-1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    -webkit-app-region: drag; user-select: none; -webkit-font-smoothing: antialiased;
+    animation: in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
-  .brand { font-size: 28px; font-weight: 700; letter-spacing: 0.01em; }
-  .bar { width: 240px; height: 4px; border-radius: 9999px; background: #ebebeb; overflow: hidden; }
+  .mark {
+    width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #2a9b7c 0%, #14664f 100%); color: #fff; font-size: 26px; font-weight: 700;
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.25), 0 8px 24px -8px rgba(20, 102, 79, 0.6);
+  }
+  .brand { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+  .bar { width: 160px; height: 2px; border-radius: 9999px; background: var(--track); overflow: hidden; margin-top: 4px; }
   .bar::after {
-    content: ""; display: block; width: 40%; height: 100%; border-radius: 9999px;
-    background: var(--brand); animation: slide 1.2s ease-in-out infinite;
+    content: ""; display: block; width: 36%; height: 100%; border-radius: 9999px;
+    background: var(--ink); animation: slide 1.3s cubic-bezier(0.6, 0, 0.4, 1) infinite;
   }
-  .hint { font-size: 13px; color: var(--text-2); }
-  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+  .hint { font-size: 12px; color: var(--text-2); }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+  @keyframes in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
 </style>
+<script>if (new URLSearchParams(location.search).get('theme') === 'dark') document.documentElement.classList.add('dark');</script>
 </head>
 <body>
+  <div class="mark">M</div>
   <div class="brand">MyAgent</div>
   <div class="bar"></div>
   <div class="hint">正在启动…</div>

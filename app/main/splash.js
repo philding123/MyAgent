@@ -10,26 +10,38 @@ const state = { created: false, closed: false };
 let win = null;
 
 function createSplash() {
+  // F60 (design/44 §6): compact 560×360 card in the app's warm palette
+  const dark = global.__myagentTheme === 'dark';
   win = new BrowserWindow({
-    width: 800,
-    height: 500,
+    width: 560,
+    height: 360,
     resizable: false,
     frame: false,
-    show: !process.env.MYAGENT_SMOKE,
+    show: false,
     title: 'MyAgent',
-    backgroundColor: '#ffffff',
+    backgroundColor: dark ? '#1b1a18' : '#fbfaf7',
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
   state.created = true;
   win.on('closed', () => { win = null; });
-  win.loadFile(path.join(__dirname, '..', 'renderer', 'splash.html'));
+  win.once('ready-to-show', () => { if (!process.env.MYAGENT_SMOKE && win && !win.isDestroyed()) win.show(); });
+  win.loadFile(path.join(__dirname, '..', 'renderer', 'splash.html'), { search: dark ? '?theme=dark' : '' });
   return win;
 }
 
+// hand-off fades the splash out where window opacity is supported
 function closeSplash() {
   state.closed = true;
-  if (win && !win.isDestroyed()) win.destroy();
+  const w = win;
   win = null;
+  if (!w || w.isDestroyed()) return;
+  if (!w.isVisible() || !(process.platform === 'win32' || process.platform === 'darwin')) { w.destroy(); return; }
+  let opacity = 1;
+  const timer = setInterval(() => {
+    if (w.isDestroyed()) { clearInterval(timer); return; }
+    opacity -= 0.2;
+    if (opacity <= 0) { clearInterval(timer); w.destroy(); } else w.setOpacity(opacity);
+  }, 16);
 }
 
 function getState() {

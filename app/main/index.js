@@ -307,7 +307,7 @@ async function runSmoke() {
     const bridge = await mainWin.webContents.executeJavaScript('window.myagent ? window.myagent.ping() : "no-bridge"', true);
     step('preload-bridge', bridge === 'pong', String(bridge));
 
-    // T29 pixel UI (F29-F33 / design/33 v5.8.2 real UI): tokens, layout, payment exclusion
+    // T29 UI spec (F60 design/44 §3–4 tokens + layout; IA from design/33): tokens, layout, payment exclusion
     const ui = await mainWin.webContents.executeJavaScript(`(() => {
       const cs = getComputedStyle(document.body);
       return {
@@ -316,17 +316,17 @@ async function runSmoke() {
         band: document.getElementById('band').offsetHeight,
       };
     })()`, true);
-    step('ui-token', ui.brand === '#00c29a', JSON.stringify(ui));
-    // shell = wb v5.8.2: 30px band above a 360px sidebar
-    step('ui-shell', ui.side === 360 && ui.band === 30, JSON.stringify(ui));
-    // task view: open the smoke session via the renderer hook, then header 64
+    step('ui-token', ui.brand === '#1a7f64', JSON.stringify(ui));
+    // shell: 30px band above a 280px sidebar
+    step('ui-shell', ui.side === 280 && ui.band === 30, JSON.stringify(ui));
+    // task view: open the smoke session via the renderer hook, then header 52
     await mainWin.webContents.executeJavaScript(
       'window.__myagentTest.openSession(' + JSON.stringify(s1.result.id) + ')', true);
     const ui2 = await mainWin.webContents.executeJavaScript(`(() => ({
       top: document.getElementById('topbar').offsetHeight,
       heroOk: !!document.querySelector('#messages .home-hero') === !document.querySelector('#messages .msg'),
     }))()`, true);
-    step('ui-main', ui2.top === 64 && ui2.heroOk, JSON.stringify(ui2));
+    step('ui-main', ui2.top === 52 && ui2.heroOk, JSON.stringify(ui2));
     // T44 (F44/F45/F48/F49 renderer surfaces): inject engine events through the
     // test hook and assert the wb-parity cards — artifact card, plan card,
     // progress line, tool_result merged in place with fail badge + detail,
@@ -357,8 +357,8 @@ async function runSmoke() {
     })()`, true);
     step('ui-tool-surfaces', !surf.err && surf.art && surf.progOk && surf.rows === 2 && surf.doneRow
       && surf.merged && surf.progHidden && surf.usage, JSON.stringify(surf));
-    // F54 sidebar = wb v5.8.2 nav: six rows in a 202px block starting at
-    // y=96 (wb-live-tokens-main.json navNewTask), session rows carry a time
+    // F54 sidebar nav (wb six rows): a 202px block starting at y=92
+    // (design/44 §4), session rows carry a time
     const nav = await mainWin.webContents.executeJavaScript(`(() => {
       const nav = document.getElementById('sb-nav');
       const labels = [...nav.querySelectorAll('.nav-item')].map((b) => b.childNodes[1] ? b.childNodes[1].textContent : b.textContent);
@@ -368,7 +368,7 @@ async function runSmoke() {
         rel: [window.__myagentTest.relTime(Date.now() - 30e3), window.__myagentTest.relTime(Date.now() - 5 * 3600e3)] };
     })()`, true);
     step('ui-nav', nav.labels.join('|') === '新建任务|助理|专家·技能·连接器|定时任务|资料库|更多'
-      && nav.h === 202 && nav.top === 96 && nav.time && nav.rel[0] === '刚刚' && nav.rel[1] === '5小时前', JSON.stringify(nav));
+      && nav.h === 202 && nav.top === 92 && nav.time && nav.rel[0] === '刚刚' && nav.rel[1] === '5小时前', JSON.stringify(nav));
     // F53/F54 hub: Claude catalog cards render in the main area and the
     // install button really installs through the daemon
     // smoke runs against the real data dir: click the first card that is not
@@ -409,18 +409,19 @@ async function runSmoke() {
     const stWin = windows.get('settings');
     const stNav = await stWin.webContents.executeJavaScript(
       'document.querySelector(".settings-modal__nav").offsetWidth', true).catch(() => null);
-    step('ui-settings', stNav === 224, String(stNav));
+    step('ui-settings', stNav === 220, String(stNav));
     const shWin = windows.get('search');
     const shInfo = await shWin.webContents.executeJavaScript(
       '[window.innerWidth, window.innerHeight, document.getElementById("q").offsetHeight]', true).catch(() => null);
-    step('ui-search', !!shInfo && shInfo[0] === 800 && shInfo[1] === 640 && shInfo[2] >= 40, JSON.stringify(shInfo));
+    // F60 palette: 720×480 window, 52px search row (input ≥ 44px)
+    step('ui-search', !!shInfo && shInfo[0] === 720 && shInfo[1] === 480 && shInfo[2] >= 44, JSON.stringify(shInfo));
     const payWords = ['套餐', '积分', '充值', '订阅', '购买', '收银台', '微信支付'];
     const payHits = [];
     // design/27: the exclusion scan covers all four pages — open the preview
     // window on the shared fixture so it is scanned too
     const pvWin = windows.createPreview(smokeFixture());
     await new Promise((r) => setTimeout(r, 600));
-    // F33 geometry: 980×720 window, 32px bar on the #f2f2f2 backdrop
+    // F33/F60 geometry: 980×720 frameless window, 40px own title bar on the --gray-2 backdrop
     const pvInfo = await pvWin.webContents.executeJavaScript(
       '[window.innerWidth, window.innerHeight, document.getElementById("preview-bar").offsetHeight, getComputedStyle(document.body).backgroundColor]', true).catch(() => null);
     // a work area shorter than 720 + frame (CI runners run 1024×768) makes the
@@ -428,8 +429,8 @@ async function runSmoke() {
     const wa = require('electron').screen.getPrimaryDisplay().workAreaSize;
     const fits = wa.height >= 720 + 48;
     const pvH = !!pvInfo && (fits ? pvInfo[1] === 720 : pvInfo[1] >= wa.height - 120 && pvInfo[1] <= 720);
-    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvH && pvInfo[2] === 32
-      && /242,\s*242,\s*242/.test(pvInfo[3]), JSON.stringify(pvInfo) + (fits ? '' : ' clamped by work area ' + wa.width + '×' + wa.height));
+    step('ui-preview', !!pvInfo && pvInfo[0] === 980 && pvH && pvInfo[2] === 40
+      && /243,\s*241,\s*237/.test(pvInfo[3]), JSON.stringify(pvInfo) + (fits ? '' : ' clamped by work area ' + wa.width + '×' + wa.height));
     // F29 dark tokens end-to-end: setTheme over the real chain (persist +
     // rpc:event app:theme broadcast → renderer applies data-theme)
     await mainWin.webContents.executeJavaScript(
@@ -445,8 +446,8 @@ async function runSmoke() {
         gray2: cs.getPropertyValue('--gray-2').trim(),
       };
     })()`, true);
-    step('ui-token-dark', dark.attr === 'dark' && dark.brand === '#4ecba0'
-      && dark.content === '#1a1a1a' && dark.side === '#1f1f1f' && dark.gray2 === '#292929', JSON.stringify(dark));
+    step('ui-token-dark', dark.attr === 'dark' && dark.brand === '#4fc59e'
+      && dark.content === '#1b1a18' && dark.side === '#151413' && dark.gray2 === '#262521', JSON.stringify(dark));
     await mainWin.webContents.executeJavaScript(
       'window.myagent.windowAction("setTheme", { theme: "light" })', true);
     await new Promise((r) => setTimeout(r, 300));
@@ -507,7 +508,7 @@ async function runSmoke() {
     // main window keeps its shell after the conversation window opened
     const shellAfter = await mainWin.webContents.executeJavaScript(
       '[document.getElementById("sidebar").offsetWidth, document.getElementById("band").offsetHeight]', true);
-    step('conversation-main-shell', shellAfter[0] === 360 && shellAfter[1] === 30, JSON.stringify(shellAfter));
+    step('conversation-main-shell', shellAfter[0] === 280 && shellAfter[1] === 30, JSON.stringify(shellAfter));
     // reuse: a second session re-targets the same window (wb single-instance)
     const s2 = await daemon.request('sessions.create', { title: 'conv2' });
     await mainWin.webContents.executeJavaScript(
