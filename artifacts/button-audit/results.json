@@ -284,7 +284,7 @@
     "id": "hub-install",
     "name": "卡片「安装」 → 技能装入用户目录，按钮变「已安装」",
     "pass": true,
-    "note": "installed to skills\\mcp-builder"
+    "note": "installed to skills/mcp-builder"
   },
   {
     "section": "主窗 · 技能页",
@@ -333,7 +333,7 @@
     "id": "expert-import",
     "name": "导入 → 成为我的专家（带来源标记），重复导入不重复建",
     "pass": true,
-    "note": "imported 1 preset (pmvts6gu), re-import dedup"
+    "note": "imported 1 preset (pmvugxnh), re-import dedup"
   },
   {
     "section": "主窗 · 技能页",
@@ -389,7 +389,7 @@
     "id": "sub-workspace",
     "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
     "pass": true,
-    "note": "cwd=C:\\Users\\phil\\AppData\\Local\\Temp\\myagent-audit-fx-FaCH5e\\audit_workspace"
+    "note": "cwd=/tmp/myagent-audit-fx-qwShmc/audit_workspace"
   },
   {
     "section": "主窗 · 首页与输入区",
@@ -452,7 +452,7 @@
     "id": "confirm-deny",
     "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
     "pass": true,
-    "note": "denied, not written; s=46981a"
+    "note": "denied, not written; s=b57fab"
   },
   {
     "section": "主窗 · 运行中控件",
@@ -648,7 +648,7 @@
     "id": "im",
     "name": "IM 保存 token（vault）/ 启动（假 token → 如实报错）/ 停止",
     "pass": true,
-    "note": "telegram → error (fetch failed)"
+    "note": "telegram → error (Token invalid or expired)"
   },
   {
     "section": "设置窗",
@@ -674,9 +674,9 @@
   {
     "section": "设置窗",
     "id": "computer-live",
-    "name": "computer 工具实机：列窗口出 refs、真实截屏进视觉回路",
+    "name": "computer 工具（无 PowerShell 环境）：截屏动作=诚实环境错误值",
     "pass": true,
-    "note": "windows listed + real screenshot in the vision loop"
+    "note": "degraded to value error"
   },
   {
     "section": "设置窗",
@@ -730,8 +730,8 @@
   {
     "section": "主窗 · 窗带（收尾）",
     "id": "win-close",
-    "name": "关闭 → 主窗隐藏到托盘（进程不退出，可恢复）",
+    "name": "关闭 → 主窗关闭，最后一个窗口关闭后应用退出",
     "pass": true,
-    "note": "hidden (visible=false), restored from tray path"
+    "note": "window closed, app exited"
   }
 ]
