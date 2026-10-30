@@ -7,6 +7,9 @@
 
 ## Next
 
+- v0.4.0：F61 专家独立模型（模型档案）+ F65 cron/对话式定时任务（design/45 §3、§7；先拆 design/46、design/50）
+- v0.5.0：F62 资料库语义检索 + F64 编码代理委派（design/45 §4、§6）
+- v0.6.0：F63 飞书/钉钉/企业微信完整通道 + 定时任务结果推送到 IM（design/45 §5，需真实租户凭证手工联调）
 - 取得 wb「专家·技能·连接器」页实机截图（CDP），按 design/35 回改技能页布局并加像素断言
 - F24 手工项（一次管理员会话）：开发者模式 + SDK makeappx/signtool 签名 + 证书入 TrustedPeople → Add-AppxPackage；激活 argv 契约观察后定稿转发器（可顺带逆 WorkBuddyShareTarget.exe，带 PDB）。
 - F27 手工项：有 e2b 账号时云内跑一次命令；F26 两台机器目录同步互通。
@@ -23,6 +26,7 @@
 
 ## Recently Done
 
+- F60 UI 精修（暖中性 token、窗口无闪烁淡入/子窗锚定/搜索浮动面板、页内确认框；T29 改断言 design/44 规格 + 新 T56），merge 33e2ea8；发布 v0.3.1
 - F59 Computer Use：视觉回路+浏览器 CUA+OS computer 工具+门控 UI 四阶段一轮落地（T55 全绿，merge 1ababa0）
 - Phase 5–14 追记（2026-10-15~10-28）：像素 UI/实机 v5.8.2 基线/行为对比/功能补齐/安装发布/技能市场/侧栏六项等 F29–F54 全部完成，详见 design/00-roadmap 与 artifacts/acceptance-report.md
 - F55 产物中心 + F56 开源专家市场（含金融批）+ F57 社交内容拉取合入 main（merge fb5558d，T50/T51/T52 全绿）

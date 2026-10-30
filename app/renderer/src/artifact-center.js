@@ -30,7 +30,9 @@ export class ArtifactCenter {
       document.getElementById('artifact-' + operation).onclick = () => this.act(operation);
     }
     document.getElementById('artifact-history').onclick = () => this.toggleHistory();
+    document.getElementById('artifact-trace').onclick = () => this.toggleTrace();
     this.history = null;
+    this.trace = null;
     this.panel.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         this.setExpanded(false, true);
@@ -46,6 +48,7 @@ export class ArtifactCenter {
   setSession(id, records = []) {
     this.generation++;
     this.history = null;
+    this.trace = null;
     this.preview.destroy();
     this.preview = createPreviewController(this.previewHost, this.rpc);
     this.sessionId = id;
@@ -164,13 +167,15 @@ export class ArtifactCenter {
     document.getElementById('artifact-path').textContent = this.selected?.path || '';
     document.getElementById('artifact-source').setAttribute('aria-pressed', String(this.source));
     for (const button of this.panel.querySelectorAll('.artifact-actions button')) {
-      button.disabled = !this.selected || this.selected.location === 'remote';
+      // the trace describes how a remote file was produced too
+      button.disabled = !this.selected || (this.selected.location === 'remote' && button.id !== 'artifact-trace');
     }
   }
 
   async show(artifact) {
     const generation = ++this.generation;
     this.history = null;
+    this.trace = null;
     this.preview.destroy();
     this.preview = createPreviewController(this.previewHost, this.rpc);
     this.status.dataset.state = 'loading';
@@ -217,6 +222,7 @@ export class ArtifactCenter {
     if (this.history) return this.closeHistory();
     const artifact = this.selected;
     if (!artifact || artifact.location === 'remote') return;
+    this.trace = null;
     const generation = ++this.generation;
     this.status.dataset.state = 'loading';
     this.status.textContent = '正在读取版本…';
@@ -343,5 +349,185 @@ export class ArtifactCenter {
     };
     confirm.append(note, restore);
     host.appendChild(confirm);
+  }
+
+  // ---------- F66 execution trace (design/46): how this artifact was produced ----------
+  async toggleTrace() {
+    if (this.trace) return this.closeTrace();
+    const artifact = this.selected;
+    if (!artifact) return;
+    const generation = ++this.generation;
+    this.history = null;
+    this.status.dataset.state = 'loading';
+    this.status.textContent = '正在读取执行轨迹…';
+    try {
+      const [hit, turns, check] = await Promise.all([
+        this.rpc('trace.forArtifact', { sessionId: this.sessionId, path: artifact.path }),
+        this.rpc('trace.list', { sessionId: this.sessionId }),
+        this.rpc('trace.verify', { sessionId: this.sessionId }),
+      ]);
+      if (generation !== this.generation) return;
+      this.trace = { turn: hit.turn, records: hit.records, turns, check, path: artifact.path };
+      this.status.textContent = '';
+      this.status.dataset.state = '';
+      this.renderTrace();
+    } catch (error) {
+      if (generation !== this.generation) return;
+      this.status.textContent = '无法读取执行轨迹：' + error.message;
+      this.status.dataset.state = 'error';
+    }
+  }
+
+  closeTrace() {
+    this.trace = null;
+    if (this.selected) this.show(this.selected);
+  }
+
+  async openTurn(turn) {
+    const generation = ++this.generation;
+    const records = await this.rpc('trace.get', { sessionId: this.sessionId, turn });
+    if (generation !== this.generation || !this.trace) return;
+    this.trace.turn = turn;
+    this.trace.records = records;
+    this.renderTrace();
+  }
+
+  async exportTrace(format) {
+    const report = await this.rpc('trace.export', { sessionId: this.sessionId, turn: this.trace.turn, format });
+    const blob = new Blob([report.content], { type: format === 'json' ? 'application/json' : 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = report.filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    this.status.dataset.state = 'ready';
+    this.status.textContent = '已导出 ' + report.filename;
+  }
+
+  renderTrace() {
+    this.preview.destroy();
+    this.preview = createPreviewController(this.previewHost, this.rpc);
+    this.previewHost.replaceChildren();
+    const t = this.trace;
+    const el = (tag, cls, text) => {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text !== undefined) n.textContent = text;
+      return n;
+    };
+    const root = el('div', 'tr-root');
+    const head = el('div', 'tr-head');
+    head.appendChild(el('strong', '', t.turn ? '执行轨迹 · 第 ' + t.turn + ' 轮' : '执行轨迹'));
+    const badge = el('span', 'tr-verify ' + (t.check.ok ? 'ok' : 'bad'),
+      t.check.ok ? '✓ 哈希链完整 · ' + t.check.count + ' 条' : '✗ 第 ' + t.check.brokenAt + ' 条起被改动');
+    badge.title = '每条记录都以 sha256 链接上一条；任何修改、删除、插入都会让校验失败';
+    head.appendChild(badge);
+    const back = el('button', 'small', '返回预览');
+    back.onclick = () => this.closeTrace();
+    head.appendChild(back);
+    root.appendChild(head);
+
+    if (!t.turn) {
+      root.appendChild(el('p', 'fh-empty', '没有找到交付此产物的轨迹（轨迹从 F66 起记录；关闭「trace.enable」时不记录）。'));
+      this.previewHost.appendChild(root);
+      return;
+    }
+    const nums = t.turns.map((x) => x.turn);
+    const at = nums.indexOf(t.turn);
+    const nav = el('div', 'tr-nav');
+    const prev = el('button', 'small', '‹ 上一轮');
+    prev.disabled = at <= 0;
+    prev.onclick = () => this.openTurn(nums[at - 1]);
+    const next = el('button', 'small', '下一轮 ›');
+    next.disabled = at < 0 || at >= nums.length - 1;
+    next.onclick = () => this.openTurn(nums[at + 1]);
+    const md = el('button', 'small', '导出 Markdown');
+    md.onclick = () => this.exportTrace('md');
+    const json = el('button', 'small', '导出 JSON');
+    json.onclick = () => this.exportTrace('json');
+    nav.append(prev, next, el('span', 'tr-spring'), md, json);
+    root.appendChild(nav);
+
+    const recs = t.records;
+    const start = recs.find((r) => r.kind === 'turn_start') || {};
+    const end = recs.find((r) => r.kind === 'turn_end');
+    const meta = el('div', 'tr-meta');
+    const bits = [
+      { user: '用户指令', schedule: '定时任务', im: 'IM 消息', a2a: 'A2A', remote: '远程' }[start.source] || start.source || '—',
+      start.mode ? '模式 ' + start.mode : null, start.model ? '模型 ' + start.model : null,
+      end ? '耗时 ' + (end.ms / 1000).toFixed(1) + 's' : '未结束',
+      end && end.tokens ? end.tokens + ' tokens' : null,
+    ].filter(Boolean);
+    meta.textContent = bits.join(' · ');
+    root.appendChild(meta);
+    if (start.prompt) root.appendChild(el('blockquote', 'tr-prompt', start.prompt));
+
+    const list = el('ol', 'tr-list');
+    const results = new Map(recs.filter((r) => r.kind === 'tool_result').map((r) => [r.id, r]));
+    // an approval sits between a tool_call and its result: show it on that row
+    const gated = new Map();
+    let pendingCall = null;
+    for (const r of recs) {
+      if (r.kind === 'tool_call') pendingCall = r.id;
+      else if (r.kind === 'tool_result' && r.id === pendingCall) pendingCall = null;
+      else if (r.kind === 'confirm' && pendingCall) gated.set(pendingCall, r);
+    }
+    const CONFIRM = { approved: '✓ 批准', denied: '✗ 拒绝', timeout: '⏱ 超时（默认拒绝）' };
+    const time = (ts) => new Date(ts).toLocaleTimeString([], { hour12: false });
+    const POLICY = { allow: '放行', confirmed: '已批准', denied: '已拒绝', timeout: '超时拒绝', blocked: '策略拦截' };
+    for (const r of recs) {
+      if (r.kind === 'llm_step') {
+        const row = el('li', 'tr-row tr-llm');
+        row.append(el('span', 'tr-time', time(r.ts)), el('span', 'tr-label', '模型调用 #' + r.step),
+          el('span', 'tr-detail', (r.toolCalls ? '请求 ' + r.toolCalls + ' 个工具' : '给出回复') + ' · ' + r.ms + 'ms' + (r.tokens ? ' · ' + r.tokens + ' tokens' : '')));
+        list.appendChild(row);
+      } else if (r.kind === 'tool_call') {
+        const res = results.get(r.id);
+        const row = el('li', 'tr-row tr-tool' + (res && !res.ok ? ' fail' : '') + (res && res.artifact && res.artifact.path === t.path ? ' hit' : ''));
+        const label = el('span', 'tr-label');
+        label.append(el('code', '', r.name), el('span', 'tr-kind tr-kind--' + r.toolKind, r.toolKind));
+        const detail = el('div', 'tr-detail');
+        const args = el('details', 'tr-args');
+        args.append(el('summary', '', r.args.length > 90 ? r.args.slice(0, 90) + '…' : r.args), el('pre', '', r.args));
+        detail.appendChild(args);
+        const cf = gated.get(r.id);
+        if (cf) {
+          const c = el('div', 'tr-confirm tr-confirm--' + cf.outcome);
+          c.append(el('span', 'tr-label', '人工确认'), el('span', '', (CONFIRM[cf.outcome] || cf.outcome) + ' · ' + time(cf.ts)));
+          detail.appendChild(c);
+        }
+        if (res) {
+          const out = el('div', 'tr-result');
+          out.append(el('span', 'tr-policy tr-policy--' + res.policy, POLICY[res.policy] || res.policy),
+            el('span', res.ok ? 'tr-ok' : 'tr-bad', res.ok ? '成功' : '失败'),
+            el('span', 'tr-sum', res.summary + (res.ms ? ' · ' + res.ms + 'ms' : '')));
+          detail.appendChild(out);
+          if (res.artifact) {
+            const art = el('div', 'tr-art');
+            art.append(el('span', '', '产物 ' + res.artifact.path.split(/[\\/]/).pop()),
+              el('code', '', res.artifact.sha256 ? 'sha256 ' + res.artifact.sha256.slice(0, 16) + '…' : '未计算哈希（' + (res.artifact.skipped || '—') + '）'));
+            if (res.artifact.sha256) art.lastChild.title = res.artifact.sha256;
+            detail.appendChild(art);
+          }
+        }
+        row.append(el('span', 'tr-time', time(r.ts)), label, detail);
+        list.appendChild(row);
+      } else if (r.kind === 'confirm' && ![...gated.values()].includes(r)) {
+        const row = el('li', 'tr-row tr-confirm');
+        row.append(el('span', 'tr-time', time(r.ts)), el('span', 'tr-label', '人工确认'),
+          el('span', 'tr-detail', (CONFIRM[r.outcome] || r.outcome) + ' · ' + r.describe));
+        list.appendChild(row);
+      } else if (r.kind === 'turn_end') {
+        const row = el('li', 'tr-row tr-end');
+        row.append(el('span', 'tr-time', time(r.ts)), el('span', 'tr-label', '结束'),
+          el('span', 'tr-detail', ({ complete: '完成', aborted: '已中止', 'max-steps': '达到步数上限', error: '出错' }[r.reason] || r.reason)
+            + (r.error ? ' · ' + r.error : '')));
+        list.appendChild(row);
+      } else if (r.kind === 'limit') {
+        list.appendChild(el('li', 'tr-row tr-end', r.note));
+      }
+    }
+    root.appendChild(list);
+    this.previewHost.appendChild(root);
   }
 }

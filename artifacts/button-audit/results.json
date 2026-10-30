@@ -333,7 +333,7 @@
     "id": "expert-import",
     "name": "导入 → 成为我的专家（带来源标记），重复导入不重复建",
     "pass": true,
-    "note": "imported 1 preset (pmvuidsx), re-import dedup"
+    "note": "imported 1 preset (pmvuk9db), re-import dedup"
   },
   {
     "section": "主窗 · 技能页",
@@ -389,7 +389,7 @@
     "id": "sub-workspace",
     "name": "选择工作空间 → 选目录 → 首条消息建的会话 cwd=该目录 + 归入空间",
     "pass": true,
-    "note": "cwd=/tmp/myagent-audit-fx-6AvCQy/audit_workspace"
+    "note": "cwd=/tmp/myagent-audit-fx-Oe54Th/audit_workspace"
   },
   {
     "section": "主窗 · 首页与输入区",
@@ -452,7 +452,7 @@
     "id": "confirm-deny",
     "name": "批准条「Deny」→ 文件不写入，模型收到拒绝",
     "pass": true,
-    "note": "denied, not written; s=f1ea24"
+    "note": "denied, not written; s=406781"
   },
   {
     "section": "主窗 · 运行中控件",
@@ -502,6 +502,13 @@
     "name": "历史版本：真实快照列表、diff 恢复旧版本并校验字节回滚",
     "pass": true,
     "note": "versions=2, restored baseline"
+  },
+  {
+    "section": "主窗 · 运行中控件",
+    "id": "artifact-trace",
+    "name": "执行轨迹：交付该产物那一轮的工具/参数/人工批准/字节哈希，哈希链校验通过，导出 Markdown 报告",
+    "pass": true,
+    "note": "turn traced, approval + sha256 shown, report exported"
   },
   {
     "section": "主窗 · 运行中控件",

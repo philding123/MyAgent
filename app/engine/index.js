@@ -9,6 +9,7 @@
 //                {type:'confirm', id, approved}
 //                {type:'abort'}
 // stdout events: status/token/tool_call/tool_result/confirm_request/done/error
+// + F66 trace facts: llm_step, confirm_resolved (design/46)
 
 const readline = require('readline');
 const path = require('path');
@@ -180,9 +181,13 @@ async function runTurn(userText) {
     if (state.aborted) { emit({ type: 'done', reason: 'aborted' }); return; }
     pruneImages(state.history); // F59: only the newest screenshots keep pixels
     compactHistory(state.history, state.maxContextChars);
+    const llmStarted = Date.now();
     const reply = await state.llm.chat(state.history, state.tools.definitions);
-    if (state.llm.lastUsage && state.llm.lastUsage.total_tokens) state.turnTokens += state.llm.lastUsage.total_tokens;
+    const stepTokens = (state.llm.lastUsage && state.llm.lastUsage.total_tokens) || 0;
+    if (stepTokens) state.turnTokens += stepTokens;
     const toolCalls = reply.tool_calls || [];
+    // F66: one model round-trip, for the execution trace
+    emit({ type: 'llm_step', step: step + 1, ms: Date.now() - llmStarted, tokens: stepTokens, toolCalls: toolCalls.length });
     if (reply.content) {
       emit({ type: 'token', text: reply.content });
       state.history.push({ role: 'assistant', content: reply.content, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
@@ -202,24 +207,30 @@ async function runTurn(userText) {
       const name = call.function.name;
       let args = {};
       try { args = JSON.parse(call.function.arguments || '{}'); } catch (_) {}
-      // F49: steps ride tool_call events for the renderer's progress line
-      emit({ type: 'tool_call', id: call.id, name, args, step: step + 1, maxSteps: state.maxSteps });
+      // F49: steps ride tool_call events for the renderer's progress line;
+      // F66: kind is the policy class the trace records
+      emit({ type: 'tool_call', id: call.id, name, args, kind: kindFor(name, args), step: step + 1, maxSteps: state.maxSteps });
       const verdict = await gateTool(name, args);
       if (verdict.blocked) {
         state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: false, summary: verdict.reason }) });
-        emit({ type: 'tool_result', id: call.id, ok: false, summary: verdict.reason, reason: verdict.kind });
+        emit({ type: 'tool_result', id: call.id, ok: false, summary: verdict.reason, reason: verdict.kind, policy: 'blocked', ms: 0 });
         continue;
       }
+      let policy = 'allow';
       if (verdict.needConfirm) {
-        const approved = await askConfirm(verdict);
-        if (!approved) {
-          state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: false, summary: 'user denied: ' + verdict.describe }) });
-          emit({ type: 'tool_result', id: call.id, ok: false, summary: 'user denied', reason: 'denied' });
+        const outcome = await askConfirm(verdict);
+        if (outcome !== 'approved') {
+          const why = outcome === 'timeout' ? 'confirmation timed out: ' : 'user denied: ';
+          state.history.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ ok: false, summary: why + verdict.describe }) });
+          emit({ type: 'tool_result', id: call.id, ok: false, summary: outcome === 'timeout' ? 'confirmation timed out' : 'user denied', reason: 'denied', policy: outcome, ms: 0 });
           continue;
         }
+        policy = 'confirmed';
       }
       const tool = state.tools.tools[name];
+      const toolStarted = Date.now();
       const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
+      const toolMs = Date.now() - toolStarted;
       // F59: results carrying data.image keep a text tool message and queue a
       // user image message (tool messages are text-only on OpenAI-compatible
       // APIs); cap violations become the result itself as an honest value error
@@ -235,17 +246,21 @@ async function runTurn(userText) {
         location: name === 'present_file' ? 'local' : result.data.location }, {
         sessionId: state.init.sessionId, toolCallId: call.id, sourceTool: name, createdAt: Date.now(),
       }) : null;
-      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result), ...(artifact ? { artifact } : {}) });
+      emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result), policy, ms: toolMs, ...(artifact ? { artifact } : {}) });
     }
     state.history.push(...imageMsgs);
   }
   emit({ type: 'done', reason: 'max-steps', ...(state.turnTokens ? { usageTokens: state.turnTokens } : {}) });
 }
 
-async function gateTool(name, args) {
+// per-arg kind (browser tool: read vs exec actions) wins over static kind
+function kindFor(name, args) {
   const tool = state.tools.tools[name];
-  // per-arg kind (browser tool: read vs exec actions) wins over static kind
-  const kind = tool ? (typeof tool.kindOf === 'function' ? tool.kindOf(args) : tool.kind) : 'read';
+  return tool ? (typeof tool.kindOf === 'function' ? tool.kindOf(args) : tool.kind) : 'read';
+}
+
+async function gateTool(name, args) {
+  const kind = kindFor(name, args);
   // 1) mode policy (engine-enforced, mirrors interactionmode hard rules)
   const modeV = checkToolMode(state.mode, kind, name, args);
   if (modeV.verdict === 'deny') return { blocked: true, kind: 'policy', reason: modeV.reason };
@@ -275,12 +290,14 @@ async function gateTool(name, args) {
   return {};
 }
 
+// resolves 'approved' | 'denied' | 'timeout' (120s, default deny); the
+// outcome is announced so the trace (F66) and the confirm bar both see it
 function askConfirm(verdict) {
   return new Promise((resolve) => {
     const id = 'cf_' + Math.random().toString(36).slice(2, 10);
-    state.pendingConfirms.set(id, resolve);
-    const timer = setTimeout(() => { if (state.pendingConfirms.has(id)) { state.pendingConfirms.delete(id); resolve(false); } }, 120000);
-    state.pendingConfirms.set(id, (ok) => { clearTimeout(timer); resolve(ok); });
+    const finish = (outcome) => { emit({ type: 'confirm_resolved', id, outcome }); resolve(outcome); };
+    const timer = setTimeout(() => { if (state.pendingConfirms.has(id)) { state.pendingConfirms.delete(id); finish('timeout'); } }, 120000);
+    state.pendingConfirms.set(id, (ok) => { clearTimeout(timer); finish(ok ? 'approved' : 'denied'); });
     emit({ type: 'confirm_request', id, command: verdict.describe, reason: verdict.reason || 'confirmation required' });
   });
 }

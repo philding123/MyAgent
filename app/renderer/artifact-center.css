@@ -54,3 +54,48 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
   #main #topbar { padding: 0 8px; gap: 4px; }
   #main #topbar #mode-switch { display: none; }
 }
+/* F66 execution trace timeline (design/46) */
+.tr-root { display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
+.tr-head { display: flex; align-items: center; gap: 10px; }
+.tr-head strong { flex: 1; }
+.tr-verify { font-size: 11.5px; padding: 2px 8px; border-radius: var(--radius-full); white-space: nowrap; }
+.tr-verify.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.tr-verify.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.tr-nav { display: flex; gap: 6px; align-items: center; }
+.tr-spring { flex: 1; }
+.tr-meta { font-size: 12px; color: var(--text-2); }
+.tr-prompt { margin: 0; padding: 6px 12px; border-left: 3px solid var(--brand); color: var(--text-1); font-size: 12.5px;
+  background: var(--card); border-radius: 0 var(--radius-md) var(--radius-md) 0; white-space: pre-wrap; max-height: 96px; overflow: auto; }
+.tr-list { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.tr-row { position: relative; display: grid; grid-template-columns: 62px minmax(0, 1fr); column-gap: 8px; row-gap: 4px;
+  padding: 8px 10px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); font-size: 12.5px; }
+.tr-row::before { content: ""; position: absolute; left: -20px; top: 13px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gray-5); box-shadow: 0 0 0 3px var(--gray-2); }
+.tr-tool::before { background: var(--ok); }
+.tr-tool.fail::before { background: var(--bad); }
+.tr-confirm::before { background: var(--warn); }
+.tr-detail .tr-confirm { display: flex; gap: 6px; align-items: center; margin-top: 4px; padding: 3px 8px; width: fit-content;
+  border-radius: var(--radius-md); background: color-mix(in srgb, var(--warn) 10%, transparent); font-size: 12px; }
+.tr-detail .tr-confirm--denied, .tr-detail .tr-confirm--timeout { background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.tr-detail .tr-confirm .tr-label { font-size: 12px; }
+.tr-row.hit { border-color: color-mix(in srgb, var(--brand) 55%, transparent); box-shadow: 0 0 0 3px var(--brand-soft); }
+.tr-time { color: var(--text-3); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.tr-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-1); }
+.tr-label code { font-family: var(--font-mono); font-size: 12px; }
+.tr-detail { grid-column: 2; color: var(--text-2); min-width: 0; }
+.tr-llm .tr-detail, .tr-confirm .tr-detail, .tr-end .tr-detail { grid-column: auto; }
+.tr-llm, .tr-confirm, .tr-end { grid-template-columns: 62px auto minmax(0, 1fr); }
+.tr-kind { font-size: 10.5px; font-weight: 600; padding: 0 6px; border-radius: var(--radius-sm); background: var(--gray-3); color: var(--text-2); }
+.tr-kind--write { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.tr-kind--exec { background: color-mix(in srgb, var(--bad) 13%, transparent); color: var(--bad); }
+.tr-args summary { cursor: pointer; font-family: var(--font-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-args pre { margin: 6px 0 0; padding: 8px; background: var(--gray-2); border-radius: var(--radius-md);
+  font-family: var(--font-mono); font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; user-select: text; }
+.tr-result, .tr-art { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.tr-policy { font-size: 11px; padding: 0 7px; border-radius: var(--radius-full); background: var(--gray-3); color: var(--text-2); }
+.tr-policy--confirmed { background: var(--brand-soft); color: var(--brand); }
+.tr-policy--denied, .tr-policy--timeout, .tr-policy--blocked { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
+.tr-ok { color: var(--ok); font-weight: 600; }
+.tr-bad { color: var(--bad); font-weight: 600; }
+.tr-sum { overflow-wrap: anywhere; }
+.tr-art code { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }

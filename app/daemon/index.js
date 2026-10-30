@@ -28,6 +28,7 @@ const { A2aServer } = require('./a2a');
 const { normalizeArtifact } = require('../shared/artifacts');
 const { createArtifactRegistry } = require('./artifacts');
 const { createFileHistory, createFileHistoryApi } = require('./file-history');
+const { createTraceStore, hashFile } = require('./trace');
 
 const APP_VERSION = require('../../package.json').version;
 
@@ -59,6 +60,36 @@ function createDaemon({ send }) {
       store.setSetting(k + '.set', true);
     }
   }
+  // F66 execution trace (design/46): hash-chained per-session audit log.
+  // Every vault secret is redacted out of it (cached briefly — the vault
+  // decrypts on each read).
+  let secretCache = { at: 0, values: [] };
+  const traceSecrets = () => {
+    if (Date.now() - secretCache.at > 30000) {
+      const keys = [...VAULT_KEYS, ...['telegram', 'slack', 'discord', 'dingtalk', 'feishu', 'webhook'].map((c) => 'im.' + c + '.token')];
+      secretCache = { at: Date.now(), values: keys.map((k) => { try { return vault.get(k); } catch (_) { return null; } }).filter(Boolean) };
+    }
+    return secretCache.values;
+  };
+  const trace = createTraceStore({
+    dir: path.join(home, 'traces'),
+    enabled: () => store.getSetting('trace.enable') !== false,
+    secrets: traceSecrets,
+    log: (level, scope, line) => store.log(level, scope, line),
+  });
+  const T = trace.clip;
+  const turnCtx = new Map(); // sessionId → {started, artifacts, confirms: Map}
+  // a turn opens wherever a prompt enters the engine (UI, schedule, IM, A2A)
+  function traceTurnStart(sessionId, text, source) {
+    const s = store.getSession(sessionId) || {};
+    const prompt = T(text, 2000);
+    trace.beginTurn(sessionId, {
+      source, prompt: prompt.text, promptTruncated: prompt.truncated || undefined,
+      promptSha: require('crypto').createHash('sha256').update(String(text || '')).digest('hex'),
+      mode: s.mode || null, preset: s.preset || null, model: store.getSetting('llm.model') || 'local-model',
+    });
+    turnCtx.set(sessionId, { started: Date.now(), artifacts: [], confirms: new Map() });
+  }
   const registry = new SkillRegistry([skillsBuiltin, skillsUser]);
   const presetsStore = createPresetStore(path.join(home, 'presets'));
   // F56 vendored open-source expert personas (design/39); disabled by setting
@@ -85,10 +116,28 @@ function createDaemon({ send }) {
   function recordEngineEvent(topic, payload) {
     if (!topic.startsWith('engine:')) return;
     const sid = topic.slice('engine:'.length);
+    const ctx = turnCtx.get(sid);
     if (payload.type === 'status' && payload.stage === 'thinking') { turnBuf.set(sid, ''); snapSeen.set(sid, new Set()); }
     else if (payload.type === 'token') turnBuf.set(sid, (turnBuf.get(sid) || '') + payload.text);
-    else if (payload.type === 'tool_call') callName.set(sid + ':' + payload.id, payload.name);
-    else if (payload.type === 'tool_result') {
+    else if (payload.type === 'llm_step') {
+      if (ctx) trace.append(sid, { kind: 'llm_step', step: payload.step, ms: payload.ms, tokens: payload.tokens || 0, toolCalls: payload.toolCalls || 0 });
+    } else if (payload.type === 'confirm_request') {
+      if (ctx) ctx.confirms.set(payload.id, String(payload.command || ''));
+    } else if (payload.type === 'confirm_resolved') {
+      if (ctx) {
+        trace.append(sid, { kind: 'confirm', id: payload.id, describe: T(ctx.confirms.get(payload.id), 500).text, outcome: payload.outcome });
+        ctx.confirms.delete(payload.id);
+      }
+    } else if (payload.type === 'tool_call') {
+      callName.set(sid + ':' + payload.id, payload.name);
+      if (ctx) {
+        let args = '';
+        try { args = JSON.stringify(payload.args || {}); } catch (_) { args = String(payload.args); }
+        const a = T(args, 2000);
+        trace.append(sid, { kind: 'tool_call', id: payload.id, name: payload.name, toolKind: payload.kind || 'read',
+          step: payload.step || null, args: a.text, argsTruncated: a.truncated || undefined });
+      }
+    } else if (payload.type === 'tool_result') {
       const name = callName.get(sid + ':' + payload.id) || 'tool';
       callName.delete(sid + ':' + payload.id);
       const candidate = payload.artifact;
@@ -103,21 +152,46 @@ function createDaemon({ send }) {
       if (artifact) payload.artifact = artifact;
       // F58: snapshot local write/deliver artifacts (best-effort, once per
       // file per turn); failures only log — the write already succeeded
+      let snapshot = null;
       if (artifact && artifact.location === 'local' && (name === 'write_file' || name === 'present_file')) {
         let seen = snapSeen.get(sid);
         if (!seen) { seen = new Set(); snapSeen.set(sid, seen); }
         if (!seen.has(artifact.path)) {
           seen.add(artifact.path);
           const snap = fileHistory.record(artifact.path, { sessionId: sid, tool: name });
-          if (!snap.ok && snap.reason !== 'disabled') {
+          if (snap.ok) snapshot = snap.version;
+          else if (snap.reason !== 'disabled') {
             store.log('info', 'file-history', 'no snapshot (' + snap.reason + '): ' + artifact.path);
           }
         }
+      }
+      // F66: the delivered bytes are fingerprinted at delivery time
+      if (ctx) {
+        let art;
+        if (artifact) {
+          const fp = artifact.location === 'local'
+            ? (snapshot && snapshot.sha256 ? { sha256: snapshot.sha256, size: snapshot.size } : hashFile(artifact.path))
+            : { sha256: null, size: null, skipped: 'remote' };
+          art = { path: artifact.path, location: artifact.location, ...fp, snapshot: snapshot ? snapshot.id : null };
+          ctx.artifacts.push(artifact.path);
+        }
+        trace.append(sid, { kind: 'tool_result', id: payload.id, name, ok: payload.ok === true,
+          ms: Number(payload.ms) || 0, policy: payload.policy || (payload.reason === 'denied' ? 'denied' : payload.ok === false && payload.reason ? 'blocked' : 'allow'),
+          summary: T(payload.summary, 500).text, ...(art ? { artifact: art } : {}) });
       }
     } else if (payload.type === 'done' || payload.type === 'error' || payload.type === 'engine_exit') {
       const text = turnBuf.get(sid);
       if (text && text.trim()) store.appendMessage({ session_id: sid, role: 'assistant', content: text });
       turnBuf.delete(sid);
+      if (ctx) {
+        const reply = T(text || '', 1000);
+        trace.append(sid, { kind: 'turn_end', reason: payload.type === 'done' ? (payload.reason || 'complete') : payload.type,
+          ms: Date.now() - ctx.started, tokens: payload.usageTokens || 0, reply: reply.text,
+          replySha: require('crypto').createHash('sha256').update(String(text || '')).digest('hex'),
+          ...(payload.type === 'error' && payload.message ? { error: T(payload.message, 500).text } : {}),
+          artifacts: ctx.artifacts });
+        turnCtx.delete(sid);
+      }
     }
   }
   const emit = (topic, payload) => {
@@ -161,7 +235,7 @@ function createDaemon({ send }) {
         store.setSetting('tasks.schedule.' + t.id, JSON.stringify(t));
       }
       await methods['engine.start']({ sessionId: sid });
-      await methods['engine.userMessage']({ sessionId: sid, text: t.prompt });
+      await methods['engine.userMessage']({ sessionId: sid, text: t.prompt, source: 'schedule' });
       emit('app:sync', { kind: 'schedule-fired', id: t.id, sessionId: sid });
       emit('sessions:changed', { method: 'tasks.fire' });
     },
@@ -254,7 +328,7 @@ function createDaemon({ send }) {
   // create-or-reuse a session, run one turn, return the assistant text.
   const engineBridge = {
     createSession: (p) => store.createSession(p),
-    async runTurn(sessionId, text) {
+    async runTurn(sessionId, text, source = 'remote') {
       await engineHost.start(sessionId);
       pipeEngine(sessionId);
       const h = engineHost.engines.get(sessionId);
@@ -263,6 +337,7 @@ function createDaemon({ send }) {
       const offTokens = h.onEvent((ev) => { if (ev.type === 'token') reply += ev.text; });
       try {
         store.appendMessage({ session_id: sessionId, role: 'user', content: text });
+        traceTurnStart(sessionId, text, source);
         await engineHost.userMessage(sessionId, text);
         await new Promise((resolve) => {
           const timer = setTimeout(resolve, 180000);
@@ -324,7 +399,7 @@ function createDaemon({ send }) {
         handleSend: async (text) => {
           let s = store.listSessions().find((x) => x.title === 'A2A');
           if (!s) s = await engineBridge.createSession({ title: 'A2A' });
-          const reply = await engineBridge.runTurn(s.id, text);
+          const reply = await engineBridge.runTurn(s.id, text, 'a2a');
           return reply || '(no reply)';
         },
         log: (scope, line) => store.log('info', scope, line),
@@ -359,6 +434,13 @@ function createDaemon({ send }) {
     'artifacts.list': async (p) => artifacts.list(p),
     'artifacts.resolve': async (p) => artifacts.resolve(p),
     // F58 (design/42): restore/delete are workspace-gated in filesApi
+    // F66 execution trace (design/46)
+    'trace.list': async (p) => trace.list(p.sessionId),
+    'trace.get': async (p) => trace.get(p.sessionId, p.turn),
+    'trace.forArtifact': async (p) => trace.forArtifact(p.sessionId, p.path),
+    'trace.verify': async (p) => trace.verify(p.sessionId),
+    'trace.export': async (p) => trace.exportReport(p.sessionId, {
+      turn: p.turn, format: p.format === 'json' ? 'json' : 'md', title: (store.getSession(p.sessionId) || {}).title || '' }),
     'files.history.list': async (p) => filesApi.list(p),
     'files.history.diff': async (p) => filesApi.diff(p),
     'files.history.restore': async (p) => filesApi.restore(p),
@@ -373,7 +455,7 @@ function createDaemon({ send }) {
       sync.noteChange(p.session_id);
       return store.appendMessage(p);
     },
-    'sessions.delete': async (p) => { engineHost.stop(p.id); return store.deleteSession(p.id); },
+    'sessions.delete': async (p) => { engineHost.stop(p.id); trace.remove(p.id); turnCtx.delete(p.id); return store.deleteSession(p.id); },
     'sessions.rename': async (p) => store.updateSession(p.id, { title: p.title }),
     'sessions.setMode': async (p) => {
       const s = store.updateSession(p.id, { mode: p.mode });
@@ -505,6 +587,7 @@ function createDaemon({ send }) {
       // body rides along with the message instead of hoping the model reads it
       const sk = augmentSkill(aug.text, (name) => registry.enabled().find((x) => x.name === name));
       store.appendMessage({ session_id: p.sessionId, role: 'user', content: p.text });
+      traceTurnStart(p.sessionId, p.text, p.source === 'schedule' ? 'schedule' : 'user');
       await engineHost.userMessage(p.sessionId, sk.text);
       return { ok: true, contextUsed: aug.used, skill: sk.skill };
     },
@@ -565,6 +648,8 @@ function createDaemon({ send }) {
     'data.clear': async () => {
       for (const s of store.listSessions()) store.deleteSession(s.id);
       for (const m of store.listMemory()) store.deleteMemory(m.id);
+      trace.removeAll();
+      turnCtx.clear();
       return true;
     },
   };

@@ -151,7 +151,7 @@ class ChannelManager {
         sessionId = s.id;
         this.sessions.set(key, sessionId);
       }
-      const reply = await this.engineBridge.runTurn(sessionId, text);
+      const reply = await this.engineBridge.runTurn(sessionId, text, 'im');
       const handle = this.handles.get(channelId);
       if (handle && reply) await handle.send(reply, msg.replyContext, 'final');
     } catch (e) {
