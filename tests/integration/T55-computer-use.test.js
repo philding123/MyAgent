@@ -91,7 +91,10 @@ test('T55 default OFF: coordinate actions refuse without computer use, unknown t
   await d.waitEvent((m) => m.topic === 'engine:' + sessionId && m.payload.type === 'done', 30000);
   const tools = mock.requests.at(-1).messages.filter((m) => m.role === 'tool')
     .map((m) => typeof m.content === 'string' ? m.content : m.content[0].text);
-  assert.ok(tools.some((t2) => t2.includes('computer use enabled')), 'click_at refused by the gate: ' + JSON.stringify(tools));
+  // no system browser (browser-probe only knows Windows paths) → the browser
+  // tool is not registered at all; the click_at gate itself is covered by T55 unit
+  const gate = probeBrowser().available ? 'computer use enabled' : 'unknown tool: browser';
+  assert.ok(tools.some((t2) => t2.includes(gate)), 'click_at refused: ' + JSON.stringify(tools));
   // the computer tool is not even registered while the gate is off
   assert.ok(tools.some((t2) => t2.includes('unknown tool: computer')), 'computer tool absent while disabled');
 });
