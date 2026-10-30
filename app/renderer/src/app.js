@@ -319,6 +319,10 @@ function handleEngineEvent(ev) {
     if (ev.ok && ev.artifact?.path) artifactCenter.add(ev.artifact);
   } else if (ev.type === 'confirm_request') {
     showConfirm(ev);
+  } else if (ev.type === 'confirm_resolved') {
+    // a 120s timeout denies inside the engine: drop the stale approval bar
+    const bar = $('#confirm-bar');
+    if (bar.dataset.confirmId === ev.id) bar.classList.add('hidden');
   } else if (ev.type === 'done') {
     // stream finished: hydrate mermaid once on the final text (F19)
     if (streamingEl && streamingEl.isConnected) {
@@ -366,6 +370,7 @@ function appendContinueNotice() {
 function showConfirm(ev) {
   const bar = $('#confirm-bar');
   bar.classList.remove('hidden');
+  bar.dataset.confirmId = ev.id;
   bar.innerHTML = '';
   const label = document.createElement('span');
   label.textContent = 'Approve command: ' + ev.command;

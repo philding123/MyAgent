@@ -101,6 +101,7 @@ Phase 11（P11 技能分发对齐）：F53 内置 Claude 技能市场 + F54 侧�
 | F63 | 飞书/钉钉/企业微信完整通道（长连接/Stream，群聊 @ 策略，入站默认 ask 模式） | Octop 内置飞书/钉钉/QQ/微信/企业微信/Telegram/Discord + Gateway | v0.6.0 | 45-octop-gap-roadmap.md §5 | 📋 规划 T59 |
 | F64 | 编码代理委派（coding_delegate：Claude Code/Codex/OpenCode 无头运行，工作空间沙箱 + 确认门控 + 改动入 F58 快照） | Octop ACP 出站委派（OpenCode/CodeBuddy/Claude Code/Codex）+ 入站 ACP | v0.5.0 | 45-octop-gap-roadmap.md §6 | 📋 规划 T60 |
 | F65 | cron 与对话式定时任务（cron 表达式 + schedule 工具 + 结果投递 session/通知/IM） | Octop 自然语言建 cron + 可视化管理 + 推送 | v0.4.0 | 45-octop-gap-roadmap.md §7 | 📋 规划 T61 |
+| F66 | 执行轨迹与审计（每轮 turn_start/llm_step/tool_call 参数/人工确认/tool_result 策略与耗时/产物 sha256+快照/turn_end；sha256 哈希链防篡改、密钥脱敏；产物面板时间线 + Markdown/JSON 审计报告） | 用户诉求：交付后审计代理做了什么（wb/Octop 无同等本地防篡改轨迹） | P19 | 46-execution-trace.md | ✅ T62 |
 | F37 | 会话独立窗（单例复用重定向 + conversation 模式 + win-self；原 P2 观察项，2026-10-29 立项实施） | window-apps `conversation`（instancePolicy single + postMessage 重定向 + 640×800 utility） | P15 | 41-conversation-window.md | ✅ T53 |
 | — | 更新器（NSIS 静默 + 过渡窗）→ 已由 F21 以清单驱动形态复刻 | `@genieworkbuddy-desktop-updater/installer.exe` | — | 21-updater.md | ✅→F21 |
 | — | Office/文档预览 → 已由 F20 以开源组件复刻 | `docx-preview/pdf-preview/pptx-preview/sheet-preview` chunks | — | 20-mermaid-preview.md | ✅→F20 |

@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -778,6 +779,38 @@ await audit('file-history', '历史版本：真实快照列表、diff 恢复旧�
   await until(() => fs.readFileSync(target, 'utf8') === 'APPROVED', 8000, 'restored bytes');
   await until(() => main.locator('#artifact-preview').textContent().then((t) => t.includes('APPROVED')), 8000, 'preview after restore');
   return 'versions=' + count + ', restored baseline';
+});
+await audit('artifact-trace', '执行轨迹：交付该产物那一轮的工具/参数/人工批准/字节哈希，哈希链校验通过，导出 Markdown 报告', async () => {
+  const s = (await rpc('sessions.list')).find((x) => x.title === '审计-确认');
+  const target = path.join(wsDir, 'approved.txt');
+  await main.evaluate((id) => window.__myagentTest.openSession(id), s.id);
+  await main.click('.artifact-card');
+  await until(() => main.locator('#artifact-trace').isEnabled(), 4000, 'trace button enabled');
+  await main.click('#artifact-trace');
+  await until(() => main.locator('.tr-root .tr-list').count(), 5000, 'timeline rendered');
+  expect(await main.locator('.tr-verify.ok').count() === 1, 'hash chain badge not ok');
+  const hit = main.locator('.tr-row.hit');
+  expect(await hit.count() === 1, 'delivery step not highlighted');
+  expect((await hit.textContent()).includes('write_file'), 'highlighted step is not the write');
+  expect(await main.locator('.tr-row.hit .tr-policy--confirmed').count() === 1, 'human approval not shown on the write');
+  expect(await main.locator('.tr-confirm').count() >= 1, 'confirm record missing');
+  // the trace pins the delivered bytes (file-history restored them to the baseline)
+  const sha = crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+  expect((await main.locator('.tr-row.hit .tr-art code').getAttribute('title')) === sha, 'artifact sha256 differs from the delivered bytes');
+  await main.locator('.tr-row.hit .tr-args summary').click();
+  expect((await main.locator('.tr-row.hit .tr-args pre').textContent()).includes('approved.txt'), 'tool arguments not shown');
+  const saved = path.join(fx, 'trace-report.md');
+  await seam({ pick: saved });
+  const dl = main.waitForEvent('download', { timeout: 4000 }).catch(() => null);
+  await main.locator('.tr-nav button', { hasText: '导出 Markdown' }).click();
+  const d = await dl;
+  if (d) await d.saveAs(saved);
+  await until(() => fs.existsSync(saved), 5000, 'report file saved');
+  const report = fs.readFileSync(saved, 'utf8');
+  expect(report.includes(sha) && report.includes('哈希链：✓') && report.includes('approved'), 'report lacks hash/verdict/approval');
+  await main.locator('.tr-head button', { hasText: '返回预览' }).click();
+  await until(() => main.locator('.tr-root').count().then((n) => n === 0), 4000, 'back to preview');
+  return 'turn traced, approval + sha256 shown, report exported';
 });
 await audit('artifact-delivery', '正式交付自动右侧预览，HTML隔离与Markdown成品可读', async () => {
   const session = await rpc('sessions.create', { title: '审计-产物交付', cwd: wsDir });
