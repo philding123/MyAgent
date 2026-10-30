@@ -69,10 +69,15 @@ wb 的 computer use 分两层，实现形态不同：
 
 - **引擎消息支持图像**：`state.history` 目前全部纯字符串 content（engine/index.js
   `{role:'user',content:text}` / tool 结果 JSON.stringify）。约定：工具结果可携带
-  `{image: {mime, base64}}` → 该 tool 消息 content 组装为 OpenAI 多部件数组
-  `[{type:'text'},{type:'image_url',image_url:{url:'data:...'}}]`；压缩/缩放护栏
-  （JPEG ≤1280px 长边、单图 ≤300KB、每轮 ≤10 图，超限错误即值）。模型不支持图像 →
-  该轮错误即值，不重试风暴。
+  `{image: {mime, base64}}` → tool 消息仍为纯 JSON 字符串（标注 `image: attached in
+  the next user message`），图像经**本步工具批次之后**追加的 `role:'user'` 消息
+  `[{type:'text',标签},{type:'image_url',image_url:{url:'data:...'}}]` 下发——OpenAI
+  兼容 Chat Completions 的 tool 消息只接受文本部件（修订：首版把 image_url 放进 tool
+  消息，真实端点会拒/忽略，mock 掩盖了它）。护栏：单图 base64 ≤1.5MB、每轮 ≤10 图，
+  超限错误即值；上下文内仅最新 2 张保留像素（`pruneImages`，旧图退化为文字标签）；
+  压缩（F50）按每图固定 4000 字符计量并把图像消息并入其工具组——否则一张 ~300KB
+  base64 的截图本身就超过 150k 默认预算，压缩会在模型看到之前把它连同此前工作一并丢弃。
+  模型不支持图像 → 该轮错误即值，不重试风暴。
 - **browser 工具扩展**（沿用 F22 playwright-core 运行时）：新增动作
   `screenshot`（read 类）、`click_at {x,y}` / `type_at {x,y,text}`（exec 类，经
   kindOf 归 policy——ask/plan 拒）。对应 wb 浏览器 CUA 面（screenshot/cua）。
@@ -82,6 +87,11 @@ wb 的 computer use 分两层，实现形态不同：
 - 动作面（wb 原语对齐）：`screenshot`（read）/ `list_windows`（read）/
   `open_app {target}`（exec）/ `click {x,y}`、`type {text}`、`key {combo}`（exec，
   SendInput）。全部错误即值；坐标仅限已列窗口的客户区矩形内（防盲注桌面）。
+  坐标系 = 该窗口 ref 截图的像素（宽 >1280 的窗口截图被等比缩小，x/y 按比例换回窗口
+  像素；list_windows 返回 `coords{w,h}`）。click/type/key 在**同一次** PowerShell 调用
+  内先 `SetForegroundWindow` 再**校验** `GetForegroundWindow()==hwnd`（Windows 前台锁
+  常拒后台进程抢前台，不校验会把输入打进当前前台应用）→ 失败返回"未发送"值；按窗口
+  **实时**原点换算绝对坐标（窗口移动不再错位），尺寸与 list_windows 不符则拒绝（截图已过期）。
 - 实现：daemon 经 PowerShell 脚本执行（`MYAGENT_HOME` 外不落盘，脚本内嵌或
   scripts/ 内置）；每动作超时 10s；执行前后的窗口前置校验。
 - 沙箱关系：computer 工具绕过文件沙箱是本质（它操控的是屏幕，不是文件系统）——

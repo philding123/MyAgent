@@ -2,7 +2,7 @@
 // T55 integration (F59, design/43): the vision loop over the real daemon —
 // a scripted model drives browser navigate → screenshot → click_at → content
 // on a local fixture page; the NEXT LLM request must carry the screenshot as
-// an image_url part (that is the whole point of the loop), and the default
+// an image_url part in a user message (that is the whole point of the loop), and the default
 // OFF gate must refuse coordinate actions with an honest value.
 
 const test = require('node:test');
@@ -63,10 +63,15 @@ test('T55 vision loop: screenshot rides as image_url and CUA click changes the p
   const withImage = mock.requests.filter((r) => (r.messages || []).some((m) => Array.isArray(m.content)
     && m.content.some((p) => p.type === 'image_url' && String(p.image_url.url).startsWith('data:image/png;base64,'))));
   assert.ok(withImage.length >= 1, 'no image_url part ever reached the model');
-  const imgMsg = withImage[0].messages.find((m) => Array.isArray(m.content));
-  const textPart = imgMsg.content.find((p) => p.type === 'text');
-  assert.ok(!textPart.text.includes('base64'), 'base64 must not duplicate inside the text part');
-  assert.equal(imgMsg.role, 'tool');
+  // OpenAI-compatible tool messages are text-only: the image rides a user
+  // message right after the step's tool batch, and no tool message carries parts
+  const msgs = withImage[0].messages;
+  const imgIdx = msgs.findIndex((m) => Array.isArray(m.content));
+  assert.equal(msgs[imgIdx].role, 'user');
+  assert.ok(msgs.filter((m) => m.role === 'tool').every((m) => typeof m.content === 'string'), 'tool messages stay strings');
+  const shotTool = msgs.find((m) => m.role === 'tool' && m.tool_call_id === 's1');
+  assert.ok(!shotTool.content.includes('base64,'), 'base64 must not duplicate inside the tool text');
+  assert.equal(msgs[imgIdx - 1].role, 'tool', 'image follows the tool batch');
 
   // the CUA click actually flipped the fixture page
   const contentReq = mock.requests.at(-1);
