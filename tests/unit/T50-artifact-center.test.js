@@ -33,6 +33,7 @@ beforeEach(async () => {
         <button id="artifact-reveal"></button><button id="artifact-open"></button>
         <button id="artifact-copy"></button><button id="artifact-window"></button>
         <button id="artifact-history"></button>
+        <button id="artifact-trace"></button>
         <button id="artifact-source"></button>
       </div><div id="artifact-status"></div><div id="artifact-preview"></div>
     </aside>`);
