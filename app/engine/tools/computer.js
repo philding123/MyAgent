@@ -6,8 +6,13 @@
 //
 // Safety shape (deliberate, mirrors the browser tool's ref discipline):
 // - click/type/key target a WINDOW REF from this session's latest
-//   list_windows (w1..wN) with coordinates INSIDE that window's rect — no
-//   absolute desktop injection;
+//   list_windows (w1..wN) with coordinates INSIDE that window — no absolute
+//   desktop injection. x/y are pixels of that window's screenshot (windows
+//   wider than 1280px are captured downscaled, so x/y are scaled back here);
+// - input is injected only after the target is VERIFIED foreground (Windows'
+//   focus lock often refuses SetForegroundWindow from a background process —
+//   injecting anyway would hit whatever app is in front) and at its LIVE
+//   position; a resized window refuses (the model's screenshot is stale);
 // - screenshot captures the primary screen scaled to ≤1280px wide;
 // - non-win32 platforms and PowerShell failures are honest value errors.
 
@@ -21,9 +26,11 @@ const ACTION_KINDS = {
   open_app: 'exec', click: 'exec', type: 'exec', key: 'exec',
 };
 
-// Compact native runtime — one PS file, commands: list/shot/click/key/front.
+// Compact native runtime — one PS file, commands: list/open/shot/click/type/key.
+// click/type/key run Front first inside the SAME invocation (no gap between
+// the foreground check and the input).
 const PS = String.raw`
-param([string]$Cmd, [int]$X=0, [int]$Y=0, [int]$Hwnd=0, [string]$Keys='', [string]$Out='', [string]$Target='')
+param([string]$Cmd, [int]$X=0, [int]$Y=0, [long]$Hwnd=0, [int]$ExpW=0, [int]$ExpH=0, [string]$Keys='', [string]$Out='', [string]$Target='')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -37,12 +44,36 @@ public class W {
   [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder sb, int max);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, UIntPtr e);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
 }
 "@
+# Bring $Hwnd to the front and PROVE it got there; returns its live rect.
+# Throws WINDOW_GONE / NOT_FOREGROUND / RESIZED wxh (mapped to values in JS).
+function Front {
+  $hw = [IntPtr]$Hwnd
+  if (-not [W]::IsWindow($hw)) { throw 'WINDOW_GONE' }
+  [W]::SetForegroundWindow($hw) | Out-Null
+  Start-Sleep -Milliseconds 250
+  if ([W]::GetForegroundWindow().ToInt64() -ne $Hwnd) { throw 'NOT_FOREGROUND' }
+  $r = New-Object W+RECT
+  [W]::GetWindowRect($hw, [ref]$r) | Out-Null
+  if ($ExpW -gt 0 -and ((($r.R - $r.L) -ne $ExpW) -or (($r.B - $r.T) -ne $ExpH))) {
+    throw ('RESIZED ' + ($r.R - $r.L) + 'x' + ($r.B - $r.T))
+  }
+  return $r
+}
+function Click($r) {
+  $ax = $r.L + $X; $ay = $r.T + $Y
+  [W]::SetCursorPos($ax, $ay) | Out-Null
+  [W]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
+  [W]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
+  return ('clicked ' + $ax + ',' + $ay)
+}
 switch ($Cmd) {
   'list' {
     $found = New-Object System.Collections.ArrayList
@@ -107,19 +138,19 @@ switch ($Cmd) {
     Write-Output ('shot ' + $wd + 'x' + $ht)
   }
   'click' {
-    [W]::SetCursorPos($X, $Y) | Out-Null
-    [W]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
-    [W]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
-    Write-Output ('clicked ' + $X + ',' + $Y)
+    $r = Front
+    Write-Output (Click $r)
+  }
+  'type' {
+    $r = Front
+    Click $r | Out-Null
+    [System.Windows.Forms.SendKeys]::SendWait($Keys)
+    Write-Output 'typed'
   }
   'key' {
+    Front | Out-Null
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
     Write-Output 'keys sent'
-  }
-  'front' {
-    [W]::SetForegroundWindow([IntPtr]$Hwnd) | Out-Null
-    Start-Sleep -Milliseconds 250
-    Write-Output 'fronted'
   }
 }
 `;
@@ -177,6 +208,30 @@ function defaultExec(platform) {
   });
 }
 
+// Screenshot coordinate space of a window: the PS shot downscales anything
+// wider than SHOT_MAX_W (same rounding as its [int] cast), so model x/y live
+// in that space and scale back to window pixels by `s`.
+const SHOT_MAX_W = 1280;
+function coordSpace(rect) {
+  if (rect.w <= SHOT_MAX_W) return { s: 1, w: rect.w, h: rect.h };
+  return { s: rect.w / SHOT_MAX_W, w: SHOT_MAX_W, h: Math.max(1, Math.round(rect.h * SHOT_MAX_W / rect.w)) };
+}
+
+// Front failures → values that say nothing was injected and what to do
+function frontError(ref, message) {
+  if (/NOT_FOREGROUND/.test(message)) {
+    return 'window ' + ref + ' could not be brought to the foreground (Windows focus lock) — nothing was sent; '
+      + 'ask the user to click that window once, then retry';
+  }
+  if (/WINDOW_GONE/.test(message)) return 'window ' + ref + ' no longer exists — run list_windows again';
+  const resized = /RESIZED (\d+)x(\d+)/.exec(message);
+  if (resized) {
+    return 'window ' + ref + ' was resized since list_windows (now ' + resized[1] + 'x' + resized[2]
+      + ') — nothing was sent; run list_windows and take a new screenshot';
+  }
+  return null;
+}
+
 function makeComputerTool(opts = {}) {
   const platform = opts.platform || process.platform;
   const exec = opts.exec || defaultExec(platform);
@@ -199,17 +254,22 @@ function makeComputerTool(opts = {}) {
           title: String(w.Title || '').slice(0, 120), process: String(w.Process || ''),
           rect: { x: Number(w.X), y: Number(w.Y), w: Number(w.W), h: Number(w.H) } }));
         return { ok: true, summary: windows.length + ' windows (refs w1.. for click/type/key)',
-          data: { windows: windows.map(({ ref, title, process, rect }) => ({ ref, title, process, rect })) } };
+          data: { windows: windows.map(({ ref, title, process, rect }) => {
+            const cs = coordSpace(rect);
+            return { ref, title, process, rect, coords: { w: cs.w, h: cs.h } };
+          }) } };
       }
       if (action === 'screenshot') {
         // optional ref: capture that window (PrintWindow — works locked/
         // occluded); without one, capture the primary screen, which fails
         // with an honest value on locked/headless sessions
         let hwnd = 0;
+        let cs = null;
         if (args.ref) {
           const w = windows.find((x) => x.ref === args.ref);
           if (!w) return { ok: false, summary: 'unknown window ref: ' + args.ref + ' (run list_windows first)' };
           hwnd = w.hwnd;
+          cs = coordSpace(w.rect);
         }
         const file = path.join(os.tmpdir(), 'myagent-cu-' + Date.now() + '.png');
         const shotArgs = ['-Cmd', 'shot', '-Out', file];
@@ -218,7 +278,7 @@ function makeComputerTool(opts = {}) {
         try {
           const b64 = fs.readFileSync(file).toString('base64');
           return { ok: true, summary: out.trim() + ' (' + Math.round(b64.length / 1024) + 'KB base64)'
-            + (hwnd ? ' window ' + args.ref : ' primary screen'),
+            + (hwnd ? ' window ' + args.ref + '; image ' + cs.w + 'x' + cs.h + ' = the x/y space for click/type' : ' primary screen'),
             data: { image: { mime: 'image/png', base64: b64 } } };
         } finally { try { fs.unlinkSync(file); } catch (_) {} }
       }
@@ -232,33 +292,38 @@ function makeComputerTool(opts = {}) {
       // window-scoped actions need a fresh list first
       const w = windows.find((x) => x.ref === args.ref);
       if (!w) return { ok: false, summary: 'unknown window ref: ' + args.ref + ' (run list_windows first)' };
+      const cs = coordSpace(w.rect);
       const rel = (v, max) => (Number.isInteger(v) ? v : Math.floor(max / 2));
-      const x = rel(args.x, w.rect.w);
-      const y = rel(args.y, w.rect.h);
-      if (x < 0 || y < 0 || x >= w.rect.w || y >= w.rect.h) {
-        return { ok: false, summary: 'coordinates outside the window rect (' + w.rect.w + 'x' + w.rect.h + ')' };
+      const x = rel(args.x, cs.w);
+      const y = rel(args.y, cs.h);
+      if (x < 0 || y < 0 || x >= cs.w || y >= cs.h) {
+        return { ok: false, summary: 'coordinates outside the window (' + cs.w + 'x' + cs.h + ' screenshot pixels)' };
       }
-      const ax = w.rect.x + x;
-      const ay = w.rect.y + y;
+      // screenshot pixels → window pixels; PS adds the LIVE window origin
+      const at = ['-Hwnd', String(w.hwnd), '-ExpW', String(w.rect.w), '-ExpH', String(w.rect.h),
+        '-X', String(Math.min(w.rect.w - 1, Math.round(x * cs.s))), '-Y', String(Math.min(w.rect.h - 1, Math.round(y * cs.s)))];
+      const guarded = async (psArgs) => {
+        try { await runPs(psArgs); return null; } catch (e) {
+          const msg = frontError(args.ref, String(e && e.message || e));
+          if (msg) return { ok: false, summary: msg };
+          throw e;
+        }
+      };
       if (action === 'click') {
-        await runPs(['-Cmd', 'front', '-Hwnd', String(w.hwnd)]);
-        await runPs(['-Cmd', 'click', '-X', String(ax), '-Y', String(ay)]);
-        return { ok: true, summary: 'clicked ' + args.ref + ' at ' + x + ',' + y + ' (window-relative)' };
+        return (await guarded(['-Cmd', 'click', ...at]))
+          || { ok: true, summary: 'clicked ' + args.ref + ' at ' + x + ',' + y + ' (screenshot pixels)' };
       }
       if (action === 'type') {
         const text = String(args.text ?? '');
         if (!text) return { ok: false, summary: 'type needs text' };
-        await runPs(['-Cmd', 'front', '-Hwnd', String(w.hwnd)]);
-        await runPs(['-Cmd', 'click', '-X', String(ax), '-Y', String(ay)]);
-        await runPs(['-Cmd', 'key', '-Keys', toSendKeys(text)]);
-        return { ok: true, summary: 'typed ' + text.length + ' chars into ' + args.ref };
+        return (await guarded(['-Cmd', 'type', ...at, '-Keys', toSendKeys(text)]))
+          || { ok: true, summary: 'typed ' + text.length + ' chars into ' + args.ref };
       }
       if (action === 'key') {
         const keys = comboToSendKeys(args.combo);
         if (!keys) return { ok: false, summary: 'unsupported key combo: ' + args.combo + ' (single keys, enter/tab/arrows..., ctrl/alt/shift + single char)' };
-        await runPs(['-Cmd', 'front', '-Hwnd', String(w.hwnd)]);
-        await runPs(['-Cmd', 'key', '-Keys', keys]);
-        return { ok: true, summary: 'sent ' + args.combo + ' to ' + args.ref };
+        return (await guarded(['-Cmd', 'key', '-Hwnd', String(w.hwnd), '-Keys', keys]))
+          || { ok: true, summary: 'sent ' + args.combo + ' to ' + args.ref };
       }
       return { ok: false, summary: 'unknown action: ' + action + ' (valid: ' + Object.keys(ACTION_KINDS).join(',') + ')' };
     } catch (e) {
@@ -269,7 +334,7 @@ function makeComputerTool(opts = {}) {
   return {
     kind: 'read', // screenshot/list_windows readable; exec actions via kindOf
     kindOf: (args) => ACTION_KINDS[args.action] || 'read',
-    description: 'Computer use (OS-level). Actions: screenshot[ref] list_windows open_app{target} click{ref,x,y} type{ref,text[,x,y]} key{ref,combo}. refs come from list_windows; x/y are window-relative; screenshot without ref captures the primary screen, with ref captures that window. Applications only for open_app.',
+    description: 'Computer use (OS-level). Actions: screenshot[ref] list_windows open_app{target} click{ref,x,y} type{ref,text[,x,y]} key{ref,combo}. refs come from list_windows; x/y are pixels of that window ref screenshot (list_windows coords gives that size; windows wider than 1280px are downscaled); screenshot without ref captures the primary screen, with ref captures that window. Applications only for open_app.',
     schema: {
       type: 'object',
       properties: {
@@ -283,4 +348,4 @@ function makeComputerTool(opts = {}) {
   };
 }
 
-module.exports = { makeComputerTool, computerActionKinds: ACTION_KINDS, toSendKeys, comboToSendKeys };
+module.exports = { makeComputerTool, computerActionKinds: ACTION_KINDS, toSendKeys, comboToSendKeys, coordSpace };

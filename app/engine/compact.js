@@ -7,10 +7,20 @@
 // system message, the opening user goal, and the most recent groups within a
 // budget fraction of maxChars, inserting an explicit marker for what was cut.
 
-function groupSize(g) { return JSON.stringify(g).length; }
+const { isImageMessage } = require('./vision');
+
+// F59: an inline screenshot is hundreds of KB of base64 but costs the model
+// about a thousand tokens — measure it at a flat rate, or one screenshot
+// alone would blow the budget and compaction would drop it (and all earlier
+// work) before the model ever saw it.
+const IMAGE_CHAR_COST = 4000;
+const IMAGE_STANDIN = 'i'.repeat(IMAGE_CHAR_COST);
+const sizeReplacer = (k, v) => (k === 'url' && typeof v === 'string' && v.startsWith('data:image/') ? IMAGE_STANDIN : v);
+function sizeOf(x) { return JSON.stringify(x, sizeReplacer).length; }
+function groupSize(g) { return sizeOf(g); }
 
 function compactHistory(history, maxChars) {
-  if (JSON.stringify(history).length <= maxChars) return false;
+  if (sizeOf(history) <= maxChars) return false;
   const budget = Math.floor(maxChars * 0.6);
   const groups = [];
   let i = 1; // history[0] is the system message — never dropped
@@ -20,6 +30,8 @@ function compactHistory(history, maxChars) {
       const g = [m];
       i++;
       while (i < history.length && history[i].role === 'tool') { g.push(history[i]); i++; }
+      // F59 screenshots that follow a tool batch belong to that group
+      while (i < history.length && isImageMessage(history[i])) { g.push(history[i]); i++; }
       groups.push(g);
     } else {
       groups.push([m]);
@@ -47,4 +59,4 @@ function compactHistory(history, maxChars) {
   return true;
 }
 
-module.exports = { compactHistory };
+module.exports = { compactHistory, IMAGE_CHAR_COST };

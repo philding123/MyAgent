@@ -14,7 +14,7 @@ const readline = require('readline');
 const path = require('path');
 const { JsonlCodec } = require('../daemon/jsonl');
 const { compactHistory } = require('./compact');
-const { buildToolMessage } = require('./vision');
+const { buildToolMessage, pruneImages } = require('./vision');
 const { Sandbox, defaultRules } = require('../daemon/sandbox');
 const { makeTools } = require('./tools/index');
 const { checkToolMode, systemPromptFragment } = require('./policy');
@@ -178,6 +178,7 @@ async function runTurn(userText) {
   emit({ type: 'status', stage: 'thinking' });
   for (let step = 0; step < state.maxSteps; step++) {
     if (state.aborted) { emit({ type: 'done', reason: 'aborted' }); return; }
+    pruneImages(state.history); // F59: only the newest screenshots keep pixels
     compactHistory(state.history, state.maxContextChars);
     const reply = await state.llm.chat(state.history, state.tools.definitions);
     if (state.llm.lastUsage && state.llm.lastUsage.total_tokens) state.turnTokens += state.llm.lastUsage.total_tokens;
@@ -196,6 +197,7 @@ async function runTurn(userText) {
       return;
     }
 
+    const imageMsgs = []; // F59: appended after the whole tool batch
     for (const call of toolCalls) {
       const name = call.function.name;
       let args = {};
@@ -218,10 +220,12 @@ async function runTurn(userText) {
       }
       const tool = state.tools.tools[name];
       const result = tool ? await tool.run(args) : { ok: false, summary: 'unknown tool: ' + name };
-      // F59: results carrying data.image attach as an image_url part (the
-      // base64 never rides inside the JSON text); cap violations become the
-      // result itself so the model sees an honest value error
-      state.history.push(buildToolMessage(call.id, result, state.imageBudget).msg);
+      // F59: results carrying data.image keep a text tool message and queue a
+      // user image message (tool messages are text-only on OpenAI-compatible
+      // APIs); cap violations become the result itself as an honest value error
+      const built = buildToolMessage(call.id, result, state.imageBudget);
+      state.history.push(built.msg);
+      if (built.imageMsg) imageMsgs.push(built.imageMsg);
       // F55: only successful structured results can register an artifact.
       // Daemon rebinds session identity and timestamps before persistence.
       const { normalizeArtifact } = require('../shared/artifacts');
@@ -233,6 +237,7 @@ async function runTurn(userText) {
       }) : null;
       emit({ type: 'tool_result', id: call.id, ok: result.ok, summary: result.summary, detail: toolDetail(result), ...(artifact ? { artifact } : {}) });
     }
+    state.history.push(...imageMsgs);
   }
   emit({ type: 'done', reason: 'max-steps', ...(state.turnTokens ? { usageTokens: state.turnTokens } : {}) });
 }
